@@ -541,7 +541,7 @@ interface ChannelAdapter {
 
 ### 8.7 Admin Panel — full specification (internal — Inertia.js + React)
 
-Web admin at `admin.<domain>`, built in the **same Laravel project using Inertia.js + React** (Laravel 12's official React starter kit). One deploy, one repo, no CORS — while the UI is real React components (custom modern design, skill shared with the React Native app).
+Web admin at `admin.<domain>` (local dev: `/admin` path prefix), built in the **same Laravel project using Inertia.js + React** (Laravel's official React starter kit). One deploy, one repo, no CORS — while the UI is real React components (skill shared with the React Native app). **Decision (2026-07-13): admin UI is built with Shopify Polaris** (`@shopify/polaris`) rather than a custom design system.
 
 **Architecture rule (critical):** all business logic lives in `app/Actions/*` classes — the single source of truth consumed by three thin layers: `/api/v1/*` controllers (mobile JSON), `/admin/api/v1/*` controllers (admin JSON), and Inertia admin page controllers. Admin-managed data (plan limits, promotions, broadcasts, config) therefore flows to the mobile app automatically through the same Actions + database — edit a plan limit in admin, mobile's next `/me` reflects it. (Filament remains a fallback if admin build speed ever matters more than custom design.)
 
@@ -769,7 +769,7 @@ Use this as the master build list — tick items as completed. Ordering follows 
 
 ### 15.1 Foundations
 
-- [ ] Laravel project scaffold (modules: Connections, Orders, Rules, Notifications, Inbox, Billing, Analytics, Team, Support, Admin)
+- [ ] Laravel project scaffold (modules: Connections, Orders, Rules, Notifications, Inbox, Billing, Analytics, Team, Support, Admin) — *partial (2026-07-13): base Laravel + Inertia/React project configured (APP_NAME, SQLite dev DB); starter password-auth for end users removed per §4.1; domain modules pending*
 - [ ] **API-first:** `/api/v1` + `/admin/api/v1` namespaces, OpenAPI generation, Pest feature tests per endpoint (build & verify APIs before UIs)
 - [ ] Passwordless auth: OTP request/verify endpoints, rate limits, Apple/Google social convergence, device sessions
 - [ ] MySQL schema + migrations for all §9 entities
@@ -799,7 +799,7 @@ Use this as the master build list — tick items as completed. Ordering follows 
 - [ ] Rules engine v1: triggers (new order, high-value, unfulfilled-after-X, digest), condition tree, quiet hours, cooldown, execution log, test-fire
 - [ ] Push (FCM/APNs) with custom sounds + deep links; email alerts (SES); SMS (Twilio) + `sms_ledger`
 - [ ] **IAP billing:** RevenueCat SDK + products (`pro_monthly`, `pro_yearly`, `sms_100`, `sms_500`), `/hooks/revenuecat`, entitlement service, restore purchases, plan-gate middleware
-- [ ] **Admin panel (Inertia.js + React) per §8.7:** admin auth + 2FA + roles, KPI dashboard, customers module (list/detail/actions), plans & limits editor (DB-driven entitlements), promotions (offer-code campaigns + server comps), messaging center (segments, broadcasts, templates, delivery stats), **support inbox (live chat)**, ops/health boards, app config (min version, maintenance), audit log
+- [ ] **Admin panel (Inertia.js + React) per §8.7:** admin auth + 2FA + roles, KPI dashboard, customers module (list/detail/actions), plans & limits editor (DB-driven entitlements), promotions (offer-code campaigns + server comps), messaging center (segments, broadcasts, templates, delivery stats), **support inbox (live chat)**, ops/health boards, app config (min version, maintenance), audit log — *partial (2026-07-13): dedicated `admin` guard + `admin_users` table (roles: superadmin/support/readonly) via Fortify at `/admin/login`; Shopify Polaris UI (login + dashboard shell); seeded superadmin; 2FA columns ready but feature disabled until settings UI exists; all modules pending*
 - [ ] **In-app support chat:** user-side chat screen, Reverb delivery, push + email fallback, inbound email threading, canned replies
 - [ ] Onboarding UX: email→OTP→profile→connect-store flow, <60s store connection, empty states, notification bundling
 - [ ] Edge-case test suite covering §17 (auth, connections, sync idempotency, notification storm, IAP, offline)
