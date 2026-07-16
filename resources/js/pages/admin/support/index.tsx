@@ -1,16 +1,18 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Badge,
-    BlockStack,
-    Button,
+    Box,
     Card,
-    DataTable,
-    InlineStack,
+    IndexFilters,
+    IndexFiltersMode,
+    IndexTable,
     Page,
     Select,
     Text,
+    useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 
 import AdminLayout from '@/layouts/admin-layout';
 
@@ -38,6 +40,11 @@ const STATUS_OPTIONS = [
     { label: 'Resolved', value: 'resolved' },
 ];
 
+const UNASSIGNED_OPTIONS = [
+    { label: 'Anyone', value: '' },
+    { label: 'Unassigned only', value: 'true' },
+];
+
 const STATUS_TONE: Record<string, BadgeTone> = {
     open: 'attention',
     awaiting_user: 'info',
@@ -51,91 +58,165 @@ export default function SupportIndex({
     threads: ThreadSummary[];
     filters: Filters;
 }) {
-    const applyFilters = (next: Partial<Filters>) => {
+    const [status, setStatus] = useState(filters.status ?? '');
+    const [unassigned, setUnassigned] = useState(
+        filters.unassigned ? 'true' : '',
+    );
+    const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
+
+    const applyFilters = (
+        next: Partial<{ status: string; unassigned: string }>,
+    ) => {
         router.get(
             '/admin/support',
-            { ...filters, ...next },
+            { status, unassigned, ...next },
             { preserveState: true, replace: true },
         );
     };
 
-    const rows = threads.map((thread) => [
-        <Link key={thread.id} href={`/admin/support/${thread.id}`}>
-            <Text as="span" fontWeight="semibold">
-                {thread.user_name || thread.user_email}
-            </Text>
-        </Link>,
-        <Badge key={`${thread.id}-status`} tone={STATUS_TONE[thread.status]}>
-            {thread.status.replace('_', ' ')}
-        </Badge>,
-        thread.priority === 'high' ? (
-            <Badge key={`${thread.id}-priority`} tone="critical">
-                High
-            </Badge>
-        ) : (
-            '—'
-        ),
-        thread.assigned_admin_name ?? 'Unassigned',
-        thread.last_message_at
-            ? new Date(thread.last_message_at).toLocaleString()
-            : '—',
-    ]);
+    const clearAll = () => {
+        setStatus('');
+        setUnassigned('');
+        router.get(
+            '/admin/support',
+            {},
+            { preserveState: true, replace: true },
+        );
+    };
+
+    const appliedFilters = [
+        status
+            ? {
+                  key: 'status',
+                  label: `Status: ${STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}`,
+                  onRemove: () => {
+                      setStatus('');
+                      applyFilters({ status: '' });
+                  },
+              }
+            : null,
+        unassigned
+            ? {
+                  key: 'unassigned',
+                  label: 'Unassigned only',
+                  onRemove: () => {
+                      setUnassigned('');
+                      applyFilters({ unassigned: '' });
+                  },
+              }
+            : null,
+    ].filter((f): f is NonNullable<typeof f> => f !== null);
+
+    const rowMarkup = threads.map((thread, index) => (
+        <IndexTable.Row id={String(thread.id)} key={thread.id} position={index}>
+            <IndexTable.Cell>
+                <Link href={`/admin/support/${thread.id}`}>
+                    <Text as="span" fontWeight="semibold">
+                        {thread.user_name || thread.user_email}
+                    </Text>
+                </Link>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                <Badge tone={STATUS_TONE[thread.status]}>
+                    {thread.status.replace('_', ' ')}
+                </Badge>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {thread.priority === 'high' ? (
+                    <Badge tone="critical">High</Badge>
+                ) : (
+                    '—'
+                )}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {thread.assigned_admin_name ?? 'Unassigned'}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {thread.last_message_at
+                    ? new Date(thread.last_message_at).toLocaleString()
+                    : '—'}
+            </IndexTable.Cell>
+        </IndexTable.Row>
+    ));
 
     return (
         <>
             <Head title="Support Inbox" />
             <Page title="Support Inbox" fullWidth>
-                <BlockStack gap="400">
-                    <Card>
-                        <InlineStack gap="300" blockAlign="center">
-                            <Select
-                                label="Status"
-                                labelHidden
-                                options={STATUS_OPTIONS}
-                                value={filters.status ?? ''}
-                                onChange={(value) =>
-                                    applyFilters({ status: value || null })
-                                }
-                            />
-                            <Button
-                                pressed={filters.unassigned}
-                                onClick={() =>
-                                    applyFilters({
-                                        unassigned: !filters.unassigned,
-                                    })
-                                }
-                            >
-                                Unassigned only
-                            </Button>
-                        </InlineStack>
-                    </Card>
-
-                    <Card>
-                        {rows.length > 0 ? (
-                            <DataTable
-                                columnContentTypes={[
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'text',
-                                ]}
-                                headings={[
-                                    'User',
-                                    'Status',
-                                    'Priority',
-                                    'Assigned to',
-                                    'Last message',
-                                ]}
-                                rows={rows}
-                            />
-                        ) : (
-                            <Text as="p" tone="subdued">
-                                No threads match these filters.
-                            </Text>
-                        )}
-                    </Card>
-                </BlockStack>
+                <Card padding="0">
+                    <IndexFilters
+                        queryValue=""
+                        onQueryChange={() => {}}
+                        onQueryClear={() => {}}
+                        hideQueryField
+                        cancelAction={{
+                            onAction: () => setMode(IndexFiltersMode.Default),
+                        }}
+                        mode={mode}
+                        setMode={setMode}
+                        tabs={[]}
+                        selected={0}
+                        onSelect={() => {}}
+                        canCreateNewView={false}
+                        filters={[
+                            {
+                                key: 'status',
+                                label: 'Status',
+                                filter: (
+                                    <Select
+                                        label="Status"
+                                        labelHidden
+                                        options={STATUS_OPTIONS}
+                                        value={status}
+                                        onChange={(value) => {
+                                            setStatus(value);
+                                            applyFilters({ status: value });
+                                        }}
+                                    />
+                                ),
+                            },
+                            {
+                                key: 'unassigned',
+                                label: 'Assignment',
+                                filter: (
+                                    <Select
+                                        label="Assignment"
+                                        labelHidden
+                                        options={UNASSIGNED_OPTIONS}
+                                        value={unassigned}
+                                        onChange={(value) => {
+                                            setUnassigned(value);
+                                            applyFilters({ unassigned: value });
+                                        }}
+                                    />
+                                ),
+                            },
+                        ]}
+                        appliedFilters={appliedFilters}
+                        onClearAll={clearAll}
+                    />
+                    <IndexTable
+                        resourceName={{ singular: 'thread', plural: 'threads' }}
+                        itemCount={threads.length}
+                        selectable={false}
+                        headings={[
+                            { title: 'User' },
+                            { title: 'Status' },
+                            { title: 'Priority' },
+                            { title: 'Assigned to' },
+                            { title: 'Last message' },
+                        ]}
+                        emptyState={
+                            <Box padding="400">
+                                <Text as="p" tone="subdued" alignment="center">
+                                    No threads match these filters.
+                                </Text>
+                            </Box>
+                        }
+                    >
+                        {rowMarkup}
+                    </IndexTable>
+                </Card>
             </Page>
         </>
     );

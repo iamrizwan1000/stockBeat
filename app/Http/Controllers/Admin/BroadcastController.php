@@ -17,15 +17,19 @@ use Inertia\Response;
 
 class BroadcastController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $filters = $request->only(['q', 'status']);
+
         $broadcasts = Broadcast::query()
             ->with(['segment', 'user', 'createdBy'])
+            ->when($filters['q'] ?? null, fn ($query, $q) => $query->where('title', 'like', "%{$q}%"))
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->latest()
             ->get()
             ->map(fn (Broadcast $broadcast) => $this->summarize($broadcast));
 
-        return Inertia::render('admin/broadcasts/index', ['broadcasts' => $broadcasts]);
+        return Inertia::render('admin/broadcasts/index', ['broadcasts' => $broadcasts, 'filters' => $filters]);
     }
 
     public function create(): Response

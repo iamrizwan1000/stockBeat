@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Admin\Team\GetAuditLogFilterOptionsAction;
 use App\Actions\Admin\Team\ListAdminAuditLogAction;
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
@@ -12,14 +13,15 @@ use Inertia\Response;
 
 class AdminAuditLogController extends Controller
 {
-    public function index(Request $request, ListAdminAuditLogAction $action): Response
+    public function index(Request $request, ListAdminAuditLogAction $action, GetAuditLogFilterOptionsAction $getFilterOptions): Response
     {
-        $filters = $request->only(['admin_id', 'action', 'target_type', 'from', 'to']);
+        $filters = $request->only(['q', 'admin_id', 'action', 'target_type', 'from', 'to']);
         $entries = $action->handle($filters);
 
         return Inertia::render('admin/audit-log/index', [
             'filters' => $filters,
             'admins' => AdminUser::query()->orderBy('name')->get(['id', 'name']),
+            'filter_options' => $getFilterOptions->handle(),
             'entries' => [
                 'data' => collect($entries->items())->map(fn (AdminAuditLog $entry) => $this->summarize($entry))->all(),
                 'current_page' => $entries->currentPage(),

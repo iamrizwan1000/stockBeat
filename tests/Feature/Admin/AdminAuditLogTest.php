@@ -38,17 +38,49 @@ test('the audit log can be filtered by admin', function () {
         ->assertInertia(fn ($page) => $page->has('entries.data', 1));
 });
 
-test('the audit log can be filtered by an action substring', function () {
+test('the audit log can be filtered by an exact action', function () {
     $admin = AdminUser::factory()->create();
     AdminAuditLog::factory()->create(['admin_id' => $admin->id, 'action' => 'promo_campaign.create']);
     AdminAuditLog::factory()->create(['admin_id' => $admin->id, 'action' => 'segment.create']);
 
     test()->actingAs($admin, 'admin')
-        ->get('/admin/audit-log?action=promo_campaign')
+        ->get('/admin/audit-log?action=promo_campaign.create')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('entries.data', 1)
             ->where('entries.data.0.action', 'promo_campaign.create')
+        );
+});
+
+test('the audit log can be searched by a partial action or admin name', function () {
+    $adminA = AdminUser::factory()->create(['name' => 'Jamie Support']);
+    $adminB = AdminUser::factory()->create(['name' => 'Alex Ops']);
+    AdminAuditLog::factory()->create(['admin_id' => $adminA->id, 'action' => 'promo_campaign.create']);
+    AdminAuditLog::factory()->create(['admin_id' => $adminB->id, 'action' => 'segment.create']);
+
+    test()->actingAs($adminA, 'admin')
+        ->get('/admin/audit-log?q=promo_campaign')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('entries.data', 1));
+
+    test()->actingAs($adminA, 'admin')
+        ->get('/admin/audit-log?q=Jamie')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('entries.data', 1));
+});
+
+test('the audit log page exposes the distinct actions and target types actually present', function () {
+    $admin = AdminUser::factory()->create();
+    AdminAuditLog::factory()->create(['admin_id' => $admin->id, 'action' => 'promo_campaign.create', 'target_type' => 'App\\Models\\PromoCampaign']);
+    AdminAuditLog::factory()->create(['admin_id' => $admin->id, 'action' => 'segment.create', 'target_type' => 'App\\Models\\Segment']);
+    AdminAuditLog::factory()->create(['admin_id' => $admin->id, 'action' => 'segment.create', 'target_type' => 'App\\Models\\Segment']);
+
+    test()->actingAs($admin, 'admin')
+        ->get('/admin/audit-log')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('filter_options.actions', ['promo_campaign.create', 'segment.create'])
+            ->where('filter_options.target_types', ['App\\Models\\PromoCampaign', 'App\\Models\\Segment'])
         );
 });
 

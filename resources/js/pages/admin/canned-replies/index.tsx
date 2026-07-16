@@ -1,16 +1,20 @@
 import { Head, router } from '@inertiajs/react';
 import {
     BlockStack,
+    Box,
     Button,
     Card,
-    DataTable,
+    IndexFilters,
+    IndexFiltersMode,
+    IndexTable,
     InlineStack,
     Page,
     Text,
     TextField,
+    useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import AdminLayout from '@/layouts/admin-layout';
 
@@ -24,6 +28,8 @@ export default function CannedRepliesIndex({
     const [editingId, setEditingId] = useState<number | null>(null);
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
+    const [queryValue, setQueryValue] = useState('');
+    const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
 
     const resetForm = () => {
         setEditingId(null);
@@ -59,16 +65,38 @@ export default function CannedRepliesIndex({
         }
     };
 
-    const rows = replies.map((reply) => [
-        reply.title,
-        reply.body.slice(0, 80),
-        <InlineStack key={reply.id} gap="200">
-            <Button onClick={() => edit(reply)}>Edit</Button>
-            <Button tone="critical" onClick={() => destroy(reply)}>
-                Delete
-            </Button>
-        </InlineStack>,
-    ]);
+    const filteredReplies = useMemo(() => {
+        if (!queryValue) {
+            return replies;
+        }
+
+        const q = queryValue.toLowerCase();
+
+        return replies.filter(
+            (reply) =>
+                reply.title.toLowerCase().includes(q) ||
+                reply.body.toLowerCase().includes(q),
+        );
+    }, [replies, queryValue]);
+
+    const rowMarkup = filteredReplies.map((reply, index) => (
+        <IndexTable.Row id={String(reply.id)} key={reply.id} position={index}>
+            <IndexTable.Cell>
+                <Text as="span" fontWeight="semibold">
+                    {reply.title}
+                </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>{reply.body.slice(0, 80)}</IndexTable.Cell>
+            <IndexTable.Cell>
+                <InlineStack gap="200">
+                    <Button onClick={() => edit(reply)}>Edit</Button>
+                    <Button tone="critical" onClick={() => destroy(reply)}>
+                        Delete
+                    </Button>
+                </InlineStack>
+            </IndexTable.Cell>
+        </IndexTable.Row>
+    ));
 
     return (
         <>
@@ -114,18 +142,52 @@ export default function CannedRepliesIndex({
                         </BlockStack>
                     </Card>
 
-                    <Card>
-                        {rows.length > 0 ? (
-                            <DataTable
-                                columnContentTypes={['text', 'text', 'text']}
-                                headings={['Title', 'Body', '']}
-                                rows={rows}
-                            />
-                        ) : (
-                            <Text as="p" tone="subdued">
-                                No canned replies yet.
-                            </Text>
-                        )}
+                    <Card padding="0">
+                        <IndexFilters
+                            queryValue={queryValue}
+                            queryPlaceholder="Search by title or body"
+                            onQueryChange={setQueryValue}
+                            onQueryClear={() => setQueryValue('')}
+                            cancelAction={{
+                                onAction: () =>
+                                    setMode(IndexFiltersMode.Default),
+                            }}
+                            mode={mode}
+                            setMode={setMode}
+                            tabs={[]}
+                            selected={0}
+                            onSelect={() => {}}
+                            canCreateNewView={false}
+                            filters={[]}
+                            appliedFilters={[]}
+                            onClearAll={() => setQueryValue('')}
+                        />
+                        <IndexTable
+                            resourceName={{
+                                singular: 'reply',
+                                plural: 'replies',
+                            }}
+                            itemCount={filteredReplies.length}
+                            selectable={false}
+                            headings={[
+                                { title: 'Title' },
+                                { title: 'Body' },
+                                { title: '' },
+                            ]}
+                            emptyState={
+                                <Box padding="400">
+                                    <Text
+                                        as="p"
+                                        tone="subdued"
+                                        alignment="center"
+                                    >
+                                        No canned replies match this search.
+                                    </Text>
+                                </Box>
+                            }
+                        >
+                            {rowMarkup}
+                        </IndexTable>
                     </Card>
                 </BlockStack>
             </Page>

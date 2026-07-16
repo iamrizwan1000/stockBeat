@@ -1,17 +1,21 @@
 import { Head, router } from '@inertiajs/react';
 import {
     BlockStack,
+    Box,
     Button,
     Card,
-    DataTable,
+    IndexFilters,
+    IndexFiltersMode,
+    IndexTable,
     InlineStack,
     Page,
     Select,
     Text,
     TextField,
+    useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import AdminLayout from '@/layouts/admin-layout';
 
@@ -201,17 +205,46 @@ export default function SegmentsIndex({ segments }: { segments: Segment[] }) {
         }
     };
 
-    const rows = segments.map((segment) => [
-        segment.name,
-        describeFilters(segment.filters),
-        String(segment.broadcasts_count),
-        <InlineStack key={segment.id} gap="200">
-            <Button onClick={() => edit(segment)}>Edit</Button>
-            <Button tone="critical" onClick={() => destroy(segment)}>
-                Delete
-            </Button>
-        </InlineStack>,
-    ]);
+    const [queryValue, setQueryValue] = useState('');
+    const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
+
+    const filteredSegments = useMemo(() => {
+        if (!queryValue) {
+            return segments;
+        }
+
+        const q = queryValue.toLowerCase();
+
+        return segments.filter((segment) =>
+            segment.name.toLowerCase().includes(q),
+        );
+    }, [segments, queryValue]);
+
+    const rowMarkup = filteredSegments.map((segment, index) => (
+        <IndexTable.Row
+            id={String(segment.id)}
+            key={segment.id}
+            position={index}
+        >
+            <IndexTable.Cell>
+                <Text as="span" fontWeight="semibold">
+                    {segment.name}
+                </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {describeFilters(segment.filters)}
+            </IndexTable.Cell>
+            <IndexTable.Cell>{segment.broadcasts_count}</IndexTable.Cell>
+            <IndexTable.Cell>
+                <InlineStack gap="200">
+                    <Button onClick={() => edit(segment)}>Edit</Button>
+                    <Button tone="critical" onClick={() => destroy(segment)}>
+                        Delete
+                    </Button>
+                </InlineStack>
+            </IndexTable.Cell>
+        </IndexTable.Row>
+    ));
 
     return (
         <>
@@ -298,28 +331,53 @@ export default function SegmentsIndex({ segments }: { segments: Segment[] }) {
                         </BlockStack>
                     </Card>
 
-                    <Card>
-                        {rows.length > 0 ? (
-                            <DataTable
-                                columnContentTypes={[
-                                    'text',
-                                    'text',
-                                    'numeric',
-                                    'text',
-                                ]}
-                                headings={[
-                                    'Name',
-                                    'Filters',
-                                    'Used in broadcasts',
-                                    '',
-                                ]}
-                                rows={rows}
-                            />
-                        ) : (
-                            <Text as="p" tone="subdued">
-                                No segments yet.
-                            </Text>
-                        )}
+                    <Card padding="0">
+                        <IndexFilters
+                            queryValue={queryValue}
+                            queryPlaceholder="Search by name"
+                            onQueryChange={setQueryValue}
+                            onQueryClear={() => setQueryValue('')}
+                            cancelAction={{
+                                onAction: () =>
+                                    setMode(IndexFiltersMode.Default),
+                            }}
+                            mode={mode}
+                            setMode={setMode}
+                            tabs={[]}
+                            selected={0}
+                            onSelect={() => {}}
+                            canCreateNewView={false}
+                            filters={[]}
+                            appliedFilters={[]}
+                            onClearAll={() => setQueryValue('')}
+                        />
+                        <IndexTable
+                            resourceName={{
+                                singular: 'segment',
+                                plural: 'segments',
+                            }}
+                            itemCount={filteredSegments.length}
+                            selectable={false}
+                            headings={[
+                                { title: 'Name' },
+                                { title: 'Filters' },
+                                { title: 'Used in broadcasts' },
+                                { title: '' },
+                            ]}
+                            emptyState={
+                                <Box padding="400">
+                                    <Text
+                                        as="p"
+                                        tone="subdued"
+                                        alignment="center"
+                                    >
+                                        No segments match this search.
+                                    </Text>
+                                </Box>
+                            }
+                        >
+                            {rowMarkup}
+                        </IndexTable>
                     </Card>
                 </BlockStack>
             </Page>

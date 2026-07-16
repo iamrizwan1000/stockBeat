@@ -18,12 +18,20 @@ class ListAdminAuditLogAction
     {
         $query = AdminAuditLog::query()->with('admin');
 
+        if (! empty($filters['q'])) {
+            $q = $filters['q'];
+            $query->where(function ($query) use ($q) {
+                $query->where('action', 'like', "%{$q}%")
+                    ->orWhereHas('admin', fn ($adminQuery) => $adminQuery->where('name', 'like', "%{$q}%"));
+            });
+        }
+
         if (! empty($filters['admin_id'])) {
             $query->where('admin_id', $filters['admin_id']);
         }
 
         if (! empty($filters['action'])) {
-            $query->where('action', 'like', '%'.$filters['action'].'%');
+            $query->where('action', $filters['action']);
         }
 
         if (! empty($filters['target_type'])) {

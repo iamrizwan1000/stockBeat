@@ -1,15 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    BlockStack,
-    Button,
+    Badge,
+    Box,
     Card,
-    DataTable,
-    InlineStack,
+    IndexFilters,
+    IndexFiltersMode,
+    IndexTable,
     Page,
     Pagination,
     Select,
     Text,
-    TextField,
+    useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -62,31 +63,123 @@ const PLATFORM_OPTIONS = [
     { label: 'Amazon', value: 'amazon' },
 ];
 
+function planLabel(value: string): string {
+    return (
+        PLAN_OPTIONS.find((option) => option.value === value)?.label ?? value
+    );
+}
+
+function planTone(
+    status: string,
+    suspended: boolean,
+): 'success' | 'attention' | 'warning' | 'critical' | undefined {
+    if (suspended) {
+        return 'critical';
+    }
+
+    switch (status) {
+        case 'active':
+            return 'success';
+        case 'trial':
+            return 'attention';
+        case 'grace':
+            return 'warning';
+        case 'expired':
+            return 'critical';
+        default:
+            return undefined;
+    }
+}
+
 export default function CustomersIndex({ filters, customers }: Props) {
-    const [q, setQ] = useState(filters.q ?? '');
+    const [queryValue, setQueryValue] = useState(filters.q ?? '');
     const [plan, setPlan] = useState(filters.plan ?? '');
     const [platform, setPlatform] = useState(filters.platform ?? '');
+    const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
 
-    const applyFilters = (next: Partial<Filters>) => {
+    const applyFilters = (next: Partial<Filters> = {}) => {
         router.get(
             '/admin/customers',
-            { q, plan, platform, ...next },
+            { q: queryValue, plan, platform, ...next },
             { preserveState: true, replace: true },
         );
     };
 
-    const rows = customers.data.map((customer) => [
-        <Link key={customer.id} href={`/admin/customers/${customer.id}`}>
-            <Text as="span" fontWeight="semibold">
-                {customer.name || customer.email}
-            </Text>
-        </Link>,
-        customer.email,
-        customer.suspended_at ? 'Suspended' : customer.plan_status,
-        customer.platforms.join(', ') || '—',
-        customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '—',
-        customer.last_active_at ? new Date(customer.last_active_at).toLocaleDateString() : 'Never',
-    ]);
+    const clearAll = () => {
+        setQueryValue('');
+        setPlan('');
+        setPlatform('');
+        router.get(
+            '/admin/customers',
+            {},
+            { preserveState: true, replace: true },
+        );
+    };
+
+    const appliedFilters = [
+        plan
+            ? {
+                  key: 'plan',
+                  label: `Plan: ${planLabel(plan)}`,
+                  onRemove: () => {
+                      setPlan('');
+                      applyFilters({ plan: '' });
+                  },
+              }
+            : null,
+        platform
+            ? {
+                  key: 'platform',
+                  label: `Platform: ${PLATFORM_OPTIONS.find((o) => o.value === platform)?.label ?? platform}`,
+                  onRemove: () => {
+                      setPlatform('');
+                      applyFilters({ platform: '' });
+                  },
+              }
+            : null,
+    ].filter((f): f is NonNullable<typeof f> => f !== null);
+
+    const rowMarkup = customers.data.map((customer, index) => (
+        <IndexTable.Row
+            id={String(customer.id)}
+            key={customer.id}
+            position={index}
+        >
+            <IndexTable.Cell>
+                <Link href={`/admin/customers/${customer.id}`}>
+                    <Text as="span" fontWeight="semibold">
+                        {customer.name || customer.email}
+                    </Text>
+                </Link>
+            </IndexTable.Cell>
+            <IndexTable.Cell>{customer.email}</IndexTable.Cell>
+            <IndexTable.Cell>
+                <Badge
+                    tone={planTone(
+                        customer.plan_status,
+                        customer.suspended_at !== null,
+                    )}
+                >
+                    {customer.suspended_at
+                        ? 'Suspended'
+                        : planLabel(customer.plan_status)}
+                </Badge>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {customer.platforms.join(', ') || '—'}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {customer.created_at
+                    ? new Date(customer.created_at).toLocaleDateString()
+                    : '—'}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {customer.last_active_at
+                    ? new Date(customer.last_active_at).toLocaleDateString()
+                    : 'Never'}
+            </IndexTable.Cell>
+        </IndexTable.Row>
+    ));
 
     return (
         <>
@@ -98,87 +191,126 @@ export default function CustomersIndex({ filters, customers }: Props) {
                 secondaryActions={[
                     {
                         content: 'Export CSV',
-                        url: `/admin/customers/export?q=${encodeURIComponent(q)}&plan=${plan}&platform=${platform}`,
+                        url: `/admin/customers/export?q=${encodeURIComponent(queryValue)}&plan=${plan}&platform=${platform}`,
                     },
                 ]}
             >
-                <BlockStack gap="400">
-                    <Card>
-                        <InlineStack gap="300" wrap={false} blockAlign="end">
-                            <div style={{ flexGrow: 1 }}>
-                                <TextField
-                                    label="Search"
-                                    labelHidden
-                                    placeholder="Search by name, email, or business"
-                                    value={q}
-                                    onChange={setQ}
-                                    autoComplete="off"
-                                    onBlur={() => applyFilters({ q })}
-                                />
-                            </div>
-                            <Select
-                                label="Plan"
-                                labelHidden
-                                options={PLAN_OPTIONS}
-                                value={plan}
-                                onChange={(value) => {
-                                    setPlan(value);
-                                    applyFilters({ plan: value });
-                                }}
-                            />
-                            <Select
-                                label="Platform"
-                                labelHidden
-                                options={PLATFORM_OPTIONS}
-                                value={platform}
-                                onChange={(value) => {
-                                    setPlatform(value);
-                                    applyFilters({ platform: value });
-                                }}
-                            />
-                            <Button onClick={() => applyFilters({ q })}>Search</Button>
-                        </InlineStack>
-                    </Card>
+                <Card padding="0">
+                    <IndexFilters
+                        queryValue={queryValue}
+                        queryPlaceholder="Search by name, email, or business"
+                        onQueryChange={setQueryValue}
+                        onQueryBlur={() => applyFilters({ q: queryValue })}
+                        onQueryClear={() => {
+                            setQueryValue('');
+                            applyFilters({ q: '' });
+                        }}
+                        cancelAction={{
+                            onAction: () => setMode(IndexFiltersMode.Default),
+                        }}
+                        mode={mode}
+                        setMode={setMode}
+                        tabs={[]}
+                        selected={0}
+                        onSelect={() => {}}
+                        canCreateNewView={false}
+                        filters={[
+                            {
+                                key: 'plan',
+                                label: 'Plan',
+                                filter: (
+                                    <Select
+                                        label="Plan"
+                                        labelHidden
+                                        options={PLAN_OPTIONS}
+                                        value={plan}
+                                        onChange={(value) => {
+                                            setPlan(value);
+                                            applyFilters({ plan: value });
+                                        }}
+                                    />
+                                ),
+                            },
+                            {
+                                key: 'platform',
+                                label: 'Platform',
+                                filter: (
+                                    <Select
+                                        label="Platform"
+                                        labelHidden
+                                        options={PLATFORM_OPTIONS}
+                                        value={platform}
+                                        onChange={(value) => {
+                                            setPlatform(value);
+                                            applyFilters({ platform: value });
+                                        }}
+                                    />
+                                ),
+                            },
+                        ]}
+                        appliedFilters={appliedFilters}
+                        onClearAll={clearAll}
+                    />
+                    <IndexTable
+                        resourceName={{
+                            singular: 'customer',
+                            plural: 'customers',
+                        }}
+                        itemCount={customers.data.length}
+                        selectable={false}
+                        headings={[
+                            { title: 'Name' },
+                            { title: 'Email' },
+                            { title: 'Plan' },
+                            { title: 'Platforms' },
+                            { title: 'Signed up' },
+                            { title: 'Last active' },
+                        ]}
+                        emptyState={
+                            <Box padding="400">
+                                <Text as="p" tone="subdued" alignment="center">
+                                    No customers match these filters.
+                                </Text>
+                            </Box>
+                        }
+                    >
+                        {rowMarkup}
+                    </IndexTable>
+                </Card>
 
-                    <Card>
-                        {rows.length > 0 ? (
-                            <DataTable
-                                columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text']}
-                                headings={['Name', 'Email', 'Plan', 'Platforms', 'Signed up', 'Last active']}
-                                rows={rows}
-                            />
-                        ) : (
-                            <Text as="p" tone="subdued">
-                                No customers match these filters.
-                            </Text>
-                        )}
-                    </Card>
-
-                    {customers.last_page > 1 && (
-                        <InlineStack align="center">
+                {customers.last_page > 1 && (
+                    <Box padding="400">
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                            }}
+                        >
                             <Pagination
                                 hasPrevious={customers.current_page > 1}
                                 onPrevious={() =>
                                     router.get('/admin/customers', {
-                                        q,
+                                        q: queryValue,
                                         plan,
                                         platform,
                                         page: customers.current_page - 1,
                                     })
                                 }
-                                hasNext={customers.current_page < customers.last_page}
+                                hasNext={
+                                    customers.current_page < customers.last_page
+                                }
                                 onNext={() =>
                                     router.get('/admin/customers', {
-                                        q,
+                                        q: queryValue,
                                         plan,
                                         platform,
                                         page: customers.current_page + 1,
                                     })
                                 }
                             />
-                        </InlineStack>
-                    )}
-                </BlockStack>
+                        </div>
+                    </Box>
+                )}
             </Page>
         </>
     );

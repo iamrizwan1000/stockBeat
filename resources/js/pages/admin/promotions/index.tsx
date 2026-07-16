@@ -2,18 +2,23 @@ import { Head, router } from '@inertiajs/react';
 import {
     Badge,
     BlockStack,
+    Box,
     Button,
     Card,
-    DataTable,
+    IndexFilters,
+    IndexFiltersMode,
+    IndexTable,
     InlineStack,
     Page,
     Select,
     Text,
     TextField,
+    useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import PolarisDateField from '@/components/PolarisDateField';
 import AdminLayout from '@/layouts/admin-layout';
 
 type CampaignConfig = {
@@ -244,45 +249,99 @@ export default function PromotionsIndex({
         ...segments.map((s) => ({ label: s.name, value: String(s.id) })),
     ];
 
-    const rows = campaigns.map((campaign) => [
-        campaign.name,
-        campaign.type,
-        describeConfig(campaign),
-        <Badge
-            key={`status-${campaign.id}`}
-            tone={campaign.is_active ? 'success' : undefined}
+    const [queryValue, setQueryValue] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
+    const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
+
+    const filteredCampaigns = useMemo(() => {
+        return campaigns.filter((campaign) => {
+            if (typeFilter && campaign.type !== typeFilter) {
+                return false;
+            }
+
+            if (
+                queryValue &&
+                !campaign.name.toLowerCase().includes(queryValue.toLowerCase())
+            ) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [campaigns, queryValue, typeFilter]);
+
+    const appliedFilters = typeFilter
+        ? [
+              {
+                  key: 'type',
+                  label: `Type: ${TYPE_OPTIONS.find((o) => o.value === typeFilter)?.label ?? typeFilter}`,
+                  onRemove: () => setTypeFilter(''),
+              },
+          ]
+        : [];
+
+    const rowMarkup = filteredCampaigns.map((campaign, index) => (
+        <IndexTable.Row
+            id={String(campaign.id)}
+            key={campaign.id}
+            position={index}
         >
-            {campaign.is_active ? 'Active' : 'Inactive'}
-        </Badge>,
-        campaign.type === 'server_comp'
-            ? String(campaign.stats?.recipients_total_all_time ?? 0)
-            : '—',
-        <BlockStack key={`actions-${campaign.id}`} gap="200">
-            {campaign.type === 'server_comp' && (
-                <InlineStack gap="200" blockAlign="center">
-                    <Select
-                        label="Apply to"
-                        labelHidden
-                        options={segmentOptions}
-                        value={applySegmentByCampaign[campaign.id] ?? ''}
-                        onChange={(value) =>
-                            setApplySegmentByCampaign((prev) => ({
-                                ...prev,
-                                [campaign.id]: value,
-                            }))
-                        }
-                    />
-                    <Button onClick={() => applyComp(campaign)}>Apply</Button>
-                </InlineStack>
-            )}
-            <InlineStack gap="200">
-                <Button onClick={() => edit(campaign)}>Edit</Button>
-                <Button tone="critical" onClick={() => destroy(campaign)}>
-                    Delete
-                </Button>
-            </InlineStack>
-        </BlockStack>,
-    ]);
+            <IndexTable.Cell>
+                <Text as="span" fontWeight="semibold">
+                    {campaign.name}
+                </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {TYPE_OPTIONS.find((o) => o.value === campaign.type)?.label ??
+                    campaign.type}
+            </IndexTable.Cell>
+            <IndexTable.Cell>{describeConfig(campaign)}</IndexTable.Cell>
+            <IndexTable.Cell>
+                <Badge tone={campaign.is_active ? 'success' : undefined}>
+                    {campaign.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                {campaign.type === 'server_comp'
+                    ? String(campaign.stats?.recipients_total_all_time ?? 0)
+                    : '—'}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+                <BlockStack gap="200">
+                    {campaign.type === 'server_comp' && (
+                        <InlineStack gap="200" blockAlign="center">
+                            <Select
+                                label="Apply to"
+                                labelHidden
+                                options={segmentOptions}
+                                value={
+                                    applySegmentByCampaign[campaign.id] ?? ''
+                                }
+                                onChange={(value) =>
+                                    setApplySegmentByCampaign((prev) => ({
+                                        ...prev,
+                                        [campaign.id]: value,
+                                    }))
+                                }
+                            />
+                            <Button onClick={() => applyComp(campaign)}>
+                                Apply
+                            </Button>
+                        </InlineStack>
+                    )}
+                    <InlineStack gap="200">
+                        <Button onClick={() => edit(campaign)}>Edit</Button>
+                        <Button
+                            tone="critical"
+                            onClick={() => destroy(campaign)}
+                        >
+                            Delete
+                        </Button>
+                    </InlineStack>
+                </BlockStack>
+            </IndexTable.Cell>
+        </IndexTable.Row>
+    ));
 
     return (
         <>
@@ -390,19 +449,15 @@ export default function PromotionsIndex({
                             )}
 
                             <InlineStack gap="300" wrap>
-                                <TextField
+                                <PolarisDateField
                                     label="Starts"
-                                    type="date"
                                     value={startsAt}
                                     onChange={setStartsAt}
-                                    autoComplete="off"
                                 />
-                                <TextField
+                                <PolarisDateField
                                     label="Ends"
-                                    type="date"
                                     value={endsAt}
                                     onChange={setEndsAt}
-                                    autoComplete="off"
                                 />
                             </InlineStack>
 
@@ -423,32 +478,78 @@ export default function PromotionsIndex({
                         </BlockStack>
                     </Card>
 
-                    <Card>
-                        {rows.length > 0 ? (
-                            <DataTable
-                                columnContentTypes={[
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'numeric',
-                                    'text',
-                                ]}
-                                headings={[
-                                    'Name',
-                                    'Type',
-                                    'Details',
-                                    'Status',
-                                    'Recipients (all-time)',
-                                    '',
-                                ]}
-                                rows={rows}
-                            />
-                        ) : (
-                            <Text as="p" tone="subdued">
-                                No campaigns yet.
-                            </Text>
-                        )}
+                    <Card padding="0">
+                        <IndexFilters
+                            queryValue={queryValue}
+                            queryPlaceholder="Search by name"
+                            onQueryChange={setQueryValue}
+                            onQueryClear={() => setQueryValue('')}
+                            cancelAction={{
+                                onAction: () =>
+                                    setMode(IndexFiltersMode.Default),
+                            }}
+                            mode={mode}
+                            setMode={setMode}
+                            tabs={[]}
+                            selected={0}
+                            onSelect={() => {}}
+                            canCreateNewView={false}
+                            filters={[
+                                {
+                                    key: 'type',
+                                    label: 'Type',
+                                    filter: (
+                                        <Select
+                                            label="Type"
+                                            labelHidden
+                                            options={[
+                                                {
+                                                    label: 'All types',
+                                                    value: '',
+                                                },
+                                                ...TYPE_OPTIONS,
+                                            ]}
+                                            value={typeFilter}
+                                            onChange={setTypeFilter}
+                                        />
+                                    ),
+                                },
+                            ]}
+                            appliedFilters={appliedFilters}
+                            onClearAll={() => {
+                                setQueryValue('');
+                                setTypeFilter('');
+                            }}
+                        />
+                        <IndexTable
+                            resourceName={{
+                                singular: 'campaign',
+                                plural: 'campaigns',
+                            }}
+                            itemCount={filteredCampaigns.length}
+                            selectable={false}
+                            headings={[
+                                { title: 'Name' },
+                                { title: 'Type' },
+                                { title: 'Details' },
+                                { title: 'Status' },
+                                { title: 'Recipients (all-time)' },
+                                { title: '' },
+                            ]}
+                            emptyState={
+                                <Box padding="400">
+                                    <Text
+                                        as="p"
+                                        tone="subdued"
+                                        alignment="center"
+                                    >
+                                        No campaigns match these filters.
+                                    </Text>
+                                </Box>
+                            }
+                        >
+                            {rowMarkup}
+                        </IndexTable>
                     </Card>
                 </BlockStack>
             </Page>

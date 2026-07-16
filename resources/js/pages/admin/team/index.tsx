@@ -2,17 +2,21 @@ import { Head, router, usePage } from '@inertiajs/react';
 import {
     Badge,
     BlockStack,
+    Box,
     Button,
     Card,
-    DataTable,
+    IndexFilters,
+    IndexFiltersMode,
+    IndexTable,
     InlineStack,
     Page,
     Select,
     Text,
     TextField,
+    useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import AdminLayout from '@/layouts/admin-layout';
 
@@ -41,6 +45,8 @@ export default function AdminTeamIndex({ admins }: { admins: AdminUserRow[] }) {
     const [role, setRole] = useState<'superadmin' | 'support' | 'readonly'>(
         'support',
     );
+    const [queryValue, setQueryValue] = useState('');
+    const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
 
     const create = () => {
         router.post(
@@ -73,47 +79,81 @@ export default function AdminTeamIndex({ admins }: { admins: AdminUserRow[] }) {
         }
     };
 
-    const rows = admins.map((admin) => {
+    const filteredAdmins = useMemo(() => {
+        if (!queryValue) {
+            return admins;
+        }
+
+        const q = queryValue.toLowerCase();
+
+        return admins.filter(
+            (a) =>
+                a.name.toLowerCase().includes(q) ||
+                a.email.toLowerCase().includes(q),
+        );
+    }, [admins, queryValue]);
+
+    const rowMarkup = filteredAdmins.map((admin, index) => {
         const isSelf = admin.id === currentAdminId;
 
-        return [
-            admin.name,
-            admin.email,
-            isSelf ? (
-                <Badge key={`role-${admin.id}`}>{admin.role}</Badge>
-            ) : (
-                <Select
-                    key={`role-${admin.id}`}
-                    label="Role"
-                    labelHidden
-                    options={ROLE_OPTIONS}
-                    value={admin.role}
-                    onChange={(value) => changeRole(admin, value)}
-                />
-            ),
-            admin.two_factor_enabled ? (
-                <Badge key={`2fa-${admin.id}`} tone="success">
-                    Enabled
-                </Badge>
-            ) : (
-                <Badge key={`2fa-${admin.id}`}>Not set up</Badge>
-            ),
-            admin.created_at
-                ? new Date(admin.created_at).toLocaleDateString()
-                : '—',
-            isSelf ? (
-                <Text key={`actions-${admin.id}`} as="span" tone="subdued">
-                    (you)
-                </Text>
-            ) : (
-                <InlineStack key={`actions-${admin.id}`} gap="200">
-                    <Button onClick={() => reset2fa(admin)}>Reset 2FA</Button>
-                    <Button tone="critical" onClick={() => destroy(admin)}>
-                        Remove
-                    </Button>
-                </InlineStack>
-            ),
-        ];
+        return (
+            <IndexTable.Row
+                id={String(admin.id)}
+                key={admin.id}
+                position={index}
+            >
+                <IndexTable.Cell>
+                    <Text as="span" fontWeight="semibold">
+                        {admin.name}
+                    </Text>
+                </IndexTable.Cell>
+                <IndexTable.Cell>{admin.email}</IndexTable.Cell>
+                <IndexTable.Cell>
+                    {isSelf ? (
+                        <Badge>{admin.role}</Badge>
+                    ) : (
+                        <Select
+                            label="Role"
+                            labelHidden
+                            options={ROLE_OPTIONS}
+                            value={admin.role}
+                            onChange={(value) => changeRole(admin, value)}
+                        />
+                    )}
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                    {admin.two_factor_enabled ? (
+                        <Badge tone="success">Enabled</Badge>
+                    ) : (
+                        <Badge>Not set up</Badge>
+                    )}
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                    {admin.created_at
+                        ? new Date(admin.created_at).toLocaleDateString()
+                        : '—'}
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                    {isSelf ? (
+                        <Text as="span" tone="subdued">
+                            (you)
+                        </Text>
+                    ) : (
+                        <InlineStack gap="200">
+                            <Button onClick={() => reset2fa(admin)}>
+                                Reset 2FA
+                            </Button>
+                            <Button
+                                tone="critical"
+                                onClick={() => destroy(admin)}
+                            >
+                                Remove
+                            </Button>
+                        </InlineStack>
+                    )}
+                </IndexTable.Cell>
+            </IndexTable.Row>
+        );
     });
 
     return (
@@ -170,32 +210,55 @@ export default function AdminTeamIndex({ admins }: { admins: AdminUserRow[] }) {
                         </BlockStack>
                     </Card>
 
-                    <Card>
-                        {rows.length > 0 ? (
-                            <DataTable
-                                columnContentTypes={[
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'text',
-                                    'text',
-                                ]}
-                                headings={[
-                                    'Name',
-                                    'Email',
-                                    'Role',
-                                    '2FA',
-                                    'Created',
-                                    '',
-                                ]}
-                                rows={rows}
-                            />
-                        ) : (
-                            <Text as="p" tone="subdued">
-                                No admin users yet.
-                            </Text>
-                        )}
+                    <Card padding="0">
+                        <IndexFilters
+                            queryValue={queryValue}
+                            queryPlaceholder="Search by name or email"
+                            onQueryChange={setQueryValue}
+                            onQueryClear={() => setQueryValue('')}
+                            cancelAction={{
+                                onAction: () =>
+                                    setMode(IndexFiltersMode.Default),
+                            }}
+                            mode={mode}
+                            setMode={setMode}
+                            tabs={[]}
+                            selected={0}
+                            onSelect={() => {}}
+                            canCreateNewView={false}
+                            filters={[]}
+                            appliedFilters={[]}
+                            onClearAll={() => setQueryValue('')}
+                        />
+                        <IndexTable
+                            resourceName={{
+                                singular: 'admin',
+                                plural: 'admins',
+                            }}
+                            itemCount={filteredAdmins.length}
+                            selectable={false}
+                            headings={[
+                                { title: 'Name' },
+                                { title: 'Email' },
+                                { title: 'Role' },
+                                { title: '2FA' },
+                                { title: 'Created' },
+                                { title: '' },
+                            ]}
+                            emptyState={
+                                <Box padding="400">
+                                    <Text
+                                        as="p"
+                                        tone="subdued"
+                                        alignment="center"
+                                    >
+                                        No admin users match this search.
+                                    </Text>
+                                </Box>
+                            }
+                        >
+                            {rowMarkup}
+                        </IndexTable>
                     </Card>
                 </BlockStack>
             </Page>
