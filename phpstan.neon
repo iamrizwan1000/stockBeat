@@ -11,3 +11,8 @@ parameters:
         - routes/
 
     level: 7
+
+    ignoreErrors:
+        -
+            message: '#Parameter \#2 \$string of function explode expects string, bool\|string given\.#'
+            path: config/sanctum.php

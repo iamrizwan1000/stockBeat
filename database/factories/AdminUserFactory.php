@@ -38,4 +38,12 @@ class AdminUserFactory extends Factory
     {
         return $this->state(fn () => ['role' => AdminUser::ROLE_SUPERADMIN]);
     }
+
+    /**
+     * Indicate that the admin is read-only.
+     */
+    public function readonly(): static
+    {
+        return $this->state(fn () => ['role' => AdminUser::ROLE_READONLY]);
+    }
 }

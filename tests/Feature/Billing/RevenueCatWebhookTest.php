@@ -1,0 +1,144 @@
+<?php
+
+use App\Models\SmsLedger;
+use App\Models\Subscription;
+use App\Models\User;
+use Database\Seeders\PlanSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->seed(PlanSeeder::class);
+    config(['services.revenuecat.webhook_secret' => 'test-secret']);
+});
+
+function onboardedRevenueCatUser(): User
+{
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    test()->postJson('/api/v1/profile/setup', [
+        'name' => 'Jamie Seller',
+        'sells_on' => ['woo'],
+    ])->assertOk();
+
+    return $user->fresh();
+}
+
+/**
+ * @param  array<string, mixed>  $event
+ */
+function postRevenueCatEvent(array $event, ?string $bearer = 'test-secret'): \Illuminate\Testing\TestResponse
+{
+    $headers = $bearer !== null ? ['Authorization' => "Bearer {$bearer}"] : [];
+
+    return test()->postJson('/hooks/revenuecat', ['api_version' => '1.0', 'event' => $event], $headers);
+}
+
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function revenueCatEvent(int $appUserId, array $overrides = []): array
+{
+    return array_merge([
+        'id' => (string) fake()->unique()->uuid(),
+        'type' => 'INITIAL_PURCHASE',
+        'app_user_id' => (string) $appUserId,
+        'product_id' => 'pro_monthly',
+        'store' => 'PLAY_STORE',
+        'expiration_at_ms' => now()->addMonth()->getTimestampMs(),
+    ], $overrides);
+}
+
+test('a missing or invalid Authorization header is rejected', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id), null)->assertUnauthorized();
+    postRevenueCatEvent(revenueCatEvent($user->id), 'wrong-secret')->assertUnauthorized();
+});
+
+test('an INITIAL_PURCHASE activates the subscription and is reflected in /me', function () {
+    $user = onboardedRevenueCatUser();
+    expect($user->ownedTeam->subscription->status)->toBe(Subscription::STATUS_TRIAL);
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['product_id' => 'pro_monthly']))->assertOk();
+
+    $subscription = $user->ownedTeam->subscription->fresh();
+    expect($subscription->status)->toBe(Subscription::STATUS_ACTIVE);
+    expect($subscription->provider)->toBe('google');
+    expect($subscription->product_id)->toBe('pro_monthly');
+    expect($subscription->expires_at)->not->toBeNull();
+
+    test()->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.entitlements.plan', 'pro');
+});
+
+test('BILLING_ISSUE moves the subscription to grace and it still counts as pro', function () {
+    $user = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE']))->assertOk();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'BILLING_ISSUE']))->assertOk();
+
+    $subscription = $user->ownedTeam->subscription->fresh();
+    expect($subscription->status)->toBe(Subscription::STATUS_GRACE);
+    expect($subscription->isCurrentlyPro())->toBeTrue();
+});
+
+test('EXPIRATION moves the subscription to expired and entitlements revert to free', function () {
+    $user = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE']))->assertOk();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'EXPIRATION']))->assertOk();
+
+    $subscription = $user->ownedTeam->subscription->fresh();
+    expect($subscription->status)->toBe(Subscription::STATUS_EXPIRED);
+    expect($subscription->isCurrentlyPro())->toBeFalse();
+
+    test()->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.entitlements.plan', 'free');
+});
+
+test('CANCELLATION does not change status — stays active until it actually expires', function () {
+    $user = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE']))->assertOk();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'CANCELLATION']))->assertOk();
+
+    $subscription = $user->ownedTeam->subscription->fresh();
+    expect($subscription->status)->toBe(Subscription::STATUS_ACTIVE);
+});
+
+test('a NON_RENEWING_PURCHASE for sms_100 credits 100 to the sms ledger', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, [
+        'type' => 'NON_RENEWING_PURCHASE',
+        'product_id' => 'sms_100',
+    ]))->assertOk();
+
+    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe(100);
+});
+
+test('a duplicate event id is processed only once', function () {
+    $user = onboardedRevenueCatUser();
+    $event = revenueCatEvent($user->id, ['type' => 'NON_RENEWING_PURCHASE', 'product_id' => 'sms_500']);
+
+    postRevenueCatEvent($event)->assertOk();
+    postRevenueCatEvent($event)->assertOk()->assertJsonPath('status', 'duplicate');
+
+    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe(500);
+    expect(SmsLedger::query()->where('team_id', $user->ownedTeam->id)->count())->toBe(1);
+});
+
+test('an unknown app_user_id is safely ignored', function () {
+    postRevenueCatEvent(revenueCatEvent(999999))->assertOk();
+});
+
+test('an unrecognized product_id is a no-op, not a silent Pro grant', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['product_id' => 'some_future_sku']))->assertOk();
+
+    expect($user->ownedTeam->subscription->fresh()->status)->toBe(Subscription::STATUS_TRIAL);
+});

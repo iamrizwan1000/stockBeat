@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Actions\Admin;
+
+use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Models\Device;
+use App\Models\Notification;
+use App\Models\SmsLedger;
+use App\Models\Team;
+use App\Models\User;
+
+/**
+ * Plan §8.7.2 customer detail page. `support-chat history` and payment/LTV
+ * are omitted — no `support_threads` table and no real payment history yet
+ * (subscriptions only track current state, not a RevenueCat event
+ * timeline — that's the IAP webhook module).
+ */
+class GetCustomerDetailAction
+{
+    public function __construct(
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
+    ) {}
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(User $user): array
+    {
+        $team = $user->ownedTeam()->with(['storeConnections', 'rules', 'subscription'])->first();
+
+        $devices = Device::query()->where('user_id', $user->id)->get();
+
+        return [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'business_name' => $user->business_name,
+                'base_currency' => $user->base_currency,
+                'timezone' => $user->timezone,
+                'sells_on' => $user->sells_on,
+                'suspended_at' => $user->suspended_at,
+                'created_at' => $user->created_at,
+                'last_active_at' => $user->last_active_at,
+            ],
+            'team' => $team === null ? null : [
+                'id' => $team->id,
+                'name' => $team->name,
+            ],
+            'entitlements' => $team === null ? null : $this->resolveEntitlements->handle($team),
+            'subscription' => $team?->subscription === null ? null : [
+                'status' => $team->subscription->status,
+                'product_id' => $team->subscription->product_id,
+                'provider' => $team->subscription->provider,
+                'trial_ends_at' => $team->subscription->trial_ends_at,
+                'expires_at' => $team->subscription->expires_at,
+                'renewed_at' => $team->subscription->renewed_at,
+            ],
+            'devices' => $devices->map(fn (Device $device) => [
+                'id' => $device->id,
+                'platform' => $device->platform,
+                'last_seen_at' => $device->last_seen_at,
+            ])->all(),
+            'store_connections' => $team === null ? [] : $team->storeConnections->map(fn ($connection) => [
+                'id' => $connection->id,
+                'platform' => $connection->platform,
+                'name' => $connection->name,
+                'status' => $connection->status,
+                'last_sync_at' => $connection->last_sync_at,
+                'webhook_status' => $connection->webhook_status,
+            ])->all(),
+            'rules' => $team === null ? [] : $team->rules->map(fn ($rule) => [
+                'id' => $rule->id,
+                'name' => $rule->name,
+                'trigger' => $rule->trigger,
+                'enabled' => $rule->enabled,
+            ])->all(),
+            'sms_ledger' => $team === null ? [] : SmsLedger::query()
+                ->where('team_id', $team->id)
+                ->latest('id')
+                ->limit(20)
+                ->get()
+                ->map(fn (SmsLedger $entry) => [
+                    'id' => $entry->id,
+                    'delta' => $entry->delta,
+                    'reason' => $entry->reason,
+                    'balance_after' => $entry->balance_after,
+                    'created_at' => $entry->created_at,
+                ])->all(),
+            'notification_volume' => [
+                'push' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_PUSH)->count(),
+                'email' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_EMAIL)->count(),
+                'sms' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_SMS)->count(),
+            ],
+            'funnel_position' => $this->funnelPosition($user, $team),
+        ];
+    }
+
+    private function funnelPosition(User $user, ?Team $team): string
+    {
+        if ($team === null) {
+            return 'signed_up';
+        }
+
+        if ($team->subscription !== null && in_array($team->subscription->status, ['active', 'grace'], true)) {
+            return 'paid';
+        }
+
+        if ($team->rules->isNotEmpty()) {
+            return 'rule_created';
+        }
+
+        if (Device::query()->where('user_id', $user->id)->exists()) {
+            return 'push_enabled';
+        }
+
+        if ($team->storeConnections->isNotEmpty()) {
+            return 'store_connected';
+        }
+
+        return 'signed_up';
+    }
+}

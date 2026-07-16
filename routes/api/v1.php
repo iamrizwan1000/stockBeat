@@ -1,0 +1,106 @@
+<?php
+
+use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\Auth\OtpController;
+use App\Http\Controllers\Api\V1\Auth\ProfileController;
+use App\Http\Controllers\Api\V1\Auth\SessionController;
+use App\Http\Controllers\Api\V1\ConnectionController;
+use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\RuleController;
+use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\TeamController;
+use App\Models\StoreConnection;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('auth')->name('auth.')->group(function () {
+    Route::post('otp/request', [OtpController::class, 'request'])
+        ->middleware('throttle:otp-request')
+        ->name('otp.request');
+
+    Route::post('otp/verify', [OtpController::class, 'verify'])
+        ->middleware('throttle:otp-verify')
+        ->name('otp.verify');
+});
+
+Route::middleware(['auth:sanctum', 'user.not_suspended'])->group(function () {
+    Route::post('auth/logout', [SessionController::class, 'logout'])->name('auth.logout');
+    Route::post('auth/logout-all', [SessionController::class, 'logoutAll'])->name('auth.logout-all');
+
+    Route::post('profile/setup', [ProfileController::class, 'setup'])->name('profile.setup');
+    Route::get('me', [MeController::class, 'show'])->name('me');
+    Route::post('devices', [DeviceController::class, 'store'])->name('devices.store');
+
+    Route::get('settings/notifications', [SettingsController::class, 'showNotificationPreferences'])->name('settings.notifications.show');
+    Route::put('settings/notifications', [SettingsController::class, 'updateNotificationPreferences'])->name('settings.notifications.update');
+
+    Route::post('account/data-export', [AccountController::class, 'requestDataExport'])->name('account.data-export');
+    Route::post('account/delete-request', [AccountController::class, 'requestDeletion'])->name('account.delete-request');
+
+    Route::post('connections/{platform}/start', [ConnectionController::class, 'start'])
+        ->whereIn('platform', [
+            StoreConnection::PLATFORM_SHOPIFY,
+            StoreConnection::PLATFORM_WOO,
+            StoreConnection::PLATFORM_EBAY,
+            StoreConnection::PLATFORM_ETSY,
+            StoreConnection::PLATFORM_AMAZON,
+        ])
+        ->middleware('team.role:owner,manager')
+        ->name('connections.start');
+    Route::get('connections', [ConnectionController::class, 'index'])->name('connections.index');
+    Route::get('connections/{connection}/health', [ConnectionController::class, 'health'])->name('connections.health');
+    Route::delete('connections/{connection}', [ConnectionController::class, 'destroy'])
+        ->middleware('team.role:owner,manager')
+        ->name('connections.destroy');
+
+    Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::post('orders/{order}/notes', [OrderController::class, 'addNote'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.notes.store');
+    Route::post('orders/{order}/tags', [OrderController::class, 'updateTags'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.tags.update');
+    Route::post('orders/{order}/snooze', [OrderController::class, 'snooze'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.snooze');
+    Route::post('orders/{order}/fulfill', [OrderController::class, 'fulfill'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.fulfill');
+    Route::post('orders/{order}/refund', [OrderController::class, 'refund'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.refund');
+    Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.cancel');
+    Route::get('orders/{order}/packing-slip', [OrderController::class, 'packingSlip'])->name('orders.packing-slip');
+
+    Route::get('rules', [RuleController::class, 'index'])->name('rules.index');
+    Route::post('rules', [RuleController::class, 'store'])
+        ->middleware('team.role:owner,manager')
+        ->name('rules.store');
+    Route::put('rules/{rule}', [RuleController::class, 'update'])
+        ->middleware('team.role:owner,manager')
+        ->name('rules.update');
+    Route::post('rules/{rule}/test', [RuleController::class, 'test'])
+        ->middleware('team.role:owner,manager')
+        ->name('rules.test');
+    Route::get('rules/{rule}/executions', [RuleController::class, 'executions'])->name('rules.executions');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+
+    Route::get('analytics/summary', [AnalyticsController::class, 'summary'])->name('analytics.summary');
+    Route::get('analytics/products', [AnalyticsController::class, 'products'])->name('analytics.products');
+
+    Route::get('team', [TeamController::class, 'index'])->name('team.index');
+    Route::post('team/invite', [TeamController::class, 'invite'])
+        ->middleware('team.role:owner,manager')
+        ->name('team.invite');
+    Route::put('team/{member}', [TeamController::class, 'update'])
+        ->middleware('team.role:owner,manager')
+        ->name('team.update');
+});

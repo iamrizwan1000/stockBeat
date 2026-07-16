@@ -19,5 +19,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Super Admin',
             'email' => 'admin@stockbeat.test',
         ]);
+
+        $this->call(PlanSeeder::class);
     }
 }

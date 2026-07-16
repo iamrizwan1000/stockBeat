@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Support\Orders;
+
+use Carbon\CarbonInterface;
+
+/**
+ * The adapter-agnostic order shape every ChannelAdapter's (future)
+ * fetchOrders()/parseWebhook() will produce (Plan §8.2's "Order normalizer").
+ */
+final readonly class NormalizedOrder
+{
+    /**
+     * @param  array<int, string>  $tags
+     * @param  array<string, mixed>  $shippingAddress
+     * @param  array<string, mixed>  $raw
+     * @param  array<int, NormalizedOrderItem>  $items
+     */
+    public function __construct(
+        public string $externalId,
+        public string $orderNumber,
+        public string $status,
+        public string $fulfillmentStatus,
+        public string $paymentStatus,
+        public string $currency,
+        public float $total,
+        public ?string $customerName,
+        public ?string $customerEmail,
+        public array $shippingAddress,
+        public CarbonInterface $placedAt,
+        public ?CarbonInterface $shipByAt,
+        public array $tags,
+        public array $raw,
+        public bool $isTest,
+        public array $items,
+    ) {}
+}

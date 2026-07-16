@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'revenuecat' => [
+        'webhook_secret' => env('REVENUECAT_WEBHOOK_SECRET'),
+    ],
+
 ];
