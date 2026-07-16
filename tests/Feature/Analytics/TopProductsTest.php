@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Order;
+use App\Models\Plan;
 use App\Models\StoreConnection;
 use App\Models\Subscription;
 use App\Models\User;
@@ -63,6 +64,17 @@ test('products are ranked by revenue and exclude test orders', function () {
 test('a free-plan team is restricted to range=today for products too', function () {
     [$user] = onboardedProductsUser();
     $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_EXPIRED, 'trial_ends_at' => now()->subDay()]);
+
+    test()->getJson('/api/v1/analytics/products?range=30d')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('range');
+});
+
+test('a starter-plan team can view 7d but not 30d for products', function () {
+    [$user] = onboardedProductsUser();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_ACTIVE, 'plan_key' => Plan::STARTER]);
+
+    test()->getJson('/api/v1/analytics/products?range=7d')->assertOk();
 
     test()->getJson('/api/v1/analytics/products?range=30d')
         ->assertUnprocessable()

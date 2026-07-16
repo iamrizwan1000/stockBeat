@@ -10,7 +10,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Creates a rule, enforcing the plan's `max_rules` limit (Free = preset
- * alerts only / 0 custom rules, Pro = unlimited — Plan §5).
+ * alerts only / 0 custom rules, Starter+ = a real quota or unlimited —
+ * Plan §5) and, separately, the `advanced_triggers_enabled` gate on
+ * `Rule::advancedTriggers()` (Premium-only).
  */
 class CreateRuleAction
 {
@@ -23,7 +25,8 @@ class CreateRuleAction
      */
     public function handle(Team $team, User $creator, array $data): Rule
     {
-        $maxRules = $this->resolveEntitlements->handle($team)['limits']['max_rules'] ?? null;
+        $limits = $this->resolveEntitlements->handle($team)['limits'];
+        $maxRules = $limits['max_rules'] ?? null;
 
         if ($maxRules !== null) {
             $currentCount = Rule::query()->where('team_id', $team->id)->count();
@@ -33,6 +36,12 @@ class CreateRuleAction
                     'trigger' => "You've reached your plan's custom rule limit ({$maxRules}). Upgrade to add more rules.",
                 ]);
             }
+        }
+
+        if (in_array($data['trigger'], Rule::advancedTriggers(), true) && empty($limits['advanced_triggers_enabled'])) {
+            throw ValidationException::withMessages([
+                'trigger' => 'This trigger requires the Premium plan.',
+            ]);
         }
 
         return Rule::query()->create([

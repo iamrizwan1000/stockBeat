@@ -13,8 +13,9 @@ use Illuminate\Validation\ValidationException;
  * Top products by units/revenue within a range (Plan §4.6). Grouped by SKU
  * where present, falling back to product title for SKU-less items (Woo
  * line items can arrive with a blank SKU — matches the mapper's existing
- * "sku nullable" handling). Gated the same way as the summary (§5.1
- * "Analytics: Today only" for Free).
+ * "sku nullable" handling). Gated the same 3-way way as the summary
+ * (`GetAnalyticsSummaryAction`) — Free is today-only, Starter adds 7d,
+ * Pro/Premium get full history.
  */
 class GetTopProductsAction
 {
@@ -31,14 +32,20 @@ class GetTopProductsAction
     {
         $analyticsLevel = $this->resolveEntitlements->handle($team)['limits']['analytics_level'] ?? 'today';
 
-        if ($analyticsLevel !== 'full' && $range !== 'today') {
+        $allowedRanges = match ($analyticsLevel) {
+            'full' => ['today', '7d', '30d'],
+            '7d' => ['today', '7d'],
+            default => ['today'],
+        };
+
+        if (! in_array($range, $allowedRanges, true)) {
             throw ValidationException::withMessages([
-                'range' => 'Upgrade to Pro for 7-day and 30-day analytics.',
+                'range' => 'Upgrade your plan for more analytics history.',
             ]);
         }
 
         $timezone = $team->owner->timezone ?? 'UTC';
-        $days = self::RANGE_DAYS[$range] ?? self::RANGE_DAYS['today'];
+        $days = self::RANGE_DAYS[$range];
         $start = Carbon::now($timezone)->startOfDay()->subDays($days - 1)->utc();
         $end = Carbon::now($timezone)->endOfDay()->utc();
 

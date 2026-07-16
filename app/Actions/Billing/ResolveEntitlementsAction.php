@@ -18,11 +18,11 @@ class ResolveEntitlementsAction
     public function handle(Team $team): array
     {
         $subscription = $team->subscription;
-        $isPro = $subscription !== null && $subscription->isCurrentlyPro();
+        $planKey = $subscription?->effectivePlanKey() ?? Plan::FREE;
 
         $plan = Plan::query()
             ->with('limits')
-            ->where('key', $isPro ? Plan::PRO : Plan::FREE)
+            ->where('key', $planKey)
             ->firstOrFail();
 
         return [

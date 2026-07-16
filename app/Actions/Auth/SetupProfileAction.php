@@ -34,10 +34,15 @@ class SetupProfileAction
         array $sellsOn,
         ?string $timezone,
         ?string $baseCurrency,
+        ?string $phone = null,
     ): User {
         $user->name = $name;
         $user->business_name = $businessName;
         $user->sells_on = $sellsOn;
+
+        if ($phone !== null) {
+            $user->phone = $phone;
+        }
 
         if ($timezone !== null) {
             $user->timezone = $timezone;

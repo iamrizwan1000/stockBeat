@@ -45,6 +45,16 @@ class PlanLimit extends Model
     public const WIDGETS_ENABLED = 'widgets_enabled';
 
     /**
+     * Gates the two "derived/anomaly" rule triggers (order_spike,
+     * refund_spike — see `Rule::advancedTriggers()`) to Premium. The other
+     * two originally-considered-advanced triggers (low_stock,
+     * negative_review) are deliberately NOT behind this flag — they read as
+     * basic seller hygiene rather than a luxury add-on, so they're
+     * available from Starter up like every other trigger.
+     */
+    public const ADVANCED_TRIGGERS_ENABLED = 'advanced_triggers_enabled';
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

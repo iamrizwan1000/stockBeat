@@ -54,11 +54,9 @@ class Rule extends Model
     public const TRIGGER_DIGEST = 'digest';
 
     /**
-     * All trigger keys from Plan §4.4 — only NEW_ORDER and HIGH_VALUE_ORDER
-     * have a wired dispatch path today; the rest are accepted here so the
-     * CRUD/validation layer is forward-compatible with triggers whose
-     * source infrastructure (webhooks, polling, Redis, Analytics) doesn't
-     * exist yet.
+     * All trigger keys from Plan §4.4 — all 12 have a real evaluation path
+     * as of 2026-07-16 (see `RuleEvaluationAction`, `CheckLowStockAction`,
+     * `CheckNegativeReviewAction`, `SendRuleDigests`).
      *
      * @return array<int, string>
      */
@@ -77,6 +75,22 @@ class Rule extends Model
             self::TRIGGER_ORDER_SPIKE,
             self::TRIGGER_REFUND_SPIKE,
             self::TRIGGER_DIGEST,
+        ];
+    }
+
+    /**
+     * The two "derived/anomaly" triggers reserved for the Premium plan
+     * (`plan_limits.advanced_triggers_enabled` — see `PlanSeeder`).
+     * `low_stock`/`negative_review` are deliberately not in this list —
+     * they're available from Starter up like every other trigger.
+     *
+     * @return array<int, string>
+     */
+    public static function advancedTriggers(): array
+    {
+        return [
+            self::TRIGGER_ORDER_SPIKE,
+            self::TRIGGER_REFUND_SPIKE,
         ];
     }
 

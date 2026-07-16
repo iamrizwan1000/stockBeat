@@ -2,6 +2,7 @@
 
 use App\Mail\TeamInviteMail;
 use App\Models\Order;
+use App\Models\Plan;
 use App\Models\StoreConnection;
 use App\Models\TeamInvite;
 use App\Models\TeamMember;
@@ -81,7 +82,10 @@ test('a duplicate pending invite for the same email is rejected', function () {
 });
 
 test('the team_seats plan limit blocks invites once reached', function () {
-    $owner = onboardedTeamOwner(); // pro trial => 3 seats, owner already occupies 1
+    $owner = onboardedTeamOwner();
+    // Trial defaults to Premium (10 seats) — pin to Pro (3 seats) explicitly
+    // so this test doesn't depend on which tier the trial happens to grant.
+    $owner->currentTeam()->subscription->update(['plan_key' => Plan::PRO]);
 
     test()->postJson('/api/v1/team/invite', ['email' => 'a@example.com', 'role' => 'agent'])->assertCreated();
     test()->postJson('/api/v1/team/invite', ['email' => 'b@example.com', 'role' => 'agent'])->assertCreated();

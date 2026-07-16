@@ -10,8 +10,8 @@ use Closure;
 
 /**
  * Evaluates one rule against a trigger event (Plan §8.4) and, if it fires,
- * really dispatches its actions via `DispatchRuleActionsAction` — push/
- * email are real, SMS is honestly stubbed pending Twilio (§15.2).
+ * really dispatches its actions via `DispatchRuleActionsAction` — push,
+ * email, and SMS (§15.2, via Twilio) are all real sends.
  */
 class RuleEvaluationAction
 {

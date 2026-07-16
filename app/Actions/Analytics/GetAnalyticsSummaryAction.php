@@ -5,7 +5,6 @@ namespace App\Actions\Analytics;
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Models\DailyStat;
 use App\Models\Order;
-use App\Models\PlanLimit;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use Illuminate\Support\Carbon;
@@ -35,12 +34,20 @@ class GetAnalyticsSummaryAction
      */
     public function handle(Team $team, string $range): array
     {
-        $analyticsLevel = $this->resolveEntitlements->handle($team)['limits']['analytics_level'] ?? PlanLimit::ANALYTICS_LEVEL;
+        $analyticsLevel = $this->resolveEntitlements->handle($team)['limits']['analytics_level'] ?? 'today';
         $isFull = $analyticsLevel === 'full';
 
-        if (! $isFull && $range !== 'today') {
+        // Starter's '7d' level sits between Free's 'today'-only and Pro/
+        // Premium's 'full' (30d + comparison + goal tracking).
+        $allowedRanges = match ($analyticsLevel) {
+            'full' => ['today', '7d', '30d'],
+            '7d' => ['today', '7d'],
+            default => ['today'],
+        };
+
+        if (! in_array($range, $allowedRanges, true)) {
             throw ValidationException::withMessages([
-                'range' => 'Upgrade to Pro for 7-day and 30-day analytics.',
+                'range' => 'Upgrade your plan for more analytics history.',
             ]);
         }
 

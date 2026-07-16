@@ -2,6 +2,7 @@
 
 namespace App\Actions\Billing;
 
+use App\Models\Plan;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
 use App\Models\Team;
@@ -12,17 +13,17 @@ use Illuminate\Support\Carbon;
  * (§6.1's identity-linking design) resolves straight to our `User`, and its
  * `currentTeam()` owns the one `Subscription` row per team. Consumable
  * products (`sms_100`/`sms_500`) are handled separately from the renewing
- * subscription products (`pro_monthly`/`pro_yearly`) since they affect
- * `sms_ledger`, not `subscriptions`.
+ * subscription products since they affect `sms_ledger`, not `subscriptions`.
  *
- * Both `SMS_TOPUP_PRODUCTS` and `SUBSCRIPTION_PRODUCTS` are an explicit
- * whitelist, not a DB table — `pro_monthly`/`pro_yearly` both map to the
- * single `Plan::PRO` tier (§5: yearly is just cheaper, not a different
- * plan), so there's no N:1 mapping to store. Unlike `plans`/`plan_limits`
- * (business-tunable numbers, deliberately DB-driven per §5), these IDs are
- * store-controlled — adding a new one means creating it in App Store
- * Connect/Play Console first, so a code change happens either way. An
- * unrecognized product_id is a no-op, not a silent Pro grant.
+ * Both `SMS_TOPUP_PRODUCTS` and `SUBSCRIPTION_PLAN_PRODUCTS` are an explicit
+ * whitelist, not a DB table — unlike `plans`/`plan_limits` (business-tunable
+ * numbers, deliberately DB-driven per §5), these IDs are store-controlled:
+ * adding a new one means creating it in App Store Connect/Play Console
+ * first, so a code change happens either way. `pro_monthly`/`pro_yearly`
+ * both map to the same `Plan::PRO` (yearly is just cheaper, not a
+ * different tier) — but with 4 plan tiers now, this map genuinely needs to
+ * carry *which* tier each product grants, not just a pro/not-pro boolean.
+ * An unrecognized product_id is a no-op, not a silent Pro grant.
  *
  * Idempotency (a redelivered webhook must never double-credit SMS) is the
  * caller's responsibility via `RevenueCatEvent` — this action assumes it's
@@ -35,7 +36,13 @@ class ProcessRevenueCatEventAction
         'sms_500' => 500,
     ];
 
-    private const SUBSCRIPTION_PRODUCTS = ['pro_monthly', 'pro_yearly'];
+    private const SUBSCRIPTION_PLAN_PRODUCTS = [
+        'starter_monthly' => Plan::STARTER,
+        'pro_monthly' => Plan::PRO,
+        'pro_yearly' => Plan::PRO,
+        'premium_monthly' => Plan::PREMIUM,
+        'premium_yearly' => Plan::PREMIUM,
+    ];
 
     /**
      * @param  array<string, mixed>  $event
@@ -53,8 +60,8 @@ class ProcessRevenueCatEventAction
             return;
         }
 
-        if (in_array($productId, self::SUBSCRIPTION_PRODUCTS, true)) {
-            $this->applySubscriptionEvent($team, $type, $productId, $event);
+        if (isset(self::SUBSCRIPTION_PLAN_PRODUCTS[$productId])) {
+            $this->applySubscriptionEvent($team, $type, $productId, self::SUBSCRIPTION_PLAN_PRODUCTS[$productId], $event);
         }
     }
 
@@ -78,7 +85,7 @@ class ProcessRevenueCatEventAction
     /**
      * @param  array<string, mixed>  $event
      */
-    private function applySubscriptionEvent(Team $team, string $type, string $productId, array $event): void
+    private function applySubscriptionEvent(Team $team, string $type, string $productId, string $planKey, array $event): void
     {
         $subscription = $team->subscription;
 
@@ -87,11 +94,15 @@ class ProcessRevenueCatEventAction
         }
 
         match ($type) {
+            // PRODUCT_CHANGE is exactly a tier upgrade/downgrade (e.g.
+            // Pro -> Premium) — plan_key must move to the new product's
+            // tier here, not just refresh status/expiry.
             'INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION' => $subscription->fill([
                 'status' => Subscription::STATUS_ACTIVE,
                 'provider' => $this->mapStore($event['store'] ?? null),
                 'rc_app_user_id' => $event['app_user_id'] ?? null,
                 'product_id' => $productId !== '' ? $productId : $subscription->product_id,
+                'plan_key' => $planKey,
                 'expires_at' => $this->msToDate($event['expiration_at_ms'] ?? null),
                 'renewed_at' => now(),
             ]),

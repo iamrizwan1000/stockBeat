@@ -91,7 +91,7 @@ export default function Dashboard({ kpis }: { kpis: Kpis }) {
     return (
         <>
             <Head title="Dashboard" />
-            <Page title="Dashboard">
+            <Page title="Dashboard" fullWidth>
                 <BlockStack gap="500">
                     <Section title="Signups">
                         <InlineGrid columns={3} gap="300">
@@ -136,9 +136,9 @@ export default function Dashboard({ kpis }: { kpis: Kpis }) {
                             />
                         </InlineGrid>
                         <Text as="p" tone="subdued" variant="bodySm">
-                            MRR/ARR use the current $9.99 / $79.99 list prices — update this
-                            estimate by hand if store pricing changes until a real prices
-                            table exists.
+                            MRR/ARR use the current Starter/Pro/Premium list prices — update
+                            this estimate by hand if store pricing changes until a real
+                            prices table exists.
                         </Text>
                     </Section>
 

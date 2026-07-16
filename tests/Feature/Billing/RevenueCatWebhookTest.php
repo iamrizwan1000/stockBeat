@@ -70,12 +70,32 @@ test('an INITIAL_PURCHASE activates the subscription and is reflected in /me', f
     expect($subscription->status)->toBe(Subscription::STATUS_ACTIVE);
     expect($subscription->provider)->toBe('google');
     expect($subscription->product_id)->toBe('pro_monthly');
+    expect($subscription->plan_key)->toBe('pro');
     expect($subscription->expires_at)->not->toBeNull();
 
     test()->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.entitlements.plan', 'pro');
 });
 
-test('BILLING_ISSUE moves the subscription to grace and it still counts as pro', function () {
+test('starter_monthly and premium_yearly each activate their own tier', function () {
+    $starterUser = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($starterUser->id, ['product_id' => 'starter_monthly']))->assertOk();
+    expect($starterUser->ownedTeam->subscription->fresh()->plan_key)->toBe('starter');
+
+    $premiumUser = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($premiumUser->id, ['product_id' => 'premium_yearly']))->assertOk();
+    expect($premiumUser->ownedTeam->subscription->fresh()->plan_key)->toBe('premium');
+});
+
+test('a PRODUCT_CHANGE moves plan_key to the new tier', function () {
+    $user = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE', 'product_id' => 'pro_monthly']))->assertOk();
+    expect($user->ownedTeam->subscription->fresh()->plan_key)->toBe('pro');
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'PRODUCT_CHANGE', 'product_id' => 'premium_monthly']))->assertOk();
+    expect($user->ownedTeam->subscription->fresh()->plan_key)->toBe('premium');
+});
+
+test('BILLING_ISSUE moves the subscription to grace and it stays entitled', function () {
     $user = onboardedRevenueCatUser();
     postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE']))->assertOk();
 
@@ -83,7 +103,7 @@ test('BILLING_ISSUE moves the subscription to grace and it still counts as pro',
 
     $subscription = $user->ownedTeam->subscription->fresh();
     expect($subscription->status)->toBe(Subscription::STATUS_GRACE);
-    expect($subscription->isCurrentlyPro())->toBeTrue();
+    expect($subscription->isEntitled())->toBeTrue();
 });
 
 test('EXPIRATION moves the subscription to expired and entitlements revert to free', function () {
@@ -94,7 +114,7 @@ test('EXPIRATION moves the subscription to expired and entitlements revert to fr
 
     $subscription = $user->ownedTeam->subscription->fresh();
     expect($subscription->status)->toBe(Subscription::STATUS_EXPIRED);
-    expect($subscription->isCurrentlyPro())->toBeFalse();
+    expect($subscription->isEntitled())->toBeFalse();
 
     test()->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.entitlements.plan', 'free');
 });

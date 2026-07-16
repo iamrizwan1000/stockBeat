@@ -21,6 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $name
  * @property string $email
  * @property string|null $business_name
+ * @property string|null $phone
  * @property string $base_currency
  * @property string|null $timezone
  * @property array<int, string>|null $sells_on
@@ -31,7 +32,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
-#[Fillable(['name', 'email', 'business_name', 'base_currency', 'timezone', 'sells_on', 'marketing_opt_in'])]
+#[Fillable(['name', 'email', 'business_name', 'phone', 'base_currency', 'timezone', 'sells_on', 'marketing_opt_in'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */

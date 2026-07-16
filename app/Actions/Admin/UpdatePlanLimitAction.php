@@ -34,7 +34,7 @@ class UpdatePlanLimitAction
     private function coerce(string $key, mixed $rawValue): mixed
     {
         return match ($key) {
-            PlanLimit::INBOX_ENABLED, PlanLimit::WIDGETS_ENABLED => filter_var($rawValue, FILTER_VALIDATE_BOOLEAN),
+            PlanLimit::INBOX_ENABLED, PlanLimit::WIDGETS_ENABLED, PlanLimit::ADVANCED_TRIGGERS_ENABLED => filter_var($rawValue, FILTER_VALIDATE_BOOLEAN),
             PlanLimit::ANALYTICS_LEVEL => (string) $rawValue,
             default => ($rawValue === '' || $rawValue === null) ? null : (int) $rawValue,
         };

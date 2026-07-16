@@ -25,7 +25,11 @@ class Plan extends Model
 
     public const FREE = 'free';
 
+    public const STARTER = 'starter';
+
     public const PRO = 'pro';
+
+    public const PREMIUM = 'premium';
 
     /**
      * Get the attributes that should be cast.

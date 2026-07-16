@@ -21,6 +21,7 @@ class SetupProfileRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'business_name' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'regex:/^\+[1-9]\d{1,14}$/'],
             'sells_on' => ['required', 'array', 'min:1'],
             'sells_on.*' => ['string', Rule::in(['shopify', 'woo', 'ebay', 'etsy', 'amazon'])],
             'timezone' => ['nullable', 'string', Rule::in(DateTimeZone::listIdentifiers())],

@@ -39,4 +39,10 @@ return [
         'webhook_secret' => env('REVENUECAT_WEBHOOK_SECRET'),
     ],
 
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'messaging_service_sid' => env('TWILIO_MESSAGING_SERVICE_SID'),
+    ],
+
 ];

@@ -96,6 +96,7 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                 title={customer.user.name || customer.user.email}
                 subtitle={customer.user.email}
                 backAction={{ url: '/admin/customers' }}
+                fullWidth
             >
                 <BlockStack gap="500">
                     {props.flash?.status && <Banner tone="success">{props.flash.status}</Banner>}

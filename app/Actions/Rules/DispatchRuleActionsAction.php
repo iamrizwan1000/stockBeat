@@ -51,7 +51,7 @@ class DispatchRuleActionsAction
                 $status = match ($type) {
                     'push' => $this->sendPush->handle($creator, $title, $body, $order !== null ? ['order_id' => (string) $order->id] : []),
                     'email' => $this->sendEmail->handle($team, $creator, $title, $body),
-                    'sms' => $this->sendSms->handle($team),
+                    'sms' => $this->sendSms->handle($team, $creator, $body),
                     'notify_member' => isset($action['user_id'])
                         ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body)
                         : 'missing_user_id',

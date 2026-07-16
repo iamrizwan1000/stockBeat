@@ -94,6 +94,7 @@ export default function CustomersIndex({ filters, customers }: Props) {
             <Page
                 title="Customers"
                 subtitle={`${customers.total} total`}
+                fullWidth
                 secondaryActions={[
                     {
                         content: 'Export CSV',

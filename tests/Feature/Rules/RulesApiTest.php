@@ -4,6 +4,7 @@ use App\Actions\Orders\IngestOrderAction;
 use App\Actions\Rules\RuleEvaluationAction;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\Order;
+use App\Models\Plan;
 use App\Models\Rule;
 use App\Models\RuleExecution;
 use App\Models\StoreConnection;
@@ -86,10 +87,38 @@ test('a free-plan team cannot create custom rules', function () {
         ->assertJsonValidationErrors('trigger');
 });
 
-test('a pro-trial team can create rules', function () {
+test('a premium-trial team can create rules', function () {
     onboardedRuleUser();
 
     test()->postJson('/api/v1/rules', validRulePayload())->assertCreated();
+});
+
+test('a pro-tier team cannot create an order_spike (advanced trigger) rule', function () {
+    $user = onboardedRuleUser();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_ACTIVE, 'plan_key' => Plan::PRO]);
+
+    test()->postJson('/api/v1/rules', validRulePayload(['trigger' => Rule::TRIGGER_ORDER_SPIKE]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('trigger');
+});
+
+test('a premium-tier team can create an order_spike rule', function () {
+    $user = onboardedRuleUser();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_ACTIVE, 'plan_key' => Plan::PREMIUM]);
+
+    test()->postJson('/api/v1/rules', validRulePayload(['trigger' => Rule::TRIGGER_ORDER_SPIKE]))
+        ->assertCreated();
+});
+
+test('a pro-tier team cannot upgrade an existing rule to refund_spike', function () {
+    $user = onboardedRuleUser();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_ACTIVE, 'plan_key' => Plan::PRO]);
+
+    $ruleId = test()->postJson('/api/v1/rules', validRulePayload())->json('data.rule.id');
+
+    test()->putJson("/api/v1/rules/{$ruleId}", ['trigger' => Rule::TRIGGER_REFUND_SPIKE])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('trigger');
 });
 
 test('rules are scoped to the caller\'s team', function () {

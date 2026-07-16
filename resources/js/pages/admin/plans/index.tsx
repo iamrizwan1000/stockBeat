@@ -31,10 +31,11 @@ type Plan = {
     limits: PlanLimit[];
 };
 
-const BOOLEAN_KEYS = ['inbox_enabled', 'widgets_enabled'];
+const BOOLEAN_KEYS = ['inbox_enabled', 'widgets_enabled', 'advanced_triggers_enabled'];
 const ENUM_KEYS: Record<string, Array<{ label: string; value: string }>> = {
     analytics_level: [
         { label: 'Today only', value: 'today' },
+        { label: 'Today + 7 days', value: '7d' },
         { label: 'Full', value: 'full' },
     ],
 };
@@ -50,6 +51,7 @@ const LABELS: Record<string, string> = {
     inbox_enabled: 'Unified inbox',
     analytics_level: 'Analytics level',
     widgets_enabled: 'Home-screen widgets',
+    advanced_triggers_enabled: 'Advanced rule triggers (order/refund spike)',
 };
 
 function LimitRow({ limit }: { limit: PlanLimit }) {
@@ -116,7 +118,7 @@ export default function PlansIndex({ plans }: { plans: Plan[] }) {
     return (
         <>
             <Head title="Plans & Limits" />
-            <Page title="Plans & Limits">
+            <Page title="Plans & Limits" fullWidth>
                 <BlockStack gap="500">
                     {props.flash?.status && <Banner tone="success">{props.flash.status}</Banner>}
 

@@ -2,6 +2,7 @@
 
 use App\Models\DailyStat;
 use App\Models\Order;
+use App\Models\Plan;
 use App\Models\StoreConnection;
 use App\Models\Subscription;
 use App\Models\User;
@@ -64,6 +65,18 @@ test('a free-plan team is restricted to range=today', function () {
         ->assertJsonValidationErrors('range');
 
     test()->getJson('/api/v1/analytics/summary?range=today')->assertOk();
+});
+
+test('a starter-plan team can view 7d but not 30d', function () {
+    [$user] = onboardedAnalyticsUser();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_ACTIVE, 'plan_key' => Plan::STARTER]);
+
+    test()->getJson('/api/v1/analytics/summary?range=today')->assertOk();
+    test()->getJson('/api/v1/analytics/summary?range=7d')->assertOk();
+
+    test()->getJson('/api/v1/analytics/summary?range=30d')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('range');
 });
 
 test('a 7-day summary combines historical daily_stats with live today', function () {

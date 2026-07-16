@@ -27,7 +27,7 @@ test('a user who has not completed profile setup needs it', function () {
         ->assertJsonPath('data.entitlements', null);
 });
 
-test('a freshly onboarded team is on the pro trial', function () {
+test('a freshly onboarded team is on the premium trial', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user);
 
@@ -40,7 +40,7 @@ test('a freshly onboarded team is on the pro trial', function () {
 
     $response->assertOk()
         ->assertJsonPath('data.needs_profile_setup', false)
-        ->assertJsonPath('data.entitlements.plan', 'pro')
+        ->assertJsonPath('data.entitlements.plan', 'premium')
         ->assertJsonPath('data.entitlements.subscription_status', 'trial')
         ->assertJsonPath('data.entitlements.limits.max_stores', null)
         ->assertJsonPath('data.entitlements.sms_balance', 0);

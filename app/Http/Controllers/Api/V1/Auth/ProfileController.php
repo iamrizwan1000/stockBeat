@@ -24,6 +24,7 @@ class ProfileController extends Controller
             sellsOn: $request->input('sells_on'),
             timezone: $request->string('timezone')->toString() ?: null,
             baseCurrency: $request->string('base_currency')->toString() ?: null,
+            phone: $request->string('phone')->toString() ?: null,
         );
 
         return ApiResponse::success([

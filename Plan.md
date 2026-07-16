@@ -26,7 +26,7 @@ OrderPulse is a mobile-first application for e-commerce sellers who sell on mult
 3. **Act** — quick actions: fulfill, track, refund, cancel, tag, note — from the phone.
 4. **Talk** — unified customer inbox across channels (Phase 2).
 
-**Business model:** Freemium subscription with **three tiers: Free, Pro Monthly ($9.99/mo), Pro Yearly ($79.99/yr — ~33% off)**. Billed entirely through **native in-app purchases** (Apple StoreKit / Google Play Billing, managed via RevenueCat) — fully compliant with App Store rules, no external checkout. A **7-day full-featured trial (no card required)** starts at signup and downgrades gracefully to Free. The paywall trigger is multi-channel itself: the moment a seller connects a second store, they must upgrade — which is exactly the target customer.
+**Business model:** Freemium subscription with **four tiers: Free, Starter ($5.99/mo), Pro ($17.99/mo · $172.99/yr), Premium ($44.99/mo · $429.99/yr)** — revised 2026-07-16 from the original Free/Pro-only model after benchmarking against comparable Shopify apps (§16.2/16.3). Billed entirely through **native in-app purchases** (Apple StoreKit / Google Play Billing, managed via RevenueCat) — fully compliant with App Store rules, no external checkout. A **7-day full-featured trial (no card required)** starts at signup — grants Premium specifically, so a trialing seller experiences the complete product — and downgrades gracefully to Free. The paywall trigger is multi-channel itself: the moment a seller connects a second store, they must upgrade — which is exactly the target customer.
 
 ---
 
@@ -238,29 +238,36 @@ Every user (including Free) gets a "Help" entry in Settings opening a **live sup
 
 ## 5. Subscription Tiers & Pricing
 
-**Three tiers total: Free, Pro Monthly, Pro Yearly.** Pro Monthly and Pro Yearly unlock identical features — yearly is simply cheaper. Pricing is deliberately competitive (market notification apps cluster at $5–20/mo; multichannel tools at $10–40/mo).
+**Four tiers: Free, Starter, Pro, Premium** (revised 2026-07-16 from the original Free/Pro-only model, after benchmarking against Ordersify, Notify!, Smart Notifications, and Listing Mirror — see §16.2/16.3). Pro and Premium each offer a monthly and yearly option (yearly saves 20%); Starter is monthly-only, positioned as the solo-seller entry tier.
 
-| Feature | Free | Pro Monthly **$9.99/mo** | Pro Yearly **$79.99/yr** (≈$6.67/mo, save 33%) |
-|---|---|---|---|
-| Connected stores | 1 | Unlimited | Unlimited |
-| Unified feed & search | ✅ | ✅ | ✅ |
-| Order history | 7 days | 1 year | 1 year |
-| Push notifications | Presets only | ✅ custom sounds | ✅ custom sounds |
-| Custom rules | — | Unlimited | Unlimited |
-| Email alerts | — | ✅ | ✅ |
-| SMS credits /mo | — | 100 (top-ups available) | 100/mo (top-ups available) |
-| Quick actions | ✅ | ✅ | ✅ |
-| Unified inbox (Phase 2) | — | ✅ | ✅ |
-| Team seats | 1 | 3 | 3 |
-| Analytics | Today only | Full | Full |
-| Widgets & digests | — | ✅ | ✅ |
-| Support | Community | Priority email | Priority email |
+| Feature | Free — $0 | Starter — $5.99/mo | Pro — $17.99/mo · $172.99/yr (save 20%) | Premium — $44.99/mo · $429.99/yr (save 20%) |
+|---|---|---|---|---|
+| Connected stores | 1 | 3 | 10 | Unlimited |
+| Unified feed & search | ✅ | ✅ | ✅ | ✅ |
+| Order history | 7 days | 30 days | 1 year | Unlimited |
+| Custom rules | — | 5 | Unlimited | Unlimited |
+| Rule triggers | Presets only¹ | Core triggers² | Core triggers² | Core + **advanced triggers**³ |
+| Push notifications | Presets only | Custom rules | Custom sound per rule | Custom sound per rule |
+| Email alerts /mo | 25 | 250 | 1,000 | 5,000 |
+| SMS credits /mo | — | 20 | 100 (top-ups available) | 500 (top-ups available) |
+| Quick actions | ✅ | ✅ | ✅ | ✅ |
+| Unified inbox (Phase 2) | — | — | ✅ | ✅ |
+| Team seats | 1 | 1 | 3 | 10 |
+| Analytics | Today only | Today + 7d | Full | Full + multi-currency⁴ |
+| Widgets & digests | — | Daily digest only | ✅ | ✅ |
+| Support | Community | Community | Priority email | Priority email + phone/chat |
+
+¹ new-order push + daily digest — the same free-tier baseline as before.
+² new order, high-value, unfulfilled-after-X, ship-by-deadline, order cancelled, refund requested, payment failed, low stock, negative review, digest.
+³ order spike, refund spike only — deliberately not `low_stock`/`negative_review`, which read as basic seller hygiene rather than a Premium-only perk (`plan_limits.advanced_triggers_enabled`, `Rule::advancedTriggers()`).
+⁴ once the `fx_rates` table exists (§9/§17.3 — still not built).
 
 - **SMS top-up packs (consumable IAP):** 100 credits / $2.99 · 500 credits / $9.99. Non-expiring. Priced above carrier cost (~$0.01–0.05/msg via Twilio) — verify per launch region.
 - SMS monthly allotment resets each billing cycle; unused monthly credits do not roll over (top-up credits do).
-- Enforcement is server-side via plan-gate middleware; the client reads entitlements from the `/me` payload — never trust client-side flags.
+- Enforcement is server-side, per-Action (`CreateRuleAction`/`UpdateRuleAction`/`ConnectStoreAction`/etc. each check `ResolveEntitlementsAction`'s limits directly) rather than a single centralized plan-gate middleware; the client reads entitlements from the `/me` payload — never trust client-side flags.
 - Prices are IAP list prices; Apple/Google commission (15% under $1M/yr via the Small Business / 15% programs) is already absorbed in these numbers.
-- **All numeric limits in this table (stores, rules, SMS allotment, history days, seats, trial days) are NOT hardcoded** — they live in the `plans` / `plan_limits` database tables and are editable live from the admin panel (§8.7). Changing a limit takes effect on the next entitlement refresh, no app release required. Only the IAP *prices* themselves must be changed in App Store Connect / Play Console (store-controlled).
+- **All numeric limits in this table (stores, rules, SMS allotment, history days, seats, trial days, advanced-trigger access) are NOT hardcoded** — they live in the `plans` / `plan_limits` database tables and are editable live from the admin panel (§8.7). Changing a limit takes effect on the next entitlement refresh, no app release required. Only the IAP *prices* and *product IDs* themselves must be changed in App Store Connect / Play Console (store-controlled) — `starter_monthly`/`pro_monthly`/`pro_yearly`/`premium_monthly`/`premium_yearly` are RevenueCat's product identifiers, mapped to a plan tier in `ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS`.
+- The 7-day free trial (§6.3) grants **Premium**, not just "Pro" — "full-featured trial" is taken literally so a trialing seller experiences the complete product, advanced triggers included, before choosing which paid tier actually fits.
 
 ### 5.1 Customer-facing plan presentation (paywall & store listing copy)
 
@@ -275,10 +282,18 @@ Written Notify Me-style: numeric quotas on everything, benefits not features (se
 - Quick actions: fulfill, track, refund from your phone
 - Last 7 days of orders
 
-**Pro — $9.99/month** · *first month $3.99* (introductory offer)
+**Starter — $5.99/month**
 
-- Unlimited stores across Shopify, WooCommerce, eBay, Etsy & Amazon
-- Unlimited custom alert rules — you decide what's worth a ping
+- Up to 3 connected stores
+- 5 custom alert rules (new order, high-value, unfulfilled, ship-by-deadline, cancelled, refunded, payment failed, low stock, negative review, digest)
+- 20 SMS + 250 email alerts /month
+- Today + 7-day analytics
+- Last 30 days of orders
+
+**Pro — $17.99/month** · *first month intro offer*
+
+- Up to 10 connected stores across Shopify, WooCommerce, eBay, Etsy & Amazon
+- Unlimited custom alert rules
 - 100 SMS + 1,000 email alerts /month (top-ups available in-app)
 - Custom notification sounds per rule
 - Unified customer inbox — reply to any marketplace from one screen
@@ -286,12 +301,24 @@ Written Notify Me-style: numeric quotas on everything, benefits not features (se
 - Full analytics + home-screen widget + 1 year of history
 - 7-day free trial, no card required
 
-**Pro Yearly — $79.99/year** *(save 33% — like 4 months free)*
+**Pro Yearly — $172.99/year** *(save 20%)*
 
-- Everything in Pro
-- One payment, priced for full-time sellers
+- Everything in Pro, one payment
 
-Notes: the intro offer ($3.99 first month) is a StoreKit/Play introductory offer on `pro_monthly`. Email alerts now also carry a numeric quota (Free 25, Pro 1,000/mo, admin-tunable) so every channel has a visible number — quota consumption shown in Settings with an upsell at 80%.
+**Premium — $44.99/month**
+
+- Unlimited connected stores
+- Everything in Pro, plus **order spike & refund spike alerts** — know the moment volume looks abnormal, not just order-by-order
+- 500 SMS + 5,000 email alerts /month
+- 10 team members
+- Full analytics + multi-currency consolidation, unlimited history
+- Priority email + phone/chat support
+
+**Premium Yearly — $429.99/year** *(save 20%)*
+
+- Everything in Premium, one payment
+
+Notes: introductory-offer pricing is a StoreKit/Play introductory offer on the relevant monthly product. Email alerts now carry a numeric quota at every paid tier (admin-tunable) so every channel has a visible number — quota consumption shown in Settings with an upsell at 80%.
 
 ---
 
@@ -302,12 +329,12 @@ All subscriptions and SMS top-ups are sold as **native in-app purchases**: Apple
 ### 6.1 Implementation
 
 - **RevenueCat** as the cross-platform IAP layer (SDK in React Native; server webhooks to Laravel). It handles receipt validation, renewal tracking, plan changes, refunds, and cross-device restore — building this raw against StoreKit + Play Billing is error-prone.
-- **Products:** `pro_monthly` ($9.99 auto-renewing), `pro_yearly` ($79.99 auto-renewing), consumables `sms_100` ($2.99), `sms_500` ($9.99).
-- **Entitlement flow:** purchase in app → store validates → RevenueCat webhook (`INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, `BILLING_ISSUE`, `EXPIRATION`, `PRODUCT_CHANGE`) → Laravel `/hooks/revenuecat` updates the `subscriptions` table → entitlements served via `/me`. The backend is the single source of truth; the app also checks RevenueCat SDK locally for instant unlock, then reconciles with the server.
+- **Products (revised 2026-07-16 for the 4-tier model, §5):** `starter_monthly` ($5.99), `pro_monthly` ($17.99)/`pro_yearly` ($172.99), `premium_monthly` ($44.99)/`premium_yearly` ($429.99), consumables `sms_100` ($2.99), `sms_500` ($9.99). Mapped to a `Plan::key` in `ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS` — built 2026-07-16, real end-to-end (webhook auth, idempotency via `revenuecat_events`, subscription state machine).
+- **Entitlement flow:** purchase in app → store validates → RevenueCat webhook (`INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, `BILLING_ISSUE`, `EXPIRATION`, `PRODUCT_CHANGE`) → Laravel `/hooks/revenuecat` updates the `subscriptions` table (`status` + `plan_key`) → entitlements served via `/me` (`Subscription::effectivePlanKey()`). The backend is the single source of truth; the app also checks RevenueCat SDK locally for instant unlock, then reconciles with the server.
 - **Restore purchases** button (App Store requirement); anonymous→authenticated identity linking via RevenueCat `app_user_id = user_id`.
-- **Billing issues:** store enters grace period (16 days Apple / configurable Google) — keep Pro active during grace with an in-app "payment issue" banner; downgrade to Free on `EXPIRATION`.
+- **Billing issues:** store enters grace period (16 days Apple / configurable Google) — keep the current tier active during grace with an in-app "payment issue" banner; downgrade to Free on `EXPIRATION`.
 - **Refunds/chargebacks:** handled by the stores; RevenueCat webhook revokes entitlement.
-- **Commission economics:** Apple Small Business Program + Google Play 15% tier → effective commission 15% under $1M/yr. Net on $9.99 ≈ $8.49; net on $79.99 ≈ $67.99. Enroll in both programs before launch.
+- **Commission economics:** Apple Small Business Program + Google Play 15% tier → effective commission 15% under $1M/yr. Net on $17.99 (Pro) ≈ $15.29; net on $172.99/yr ≈ $147.04. Enroll in both programs before launch.
 
 ### 6.2 Web/desktop billing (future)
 
@@ -797,9 +824,9 @@ Use this as the master build list — tick items as completed. Ordering follows 
 - [x] Unified feed API + app screens (feed, filters, global search, order detail) — *(2026-07-15): backend done — `GET /api/v1/orders` (channel/store/status/date/value/tag filters, global search across order#/customer/email/item sku+title, cursor pagination, `history_days` plan-gate, test orders excluded by default) + `GET /orders/{id}`, team-scoped. Mobile app screens are a separate (React Native) deliverable, not yet started.*
 - [x] Quick actions: fulfill + tracking, refund, cancel, notes/tags, packing-slip PDF — *(2026-07-16): notes/tags unchanged from 2026-07-15. `FulfillOrderAction`/`RefundOrderAction`/`CancelOrderAction` now call through real `ChannelAdapter::fulfill/refund/cancel()` — capability-checked server-side (`capabilities()->fulfillTracking`/`refunds`/`cancel`) before dispatch, real for WooCommerce (live HTTP calls to the Woo REST API), inert for the other four platforms until their adapters can connect at all. Packing slip (`GET /orders/{id}/packing-slip`) generates a real PDF via `barryvdh/laravel-dompdf` (`GeneratePackingSlipAction` + `resources/views/orders/packing-slip.blade.php`) — this route had been registered pointing at a controller method that didn't exist; fixed. `check_at` (the time-based rule scheduler's index column, see below) is cleared on all three terminal quick actions so a fulfilled/refunded/cancelled order drops out of that scan.*
 - [x] Rules engine v1: triggers (new order, high-value, unfulfilled-after-X, digest), condition tree, quiet hours, cooldown, execution log, test-fire — *(2026-07-16): all 12 of §4.4's triggers now have a real evaluation path, not just the 2 from the prior update. `unfulfilled_after_x`/`ship_by_deadline` gate on `controls.threshold_hours` in `RuleEvaluationAction::passesTimingGate()`, driven by a new hourly `orders:check-deadlines` command scanning the (previously unused) `check_at` column. `order_cancelled`/`refund_requested`/`payment_failed` fire on a real status transition detected in `IngestOrderAction` (webhook/poll-sourced only — a merchant's own quick action doesn't re-notify them about something they just did, except `refund_spike`, see below). `order_spike`/`refund_spike` use a plain DB rolling-window count (`controls.spike_count`/`spike_window_minutes`) rather than Redis — a deliberate scope cut (§15.1's Redis/Horizon item is still not started), swappable later without a schema change. `digest` (the Pro custom-rule version, distinct from the free-tier `SendMorningDigests` preset) runs via a new hourly `rules:send-digests` command with per-rule daily/weekly cadence (`controls.digest_frequency`/`digest_time`/`digest_day_of_week`); this surfaced a real bug in the hard `(rule_id,order_id,trigger)` dedup — it only makes sense for order-tied triggers, so a null-order trigger like `digest` could never fire twice, ever, until `alreadyFired()` was fixed to scope only to non-null orders. `low_stock`/`negative_review` are genuinely new: `products`/`reviews` tables + `products:poll-woo` (every 30 min, full-catalog)/`reviews:poll-woo` (hourly, latest 100) polling jobs, gated per-rule by `controls.low_stock_threshold`/`negative_review_max_rating`. All order-less triggers (`digest`/`low_stock`/`negative_review`) route through the same `$order = null` dispatch path, now carrying an optional `$context` array (`RuleEvaluationAction`/`DispatchRuleActionsAction`) so the notification body has real specifics (product/SKU/stock, or rating/review excerpt) instead of a generic placeholder. 48 new Pest tests across this work.*
-- [ ] Push (FCM/APNs) with custom sounds + deep links; email alerts (SES); SMS (Twilio) + `sms_ledger` — *partial (2026-07-16): real push via FCM (`kreait/laravel-firebase`, real service-account credential, verified live auth against Google's API), `POST /devices` registration, dead-token pruning on `NotFound`; real email via existing Mail infra, `email_monthly` quota enforced (Free=25/Pro=1000 — this key was missing from the earlier Billing module, added now); `sms_ledger` schema + credit-check logic done, actual Twilio send pending account setup (§15.2, never claims a fake send, never debits on failure); `GET /notifications` + `POST /notifications/read` (notification center); custom push sounds and deep links are mobile-app concerns, not yet started; SES/Postmark (still on Mailpit for dev), bounce suppression, and notification-storm bundling (§17.4) not yet built*
-- [ ] **IAP billing:** RevenueCat SDK + products (`pro_monthly`, `pro_yearly`, `sms_100`, `sms_500`), `/hooks/revenuecat`, entitlement service, restore purchases, plan-gate middleware — *partial (2026-07-16): `POST /hooks/revenuecat` now real (`WebhookController::revenuecat`, outside `/api/v1` per the webhook-ingress pattern) — constant-time `Authorization` header compare against a self-generated `REVENUECAT_WEBHOOK_SECRET` (not something RevenueCat issues; you set the same value in its dashboard). `ProcessRevenueCatEventAction` is the state machine: `INITIAL_PURCHASE`/`RENEWAL`/`PRODUCT_CHANGE`/`UNCANCELLATION` → `subscriptions.status=active`; `BILLING_ISSUE` → `grace` (already treated as Pro by `Subscription::isCurrentlyPro()`); `EXPIRATION` → `expired`; `CANCELLATION` deliberately leaves status untouched (§6.1: it only means auto-renew was turned off — the entitlement doesn't actually lapse until `EXPIRATION`). `sms_100`/`sms_500` are handled separately as `NON_RENEWING_PURCHASE` consumables crediting `sms_ledger` (`SmsLedger::REASON_TOPUP_IAP`, which existed unused since the Notifications module — this is what it was for). New `revenuecat_events` table makes every event idempotent by RevenueCat's own event id before any side effect runs, since a redelivered webhook must never double-credit SMS. `app_user_id = user_id` resolves straight to our `User` → `currentTeam()`, matching §6.1's identity-linking design. Still pending: the RevenueCat SDK itself (React Native/mobile-side, nothing to build here until that project exists), restore-purchases (same), and a dedicated plan-gate middleware (entitlements are currently checked per-Action — e.g. `ConnectStoreAction`/`CreateRuleAction` — rather than centralized in middleware; works correctly today, a refactor not a gap).*
-- [ ] **Admin panel (Inertia.js + React) per §8.7:** admin auth + 2FA + roles, KPI dashboard, customers module (list/detail/actions), plans & limits editor (DB-driven entitlements), promotions (offer-code campaigns + server comps), messaging center (segments, broadcasts, templates, delivery stats), **support inbox (live chat)**, ops/health boards, app config (min version, maintenance), audit log — *partial (2026-07-16): dedicated `admin` guard + `admin_users` table (roles: superadmin/support/readonly) via Fortify at `/admin/login`; Shopify Polaris UI with a persistent nav shell (Dashboard/Customers/Plans & Limits). `admin_audit_log` built + every write action logs to it; `admin.write` middleware blocks the readonly role at the route level. **Dashboard (§8.7.1)**: signups, DAU/MAU, active trials + conversion %, paying subs (monthly/yearly split), MRR/ARR/ARPU/churn (IAP prices hardcoded from §5 pending a real prices table), top platforms, notification volume, SMS cost-vs-revenue, activation funnel — all computed live from real data; support-inbox metrics and "paywall seen" omitted (no `support_threads`/impression tracking). **Customers (§8.7.2)**: search/filter (plan/platform/signup/last-active) + CSV export + detail page (profile, devices, connected stores, subscription, rules, SMS ledger, notification volume, funnel position); country/LTV filters and support-chat history omitted (not tracked anywhere). **Customer actions**: extend trial, grant complimentary Pro, grant bonus SMS credits, force logout (revokes Sanctum tokens), suspend/unsuspend (added `users.suspended_at` + a `user.not_suspended` middleware that actually blocks the mobile API — verified live) — all audit-logged; GDPR export + account delete explicitly deferred. **Plans & Limits (§8.7.3)**: every `plan_limits` value live-editable, verified end-to-end that an admin edit reflects in the next mobile `/me` call with zero app changes; feature flags/paywall copy/SMS top-up pack editing deferred (no tables). Security fix along the way: `StoreConnection.credentials` was not in `$hidden` — fixed before building any admin view that touches store connections. Promotions (§8.7.4), messaging center (§8.7.5), support inbox (§8.7.6), and operations/health (§8.7.7) are fully deferred — their tables (`segments`, `broadcasts`, `support_threads`, etc.) don't exist yet. 2FA columns still unused pending a settings UI.*
+- [x] Push (FCM/APNs) with custom sounds + deep links; email alerts (SES); SMS (Twilio) + `sms_ledger` — *(2026-07-16): real push via FCM (`kreait/laravel-firebase`, real service-account credential, verified live auth against Google's API), `POST /devices` registration, dead-token pruning on `NotFound`; real email via existing Mail infra, `email_monthly` quota enforced; **SMS is now real** — `SendSmsNotificationAction` calls Twilio's Messages API directly via `Http::` (no SDK dependency, matching the WooCommerce adapter's convention), debiting `sms_ledger` only on a confirmed send, never on a missing phone number or failed API call. This surfaced a real gap: no `phone` column existed anywhere — added to `users`, settable at `/profile/setup`. `GET /notifications` + `POST /notifications/read` (notification center); custom push sounds and deep links are mobile-app concerns, not yet started; SES/Postmark (still on Mailpit for dev), bounce suppression, and notification-storm bundling (§17.4) not yet built*
+- [ ] **IAP billing:** RevenueCat SDK + products (`pro_monthly`, `pro_yearly`, `sms_100`, `sms_500`), `/hooks/revenuecat`, entitlement service, restore purchases, plan-gate middleware — *partial (2026-07-16): `POST /hooks/revenuecat` now real (`WebhookController::revenuecat`, outside `/api/v1` per the webhook-ingress pattern) — constant-time `Authorization` header compare against a self-generated `REVENUECAT_WEBHOOK_SECRET` (not something RevenueCat issues; you set the same value in its dashboard). `ProcessRevenueCatEventAction` is the state machine: `INITIAL_PURCHASE`/`RENEWAL`/`PRODUCT_CHANGE`/`UNCANCELLATION` → `subscriptions.status=active`; `BILLING_ISSUE` → `grace` (still treated as entitled by `Subscription::isEntitled()`); `EXPIRATION` → `expired`; `CANCELLATION` deliberately leaves status untouched (§6.1: it only means auto-renew was turned off — the entitlement doesn't actually lapse until `EXPIRATION`). `sms_100`/`sms_500` are handled separately as `NON_RENEWING_PURCHASE` consumables crediting `sms_ledger` (`SmsLedger::REASON_TOPUP_IAP`, which existed unused since the Notifications module — this is what it was for). New `revenuecat_events` table makes every event idempotent by RevenueCat's own event id before any side effect runs, since a redelivered webhook must never double-credit SMS. `app_user_id = user_id` resolves straight to our `User` → `currentTeam()`, matching §6.1's identity-linking design. Still pending: the RevenueCat SDK itself (React Native/mobile-side, nothing to build here until that project exists), restore-purchases (same), and a dedicated plan-gate middleware (entitlements are currently checked per-Action — e.g. `ConnectStoreAction`/`CreateRuleAction` — rather than centralized in middleware; works correctly today, a refactor not a gap).*
+- [ ] **Admin panel (Inertia.js + React) per §8.7:** admin auth + 2FA + roles, KPI dashboard, customers module (list/detail/actions), plans & limits editor (DB-driven entitlements), promotions (offer-code campaigns + server comps), messaging center (segments, broadcasts, templates, delivery stats), **support inbox (live chat)**, ops/health boards, app config (min version, maintenance), audit log — *partial (2026-07-16): dedicated `admin` guard + `admin_users` table (roles: superadmin/support/readonly) via Fortify at `/admin/login`; Shopify Polaris UI with a real app-shell nav (`Frame`+`Navigation`+`TopBar`, matching genuine Shopify Admin — dark top bar with user-menu/sign-out, collapsible left sidebar with icons, replacing the earlier plain horizontal text-link bar) — Dashboard/Customers/Plans & Limits, each page `fullWidth` so content isn't squeezed into a narrow centered column. `admin_audit_log` built + every write action logs to it; `admin.write` middleware blocks the readonly role at the route level. **Dashboard (§8.7.1)**: signups, DAU/MAU, active trials + conversion %, paying subs (monthly/yearly split), MRR/ARR/ARPU/churn (IAP prices hardcoded from §5 pending a real prices table), top platforms, notification volume, SMS cost-vs-revenue, activation funnel — all computed live from real data; support-inbox metrics and "paywall seen" omitted (no `support_threads`/impression tracking). **Customers (§8.7.2)**: search/filter (plan/platform/signup/last-active) + CSV export + detail page (profile, devices, connected stores, subscription, rules, SMS ledger, notification volume, funnel position); country/LTV filters and support-chat history omitted (not tracked anywhere). **Customer actions**: extend trial, grant complimentary Pro, grant bonus SMS credits, force logout (revokes Sanctum tokens), suspend/unsuspend (added `users.suspended_at` + a `user.not_suspended` middleware that actually blocks the mobile API — verified live) — all audit-logged; GDPR export + account delete explicitly deferred. **Plans & Limits (§8.7.3)**: every `plan_limits` value live-editable, verified end-to-end that an admin edit reflects in the next mobile `/me` call with zero app changes; feature flags/paywall copy/SMS top-up pack editing deferred (no tables). Security fix along the way: `StoreConnection.credentials` was not in `$hidden` — fixed before building any admin view that touches store connections. Promotions (§8.7.4), messaging center (§8.7.5), support inbox (§8.7.6), and operations/health (§8.7.7) are fully deferred — their tables (`segments`, `broadcasts`, `support_threads`, etc.) don't exist yet. 2FA columns still unused pending a settings UI.*
 - [ ] **In-app support chat:** user-side chat screen, Reverb delivery, push + email fallback, inbound email threading, canned replies
 - [ ] Onboarding UX: email→OTP→profile→connect-store flow, <60s store connection, empty states, notification bundling
 - [ ] Edge-case test suite covering §17 (auth, connections, sync idempotency, notification storm, IAP, offline)
@@ -876,17 +903,19 @@ Researched from live pricing pages and current comparisons. Use to sanity-check 
 
 1. **Numeric limits on everything, even Free** — Free isn't "features removed," it's tiny quotas (10 alerts). Users experience the full product and hit walls naturally. Maps directly to our admin-editable `plan_limits`.
 2. **Overage pricing instead of hard stops** — $0.20/unit above limit keeps revenue flowing without forcing an upgrade decision mid-month. Our SMS top-up packs are our version; consider auto-suggested top-up at 80% consumption.
-3. **First-month intro discount (60% off)** — implementable for us via StoreKit/Play **introductory offers** on `pro_monthly` (e.g., first month $3.99). Add to §6 win-back and initial paywall.
-4. **.90 price endings and "save 20%" yearly framing** — cosmetic but proven in this market; our $9.99/$79.99 (save 33%) framing is consistent.
+3. **First-month intro discount** — implementable for us via StoreKit/Play **introductory offers** on the monthly products. Add to §6 win-back and initial paywall.
+4. **.99 price endings and "save 20%" yearly framing** — cosmetic but proven in this market; our Free/$5.99/$17.99·$172.99/$44.99·$429.99 (§5, revised 2026-07-16) framing matches this directly — the .99 endings and 20%-off yearly framing were adopted deliberately from this research, not coincidentally similar.
 5. **Per-plan feature bullets written as customer-visible benefits** — our App Store listing should present plans this way (see §5.1).
 
 ### 16.3 What this means for us
 
-1. **Our $9.99/$79.99 undercuts every multichannel tool** (their entry is $29+) and matches notification-app pricing while doing far more — strong "no-brainer" positioning.
-2. **7-day no-card trial matches LitCommerce/Smart Notifications; Sellbrite/Zoho use 14 days** — 7 is defensible; consider 14 if trial→paid conversion tests low (admin-configurable per §8.7).
-3. Every serious competitor **prices by volume** (orders, listings, or notifications). Our flat Pro is simpler to sell, but if heavy users' SMS/API costs bite, the escape valve is an order-volume cap on Pro (e.g., fair-use 2,000 orders/mo) — add as a dormant, admin-configurable limit now.
-4. Free tiers are standard (Sellbrite 30 orders, Zoho 50 orders) — our 1-store free tier is in line; 4Seller's free-everything model is the main pricing threat to monitor.
-5. Nobody in either group is mobile-first with cross-channel custom rules — the positioning gap holds.
+Revised 2026-07-16 after moving from a flat Free/Pro model to 4 tiers (§5) — this section originally justified a single flat Pro price; the live re-check below is what actually informed the 4-tier redesign, not a retrospective rationalization:
+
+1. **Ordersify's real structure (Free → $9.99 → $19.99 → $39.99) is nearly a direct match** for our shape and price band (Free → $5.99 → $17.99 → $44.99) — strong external validation that 4 tiers in this range is normal for the category, not overbuilt.
+2. **The one counter-signal:** Smart Notifications (the closest *functional* match — rules-based order emails) is flat $19/mo with zero tiers, suggesting the rules-engine feature itself doesn't reward tiering. This is why tiers scale on **store count / team seats / channel breadth** (matching Listing Mirror's axes) rather than gating the rules engine itself — Starter+ all get unlimited-ish rule *access* (Starter capped at 5, Pro+ unlimited), with only the two "anomaly" triggers (`order_spike`/`refund_spike`) reserved for Premium.
+3. **7-day no-card trial matches LitCommerce/Smart Notifications; Sellbrite/Zoho use 14 days** — 7 is defensible; consider 14 if trial→paid conversion tests low (admin-configurable per §8.7). The trial now grants Premium specifically (§6.3) rather than a generic "Pro," so it demonstrates the full tier ladder before the seller picks one.
+4. Free tiers are standard (Sellbrite 30 orders, Zoho 50 orders, Ordersify/Notify! both free) — our 1-store free tier is in line; 4Seller's free-everything model is the main pricing threat to monitor.
+5. Nobody compared — including the back-in-stock/preorder apps and the multichannel-listing tools — is mobile-first with cross-channel custom rules and phone-based quick actions (fulfill/refund/cancel). None of them let you *act* on an order, only get notified about it. The positioning gap holds, and is in fact wider than originally assessed.
 
 ---
 

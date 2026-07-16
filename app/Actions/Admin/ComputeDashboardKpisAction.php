@@ -21,9 +21,18 @@ use Illuminate\Support\Facades\DB;
  */
 class ComputeDashboardKpisAction
 {
-    private const MONTHLY_PRICE = 9.99;
-
-    private const YEARLY_PRICE = 79.99;
+    /**
+     * Revised 2026-07-16 for the 4-tier model (§5) — must stay in sync with
+     * `ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS` by hand
+     * until a real prices table exists.
+     */
+    private const PRODUCT_PRICES = [
+        'starter_monthly' => 5.99,
+        'pro_monthly' => 17.99,
+        'pro_yearly' => 172.99,
+        'premium_monthly' => 44.99,
+        'premium_yearly' => 429.99,
+    ];
 
     /**
      * @return array<string, mixed>
@@ -97,17 +106,28 @@ class ComputeDashboardKpisAction
      */
     private function subscriptionMetrics(): array
     {
-        $monthly = Subscription::query()
+        $countsByProduct = Subscription::query()
             ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_GRACE])
-            ->where('product_id', 'pro_monthly')
-            ->count();
+            ->whereIn('product_id', array_keys(self::PRODUCT_PRICES))
+            ->selectRaw('product_id, count(*) as aggregate')
+            ->groupBy('product_id')
+            ->pluck('aggregate', 'product_id');
 
-        $yearly = Subscription::query()
-            ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_GRACE])
-            ->where('product_id', 'pro_yearly')
-            ->count();
+        $mrr = 0.0;
+        $monthly = 0;
+        $yearly = 0;
 
-        $mrr = ($monthly * self::MONTHLY_PRICE) + ($yearly * self::YEARLY_PRICE / 12);
+        foreach ($countsByProduct as $productId => $count) {
+            $isYearly = str_ends_with((string) $productId, '_yearly');
+            $mrr += $isYearly ? (self::PRODUCT_PRICES[$productId] / 12) * $count : self::PRODUCT_PRICES[$productId] * $count;
+
+            if ($isYearly) {
+                $yearly += $count;
+            } else {
+                $monthly += $count;
+            }
+        }
+
         $payingTotal = $monthly + $yearly;
 
         $expiredThisMonth = Subscription::query()
