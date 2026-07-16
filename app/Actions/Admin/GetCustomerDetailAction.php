@@ -10,10 +10,10 @@ use App\Models\Team;
 use App\Models\User;
 
 /**
- * Plan §8.7.2 customer detail page. `support-chat history` and payment/LTV
- * are omitted — no `support_threads` table and no real payment history yet
- * (subscriptions only track current state, not a RevenueCat event
- * timeline — that's the IAP webhook module).
+ * Plan §8.7.2 customer detail page. Payment/LTV is omitted — subscriptions
+ * only track current state, not a RevenueCat event timeline (that's the IAP
+ * webhook module). Support-chat history is surfaced separately, from the
+ * Support Inbox (§8.7.6), rather than duplicated into this payload.
  */
 class GetCustomerDetailAction
 {

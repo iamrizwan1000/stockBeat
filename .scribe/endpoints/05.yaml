@@ -1,0 +1,199 @@
+name: Settings
+description: ''
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/settings/notifications
+    metadata:
+      custom: []
+      groupName: Settings
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get notification preferences.'
+      description: 'Returns defaults (all channels enabled, no quiet hours) if the user has never saved any.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "preferences": {
+                "push_enabled": true,
+                "email_enabled": true,
+                "sms_enabled": false,
+                "quiet_hours_start": "21:00",
+                "quiet_hours_end": "07:00",
+                "quiet_hours_timezone": "Australia/Sydney",
+                "sound": "default"
+              }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: api/v1/settings/notifications
+    metadata:
+      custom: []
+      groupName: Settings
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Update notification preferences.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      push_enabled:
+        custom: []
+        name: push_enabled
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      email_enabled:
+        custom: []
+        name: email_enabled
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      sms_enabled:
+        custom: []
+        name: sms_enabled
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      quiet_hours_start:
+        custom: []
+        name: quiet_hours_start
+        description: 'Must be a valid date in the format <code>H:i</code>.'
+        required: false
+        example: '18:25'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      quiet_hours_end:
+        custom: []
+        name: quiet_hours_end
+        description: 'Must be a valid date in the format <code>H:i</code>.'
+        required: false
+        example: '18:25'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      quiet_hours_timezone:
+        custom: []
+        name: quiet_hours_timezone
+        description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
+        required: false
+        example: Asia/Yekaterinburg
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      sound:
+        custom: []
+        name: sound
+        description: 'Must not be greater than 50 characters.'
+        required: false
+        example: 'n'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      push_enabled: false
+      email_enabled: false
+      sms_enabled: true
+      quiet_hours_start: '18:25'
+      quiet_hours_end: '18:25'
+      quiet_hours_timezone: Asia/Yekaterinburg
+      sound: 'n'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "preferences": {
+                "push_enabled": true,
+                "email_enabled": false,
+                "sms_enabled": false,
+                "quiet_hours_start": "21:00",
+                "quiet_hours_end": "07:00",
+                "quiet_hours_timezone": "Australia/Sydney",
+                "sound": "chime"
+              }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

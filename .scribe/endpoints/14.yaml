@@ -1,0 +1,242 @@
+name: Team
+description: |-
+
+  Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/team
+    metadata:
+      custom: []
+      groupName: Team
+      groupDescription: |-
+
+        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'List members and pending invites.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "members": [
+                { "id": 1, "role": "owner", "store_visibility": null, "user": { "id": 1, "name": "Jamie Rivera", "email": "jamie@example.com" } }
+              ],
+              "pending_invites": [
+                { "id": 1, "email": "sam@example.com", "role": "manager", "status": "pending", "expires_at": "2026-07-23T00:00:00+00:00" }
+              ]
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/team/invite
+    metadata:
+      custom: []
+      groupName: Team
+      groupDescription: |-
+
+        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Invite a team member.'
+      description: '`store_visibility` optionally restricts the invited member to specific connection IDs.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      email:
+        custom: []
+        name: email
+        description: 'Must be a valid email address. Must not be greater than 255 characters.'
+        required: true
+        example: gbailey@example.net
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      role:
+        custom: []
+        name: role
+        description: ''
+        required: true
+        example: viewer
+        type: string
+        enumValues:
+          - manager
+          - agent
+          - viewer
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      store_visibility:
+        custom: []
+        name: store_visibility
+        description: ''
+        required: false
+        example:
+          - 16
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      email: gbailey@example.net
+      role: viewer
+      store_visibility:
+        - 16
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 201
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "invite": { "id": 2, "email": "sam@example.com", "role": "manager", "status": "pending", "expires_at": "2026-07-23T00:00:00+00:00" }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/v1/team/{member_id}'
+    metadata:
+      custom: []
+      groupName: Team
+      groupDescription: |-
+
+        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Update a team member.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      member_id:
+        custom: []
+        name: member_id
+        description: 'The ID of the member.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      member_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      role:
+        custom: []
+        name: role
+        description: ''
+        required: false
+        example: viewer
+        type: string
+        enumValues:
+          - manager
+          - agent
+          - viewer
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      store_visibility:
+        custom: []
+        name: store_visibility
+        description: ''
+        required: false
+        example:
+          - 16
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      role: viewer
+      store_visibility:
+        - 16
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "member": { "id": 2, "role": "staff", "store_visibility": [1], "user": { "id": 3, "name": "Sam Lee", "email": "sam@example.com" } }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

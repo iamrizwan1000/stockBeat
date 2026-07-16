@@ -1,0 +1,156 @@
+name: 'Auth — OTP'
+description: |-
+
+  Passwordless sign-in: request a one-time code by email, then verify it for a bearer token.
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/auth/otp/request
+    metadata:
+      custom: []
+      groupName: 'Auth — OTP'
+      groupDescription: |-
+
+        Passwordless sign-in: request a one-time code by email, then verify it for a bearer token.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Request an OTP code.'
+      description: |-
+        Always returns 200 regardless of whether the email is registered, to avoid account enumeration.
+        Rate limited (`otp-request`); a fresh code can be requested every 30s.
+      authenticated: false
+      deprecated: false
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      email:
+        custom: []
+        name: email
+        description: 'Must be a valid email address. Must not be greater than 255 characters.'
+        required: true
+        example: gbailey@example.net
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      email: gbailey@example.net
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "A verification code has been sent if the email is registered.",
+            "data": null
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth: []
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/auth/otp/verify
+    metadata:
+      custom: []
+      groupName: 'Auth — OTP'
+      groupDescription: |-
+
+        Passwordless sign-in: request a one-time code by email, then verify it for a bearer token.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Verify an OTP code.'
+      description: |-
+        Returns a Sanctum bearer token on success. `is_new_user` tells the client whether to route
+        into `/profile/setup` next. Rate limited (`otp-verify`); locks out after 5 failed attempts.
+      authenticated: false
+      deprecated: false
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      email:
+        custom: []
+        name: email
+        description: 'Must be a valid email address. Must not be greater than 255 characters.'
+        required: true
+        example: gbailey@example.net
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      code:
+        custom: []
+        name: code
+        description: 'Must be 6 digits.'
+        required: true
+        example: '569775'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      email: gbailey@example.net
+      code: '569775'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "token": "1|abcdef1234567890",
+              "is_new_user": false,
+              "user": {
+                "id": 1,
+                "name": "Jamie Rivera",
+                "email": "jamie@example.com",
+                "business_name": "Rivera Vintage Co",
+                "base_currency": "AUD",
+                "timezone": "Australia/Sydney",
+                "sells_on": ["woocommerce"]
+              }
+            }
+          }
+        headers: []
+        description: success
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "That code is invalid or has expired.",
+            "errors": null
+          }
+        headers: []
+        description: 'invalid or expired code'
+    responseFields: []
+    auth: []
+    controller: null
+    method: null
+    route: null

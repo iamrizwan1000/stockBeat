@@ -31,3 +31,6 @@ Schedule::command('rules:send-digests')->hourly();
 // low_stock / negative_review triggers (Plan §4.4) — poll-only for now.
 Schedule::command('products:poll-woo')->everyThirtyMinutes();
 Schedule::command('reviews:poll-woo')->hourly();
+
+// Admin messaging center (Plan §8.7.5) — dispatches broadcasts once their scheduled_at arrives.
+Schedule::command('messaging:send-scheduled-broadcasts')->everyFiveMinutes();

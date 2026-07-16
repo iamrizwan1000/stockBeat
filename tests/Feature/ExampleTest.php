@@ -1,7 +1,8 @@
 <?php
 
-test('the home route redirects to the admin panel', function () {
+test('the home route serves the public marketing page', function () {
     $response = $this->get(route('home'));
 
-    $response->assertRedirect('/admin');
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->component('welcome'));
 });

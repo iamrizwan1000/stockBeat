@@ -1,0 +1,327 @@
+name: Connections
+description: |-
+
+  Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).
+  Only WooCommerce is fully live end-to-end today — the others accept a connection
+  record but adapter operations are not yet available.
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/connections/{platform}/start'
+    metadata:
+      custom: []
+      groupName: Connections
+      groupDescription: |-
+
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Start connecting a store.'
+      description: |-
+        `credentials` shape depends on `platform` — WooCommerce expects `{store_url, consumer_key,
+        consumer_secret}` (key-intake); OAuth-based platforms (Shopify/eBay/Etsy/Amazon) are
+        pending adapter approval and will return an OAuth URL once available.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      platform:
+        custom: []
+        name: platform
+        description: 'One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`.'
+        required: true
+        example: woo
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      platform: woo
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: 'Must not be greater than 255 characters.'
+        required: true
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      credentials:
+        custom: []
+        name: credentials
+        description: ''
+        required: false
+        example: null
+        type: object
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      name: b
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 201
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connection": {
+                "id": 1,
+                "platform": "woo",
+                "name": "Rivera Vintage Co",
+                "status": "active",
+                "last_sync_at": null,
+                "webhook_status": "registered"
+              }
+            }
+          }
+        headers: []
+        description: success
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "Complete profile setup before connecting a store.",
+            "errors": null
+          }
+        headers: []
+        description: 'profile setup incomplete'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/connections
+    metadata:
+      custom: []
+      groupName: Connections
+      groupDescription: |-
+
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'List connections.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connections": [
+                {
+                  "id": 1,
+                  "platform": "woo",
+                  "name": "Rivera Vintage Co",
+                  "status": "active",
+                  "last_sync_at": "2026-07-16T01:45:00.000000Z",
+                  "webhook_status": "registered"
+                }
+              ]
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/v1/connections/{connection_id}/health'
+    metadata:
+      custom: []
+      groupName: Connections
+      groupDescription: |-
+
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get connection health.'
+      description: |-
+        Plain-language status for the connection-health screen — never raw error codes.
+        `fix_action` is a key the client maps to a concrete flow (e.g. `reauth`), not a URL.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      connection_id:
+        custom: []
+        name: connection_id
+        description: 'The ID of the connection.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      connection_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connection_id": 1,
+              "status": "active",
+              "webhook_status": "registered",
+              "last_sync_at": "2026-07-16T01:45:00+00:00",
+              "message": "Rivera Vintage Co is connected and syncing normally.",
+              "fix_action": null
+            }
+          }
+        headers: []
+        description: healthy
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connection_id": 1,
+              "status": "needs_reauth",
+              "webhook_status": "registered",
+              "last_sync_at": "2026-07-15T20:00:00+00:00",
+              "message": "Your connection to Rivera Vintage Co needs to be reconnected.",
+              "fix_action": "reauth"
+            }
+          }
+        headers: []
+        description: 'needs reauth'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/v1/connections/{id}'
+    metadata:
+      custom: []
+      groupName: Connections
+      groupDescription: |-
+
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Disconnect a store.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the connection.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "Store disconnected.",
+            "data": null
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

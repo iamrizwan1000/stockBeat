@@ -10,8 +10,33 @@ use App\Http\Responses\ApiResponse;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * @group Auth — Profile
+ */
 class ProfileController extends Controller
 {
+    /**
+     * Complete profile setup.
+     *
+     * One-time step for new users after OTP verification. Creates the user's owning `Team`
+     * (with the user as `owner`) alongside setting their profile fields.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "user": {
+     *       "id": 1,
+     *       "name": "Jamie Rivera",
+     *       "email": "jamie@example.com",
+     *       "business_name": "Rivera Vintage Co",
+     *       "base_currency": "AUD",
+     *       "timezone": "Australia/Sydney",
+     *       "sells_on": ["woocommerce"]
+     *     }
+     *   }
+     * }
+     */
     public function setup(SetupProfileRequest $request, SetupProfileAction $action): JsonResponse
     {
         /** @var User $authenticatedUser */

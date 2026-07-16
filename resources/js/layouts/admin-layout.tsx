@@ -1,31 +1,100 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { AppProvider, Box, Frame, Navigation, Text, TopBar } from '@shopify/polaris';
-import { CreditCardIcon, ExitIcon, HomeIcon, PersonIcon } from '@shopify/polaris-icons';
+import {
+    AppProvider,
+    Box,
+    Frame,
+    Navigation,
+    Text,
+    TopBar,
+} from '@shopify/polaris';
 import en from '@shopify/polaris/locales/en.json';
-import { forwardRef, useState, type ReactNode } from 'react';
+import {
+    ChatIcon,
+    CreditCardIcon,
+    ExitIcon,
+    HeartIcon,
+    HomeIcon,
+    MegaphoneIcon,
+    NoteIcon,
+    NotificationIcon,
+    PersonIcon,
+    TargetIcon,
+} from '@shopify/polaris-icons';
+import { forwardRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
 import '@shopify/polaris/build/esm/styles.css';
 
 const NAV_ITEMS = [
     { label: 'Dashboard', url: '/admin', icon: HomeIcon, exactMatch: true },
-    { label: 'Customers', url: '/admin/customers', icon: PersonIcon, exactMatch: false },
-    { label: 'Plans & Limits', url: '/admin/plans', icon: CreditCardIcon, exactMatch: false },
+    {
+        label: 'Customers',
+        url: '/admin/customers',
+        icon: PersonIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Plans & Limits',
+        url: '/admin/plans',
+        icon: CreditCardIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Segments',
+        url: '/admin/segments',
+        icon: TargetIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Broadcasts',
+        url: '/admin/broadcasts',
+        icon: MegaphoneIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Announcements',
+        url: '/admin/announcements',
+        icon: NotificationIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Support Inbox',
+        url: '/admin/support',
+        icon: ChatIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Canned Replies',
+        url: '/admin/canned-replies',
+        icon: NoteIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Operations & Health',
+        url: '/admin/ops',
+        icon: HeartIcon,
+        exactMatch: false,
+    },
 ];
 
 /**
  * Lets Polaris's Navigation/TopBar render real Inertia `<Link>`s (client-side
  * routing) instead of full-page `<a>` reloads, via AppProvider's
- * `linkComponent` escape hatch.
+ * `linkComponent` escape hatch. Polaris's `LinkLikeComponent` contract passes
+ * the destination as a `url` prop, not `href` — passing `href` here (as this
+ * previously did) left every nav item with an empty `href=""`, so every
+ * sidebar link rendered but silently went nowhere on click.
  */
-const InertiaLink = forwardRef<HTMLAnchorElement, { href?: string; children?: ReactNode; className?: string }>(
-    function InertiaLink({ href, children, className }, ref) {
-        return (
-            <Link ref={ref} href={href ?? '#'} className={className}>
-                {children}
-            </Link>
-        );
-    },
-);
+const InertiaLink = forwardRef<
+    HTMLAnchorElement,
+    { url?: string; children?: ReactNode; className?: string }
+>(function InertiaLink({ url, children, className }, ref) {
+    return (
+        <Link ref={ref} href={url ?? '#'} className={className}>
+            {children}
+        </Link>
+    );
+});
 
 type AdminUser = { name: string; email: string };
 
@@ -62,7 +131,9 @@ function AdminFrame({ children }: { children: ReactNode }) {
                     label: item.label,
                     url: item.url,
                     icon: item.icon,
-                    selected: item.exactMatch ? url === item.url : url.startsWith(item.url),
+                    selected: item.exactMatch
+                        ? url === item.url
+                        : url.startsWith(item.url),
                 }))}
             />
         </Navigation>
@@ -71,7 +142,9 @@ function AdminFrame({ children }: { children: ReactNode }) {
     const topBar = (
         <TopBar
             showNavigationToggle
-            onNavigationToggle={() => setMobileNavigationActive((active) => !active)}
+            onNavigationToggle={() =>
+                setMobileNavigationActive((active) => !active)
+            }
             userMenu={
                 <TopBar.UserMenu
                     name={user.name}
@@ -85,7 +158,8 @@ function AdminFrame({ children }: { children: ReactNode }) {
                                 {
                                     content: 'Sign out',
                                     icon: ExitIcon,
-                                    onAction: () => router.post('/admin/logout'),
+                                    onAction: () =>
+                                        router.post('/admin/logout'),
                                 },
                             ],
                         },

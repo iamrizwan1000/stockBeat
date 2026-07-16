@@ -1,0 +1,1610 @@
+{
+    "variable": [
+        {
+            "id": "baseUrl",
+            "key": "baseUrl",
+            "type": "string",
+            "name": "string",
+            "value": "https:\/\/stockbeat.ddev.site"
+        }
+    ],
+    "info": {
+        "name": "StockBeat API Documentation",
+        "_postman_id": "1e8abf28-1e95-4d61-95e7-55276cdb467f",
+        "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
+        "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
+    },
+    "item": [
+        {
+            "name": "Account",
+            "description": "\nGDPR-related self-service actions.",
+            "item": [
+                {
+                    "name": "Request a data export.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/account\/data-export",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/account\/data-export"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Queues a GDPR data export; the user receives it by email."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"We're preparing your data export \u2014 you'll receive it by email shortly.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Request account deletion.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/account\/delete-request",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/account\/delete-request"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Schedules a GDPR soft-delete; the account is retained for a grace period before purge."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Your account has been scheduled for deletion.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Analytics",
+            "description": "\nAnalytics-lite (Plan \u00a74.6): today\/7d\/30d revenue + order count + AOV, gated by plan\n(`analytics_level`: Free=today only, Starter=+7d, Pro\/Premium=full with comparison + goal\ntracking). \"Today\" is always computed live, never from the `daily_stats` pre-aggregation.",
+            "item": [
+                {
+                    "name": "Get the analytics summary.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/analytics\/summary",
+                            "query": [
+                                {
+                                    "key": "range",
+                                    "value": "7d",
+                                    "description": "One of `today`, `7d`, `30d`.",
+                                    "disabled": false
+                                }
+                            ],
+                            "raw": "{{baseUrl}}\/api\/v1\/analytics\/summary?range=7d"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"range\":\"30d\"}"
+                        },
+                        "description": "`comparison` and `goal` are only present at the `full` analytics level (Pro\/Premium)."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"range\": \"7d\",\n    \"total\": { \"revenue\": 1840.0, \"revenue_base\": 1840.0, \"orders_count\": 23, \"aov\": 80.0 },\n    \"by_channel\": [\n      { \"connection_id\": 1, \"platform\": \"woo\", \"name\": \"Rivera Vintage Co\", \"revenue\": 1840.0, \"revenue_base\": 1840.0, \"orders_count\": 23, \"aov\": 80.0 }\n    ],\n    \"comparison\": { \"previous_period_revenue\": 1500.0, \"change_pct\": 22.7 },\n    \"goal\": { \"current_month_revenue\": 4200.0, \"best_month_revenue\": 6100.0, \"pct_of_best_month\": 68.9 }\n  }\n}",
+                            "name": "full (Pro\/Premium)"
+                        },
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"range\": \"today\",\n    \"total\": { \"revenue\": 240.0, \"revenue_base\": 240.0, \"orders_count\": 3, \"aov\": 80.0 },\n    \"by_channel\": [\n      { \"connection_id\": 1, \"platform\": \"woo\", \"name\": \"Rivera Vintage Co\", \"revenue\": 240.0, \"revenue_base\": 240.0, \"orders_count\": 3, \"aov\": 80.0 }\n    ]\n  }\n}",
+                            "name": "today only (Free)"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"range\": [\"Upgrade your plan for more analytics history.\"] }\n}",
+                            "name": "range not allowed on this plan"
+                        }
+                    ]
+                },
+                {
+                    "name": "Get top products.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/analytics\/products",
+                            "query": [
+                                {
+                                    "key": "range",
+                                    "value": "7d",
+                                    "description": "One of `today`, `7d`, `30d`.",
+                                    "disabled": false
+                                }
+                            ],
+                            "raw": "{{baseUrl}}\/api\/v1\/analytics\/products?range=7d"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"range\":\"7d\"}"
+                        },
+                        "description": "Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"products\": [\n      { \"sku\": \"VNT-014\", \"title\": \"Vintage Denim Jacket\", \"units\": 12, \"revenue\": 1008.0 }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Announcements",
+            "description": "",
+            "item": [
+                {
+                    "name": "List active announcements.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/announcements",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/announcements"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "In-app banners currently active (within `starts_at`\/`ends_at`) and matching the caller's\naudience rules, newest first."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"announcements\": [\n      { \"id\": 1, \"title\": \"New: order-spike alerts\", \"body\": \"Premium now includes order and refund spike alerts.\", \"dismissible\": true }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Auth \u2014 OTP",
+            "description": "\nPasswordless sign-in: request a one-time code by email, then verify it for a bearer token.",
+            "item": [
+                {
+                    "name": "Request an OTP code.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/auth\/otp\/request",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/auth\/otp\/request"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\"}"
+                        },
+                        "description": "Always returns 200 regardless of whether the email is registered, to avoid account enumeration.\nRate limited (`otp-request`); a fresh code can be requested every 30s.",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"A verification code has been sent if the email is registered.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Verify an OTP code.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/auth\/otp\/verify",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/auth\/otp\/verify"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\",\"code\":\"569775\"}"
+                        },
+                        "description": "Returns a Sanctum bearer token on success. `is_new_user` tells the client whether to route\ninto `\/profile\/setup` next. Rate limited (`otp-verify`); locks out after 5 failed attempts.",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"token\": \"1|abcdef1234567890\",\n    \"is_new_user\": false,\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    }\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"That code is invalid or has expired.\",\n  \"errors\": null\n}",
+                            "name": "invalid or expired code"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Auth \u2014 Profile",
+            "description": "",
+            "item": [
+                {
+                    "name": "Complete profile setup.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/profile\/setup",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/profile\/setup"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"woo\"],\"timezone\":\"Pacific\\\/Kiritimati\",\"base_currency\":\"iyv\"}"
+                        },
+                        "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Auth \u2014 Session",
+            "description": "",
+            "item": [
+                {
+                    "name": "Log out.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/auth\/logout",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/auth\/logout"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Revokes the bearer token used for this request only."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Logged out.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Log out of all devices.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/auth\/logout-all",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/auth\/logout-all"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Revokes every Sanctum token for the user, not just the current one."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Logged out of all devices.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Connections",
+            "description": "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).\nOnly WooCommerce is fully live end-to-end today \u2014 the others accept a connection\nrecord but adapter operations are not yet available.",
+            "item": [
+                {
+                    "name": "Start connecting a store.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/connections\/:platform\/start",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/connections\/:platform\/start",
+                            "variable": [
+                                {
+                                    "id": "platform",
+                                    "key": "platform",
+                                    "value": "woo",
+                                    "description": "One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\"}"
+                        },
+                        "description": "`credentials` shape depends on `platform` \u2014 WooCommerce expects `{store_url, consumer_key,\nconsumer_secret}` (key-intake); OAuth-based platforms (Shopify\/eBay\/Etsy\/Amazon) are\npending adapter approval and will return an OAuth URL once available."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"connection\": {\n      \"id\": 1,\n      \"platform\": \"woo\",\n      \"name\": \"Rivera Vintage Co\",\n      \"status\": \"active\",\n      \"last_sync_at\": null,\n      \"webhook_status\": \"registered\"\n    }\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Complete profile setup before connecting a store.\",\n  \"errors\": null\n}",
+                            "name": "profile setup incomplete"
+                        }
+                    ]
+                },
+                {
+                    "name": "List connections.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/connections",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/connections"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"connections\": [\n      {\n        \"id\": 1,\n        \"platform\": \"woo\",\n        \"name\": \"Rivera Vintage Co\",\n        \"status\": \"active\",\n        \"last_sync_at\": \"2026-07-16T01:45:00.000000Z\",\n        \"webhook_status\": \"registered\"\n      }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Get connection health.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/connections\/:connection_id\/health",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/connections\/:connection_id\/health",
+                            "variable": [
+                                {
+                                    "id": "connection_id",
+                                    "key": "connection_id",
+                                    "value": 16,
+                                    "description": "The ID of the connection."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Plain-language status for the connection-health screen \u2014 never raw error codes.\n`fix_action` is a key the client maps to a concrete flow (e.g. `reauth`), not a URL."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"connection_id\": 1,\n    \"status\": \"active\",\n    \"webhook_status\": \"registered\",\n    \"last_sync_at\": \"2026-07-16T01:45:00+00:00\",\n    \"message\": \"Rivera Vintage Co is connected and syncing normally.\",\n    \"fix_action\": null\n  }\n}",
+                            "name": "healthy"
+                        },
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"connection_id\": 1,\n    \"status\": \"needs_reauth\",\n    \"webhook_status\": \"registered\",\n    \"last_sync_at\": \"2026-07-15T20:00:00+00:00\",\n    \"message\": \"Your connection to Rivera Vintage Co needs to be reconnected.\",\n    \"fix_action\": \"reauth\"\n  }\n}",
+                            "name": "needs reauth"
+                        }
+                    ]
+                },
+                {
+                    "name": "Disconnect a store.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/connections\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/connections\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the connection."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Store disconnected.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Devices",
+            "description": "",
+            "item": [
+                {
+                    "name": "Register a push device.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/devices",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/devices"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"platform\":\"android\",\"push_token\":\"b\"}"
+                        },
+                        "description": "Upserts the device's push token so the backend can deliver notifications to it."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"device\": { \"id\": 1, \"platform\": \"ios\", \"last_seen_at\": \"2026-07-16T02:00:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Me",
+            "description": "",
+            "item": [
+                {
+                    "name": "Get the current user.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/me",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/me"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Combines profile, current team\/role, plan entitlements, and SMS credit balance \u2014\nthe client's single call after launch\/login. `needs_profile_setup` is true until\n`\/profile\/setup` has been completed."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42 },\n    \"needs_profile_setup\": false\n  }\n}",
+                            "name": "profile setup complete"
+                        },
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": { \"id\": 1, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\", \"business_name\": null, \"base_currency\": null, \"timezone\": null, \"sells_on\": null },\n    \"team\": null,\n    \"entitlements\": null,\n    \"needs_profile_setup\": true\n  }\n}",
+                            "name": "profile setup pending"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Notifications",
+            "description": "",
+            "item": [
+                {
+                    "name": "List notifications.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/notifications",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/notifications"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Most recent 50, newest first."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"notifications\": [\n      {\n        \"id\": 1,\n        \"type\": \"rule_fired\",\n        \"title\": \"High-value order\",\n        \"body\": \"Order #1042 \u2014 $84.00\",\n        \"data\": { \"order_id\": 1, \"rule_id\": 1 },\n        \"read_at\": null,\n        \"created_at\": \"2026-07-16T01:00:00.000000Z\"\n      }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Mark notifications as read.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/notifications\/read",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/notifications\/read"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[16]}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"marked_read\": 3 }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Orders",
+            "description": "\nThe unified order feed across all connected channels, plus quick actions\n(fulfill\/tracking, refund, cancel, notes\/tags, packing slip).",
+            "item": [
+                {
+                    "name": "List orders.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"channel\":\"woo\",\"store\":16,\"status\":\"cancelled\",\"date_from\":\"2026-07-16T18:25:25\",\"date_to\":\"2026-07-16T18:25:25\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":false}"
+                        },
+                        "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"orders\": [\n      {\n        \"id\": 1,\n        \"platform\": \"woo\",\n        \"connection_id\": 1,\n        \"order_number\": \"#1042\",\n        \"status\": \"unfulfilled\",\n        \"fulfillment_status\": \"unfulfilled\",\n        \"payment_status\": \"paid\",\n        \"currency\": \"AUD\",\n        \"total\": \"84.00\",\n        \"total_base_currency\": \"84.00\",\n        \"customer_name\": \"Alex Chen\",\n        \"customer_email\": \"alex@example.com\",\n        \"shipping_address\": { \"line1\": \"1 Example St\", \"city\": \"Sydney\", \"postcode\": \"2000\", \"country\": \"AU\" },\n        \"placed_at\": \"2026-07-16T00:30:00.000000Z\",\n        \"ship_by_at\": \"2026-07-18T00:30:00.000000Z\",\n        \"ship_by_hours_remaining\": 46.5,\n        \"is_ship_by_urgent\": false,\n        \"tags\": [\"gift\"],\n        \"is_test\": false,\n        \"snoozed_until\": null\n      }\n    ],\n    \"next_cursor\": \"eyJpZCI6MSwiX3BvaW50c1RvTmV4dEl0ZW1zIjp0cnVlfQ\"\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Get an order.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Includes items and notes. 404s if the order isn't in the caller's team, or outside the\ncaller's `store_visibility` restriction."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"order\": {\n      \"id\": 1,\n      \"platform\": \"woo\",\n      \"connection_id\": 1,\n      \"order_number\": \"#1042\",\n      \"status\": \"unfulfilled\",\n      \"fulfillment_status\": \"unfulfilled\",\n      \"payment_status\": \"paid\",\n      \"currency\": \"AUD\",\n      \"total\": \"84.00\",\n      \"total_base_currency\": \"84.00\",\n      \"customer_name\": \"Alex Chen\",\n      \"customer_email\": \"alex@example.com\",\n      \"shipping_address\": { \"line1\": \"1 Example St\", \"city\": \"Sydney\", \"postcode\": \"2000\", \"country\": \"AU\" },\n      \"placed_at\": \"2026-07-16T00:30:00.000000Z\",\n      \"ship_by_at\": \"2026-07-18T00:30:00.000000Z\",\n      \"ship_by_hours_remaining\": 46.5,\n      \"is_ship_by_urgent\": false,\n      \"tags\": [\"gift\"],\n      \"is_test\": false,\n      \"snoozed_until\": null,\n      \"items\": [\n        { \"id\": 1, \"sku\": \"VNT-014\", \"title\": \"Vintage Denim Jacket\", \"image_url\": \"https:\/\/example.com\/img\/vnt-014.jpg\", \"qty\": 1, \"price\": \"84.00\" }\n      ],\n      \"notes\": []\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Add a note to an order.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/notes",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/notes",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"note\": { \"id\": 1, \"body\": \"Customer asked to hold for pickup.\", \"user_id\": 1, \"created_at\": \"2026-07-16T02:00:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Replace an order's tags.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/tags",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/tags",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"tags\":[\"b\"]}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"order\": { \"id\": 1, \"order_number\": \"#1042\", \"tags\": [\"gift\", \"priority\"] } }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Snooze or unsnooze an order.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/snooze",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/snooze",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"until\":\"2052-08-09\"}"
+                        },
+                        "description": "Pass `until` as an ISO-8601 datetime to snooze, or omit\/null it to clear the snooze."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"order\": { \"id\": 1, \"order_number\": \"#1042\", \"snoozed_until\": \"2026-07-18T00:00:00.000000Z\" } }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Fulfill an order with tracking info.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/fulfill",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/fulfill",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"tracking_number\":\"b\",\"carrier\":\"n\"}"
+                        },
+                        "description": "Calls through to the real channel adapter where available (WooCommerce today); capability-checked\nserver-side, so this 422s with a plain-language message on platforms\/actions that aren't supported yet."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Order marked as fulfilled.\",\n  \"data\": { \"order\": { \"id\": 1, \"order_number\": \"#1042\", \"status\": \"shipped\", \"fulfillment_status\": \"fulfilled\" } }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Fulfillment isn't supported for this platform yet.\",\n  \"errors\": null\n}",
+                            "name": "capability not supported"
+                        }
+                    ]
+                },
+                {
+                    "name": "Refund an order.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/refund",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/refund",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"amount\":27,\"reason\":\"n\"}"
+                        },
+                        "description": "`amount` defaults to a full refund when omitted. Calls through to the real channel adapter\nwhere available (WooCommerce today)."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Order refunded.\",\n  \"data\": { \"order\": { \"id\": 1, \"order_number\": \"#1042\", \"status\": \"refunded\", \"payment_status\": \"refunded\" } }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Cancel an order.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/cancel",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/cancel",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"reason\":\"b\"}"
+                        },
+                        "description": "Calls through to the real channel adapter where available (WooCommerce today)."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Order cancelled.\",\n  \"data\": { \"order\": { \"id\": 1, \"order_number\": \"#1042\", \"status\": \"cancelled\" } }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Get a packing slip PDF.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/packing-slip",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/packing-slip",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Returns the rendered PDF directly (`Content-Type: application\/pdf`), not a JSON envelope."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Rules",
+            "description": "\nCustom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,\nand an execution log. See Plan \u00a74.4 for the full trigger catalogue (12 triggers, e.g.\n`new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).",
+            "item": [
+                {
+                    "name": "List rules.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/rules",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/rules"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"rules\": [\n      {\n        \"id\": 1,\n        \"name\": \"High-value order alert\",\n        \"trigger\": \"high_value_order\",\n        \"conditions\": { \"all\": [{ \"field\": \"total\", \"operator\": \">=\", \"value\": 200 }] },\n        \"actions\": [{ \"type\": \"push\" }, { \"type\": \"email\" }],\n        \"controls\": { \"quiet_hours\": true },\n        \"enabled\": true,\n        \"created_at\": \"2026-07-10T00:00:00.000000Z\"\n      }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Create a rule.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/rules",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/rules"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"trigger\":\"new_order\",\"actions\":[{\"type\":\"push\",\"tag\":\"d\",\"user_id\":16}],\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"18:25\",\"end\":\"18:25\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"18:25\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"rule\": {\n      \"id\": 2,\n      \"name\": \"Order spike alert\",\n      \"trigger\": \"order_spike\",\n      \"conditions\": null,\n      \"actions\": [{ \"type\": \"push\" }],\n      \"controls\": { \"spike_count\": 10, \"spike_window_minutes\": 30 },\n      \"enabled\": true,\n      \"created_at\": \"2026-07-16T02:00:00.000000Z\"\n    }\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Complete profile setup before creating rules.\",\n  \"errors\": null\n}",
+                            "name": "profile setup incomplete"
+                        }
+                    ]
+                },
+                {
+                    "name": "Update a rule.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/rules\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/rules\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the rule."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"trigger\":\"negative_review\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"18:25\",\"end\":\"18:25\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"daily\",\"digest_time\":\"18:25\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"actions\":[{\"type\":\"notify_member\",\"tag\":\"l\",\"user_id\":16}]}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"rule\": {\n      \"id\": 1,\n      \"name\": \"High-value order alert\",\n      \"trigger\": \"high_value_order\",\n      \"conditions\": { \"all\": [{ \"field\": \"total\", \"operator\": \">=\", \"value\": 250 }] },\n      \"actions\": [{ \"type\": \"push\" }],\n      \"controls\": { \"quiet_hours\": true },\n      \"enabled\": true,\n      \"created_at\": \"2026-07-10T00:00:00.000000Z\"\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Test-fire a rule.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/rules\/:rule_id\/test",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/rules\/:rule_id\/test",
+                            "variable": [
+                                {
+                                    "id": "rule_id",
+                                    "key": "rule_id",
+                                    "value": 16,
+                                    "description": "The ID of the rule."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Evaluates the rule immediately against real state (not a dry run) and logs the execution \u2014\nlets a merchant confirm a rule works before waiting for it to trigger naturally."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"execution\": {\n      \"id\": 10,\n      \"order_id\": null,\n      \"trigger\": \"high_value_order\",\n      \"actions_result\": [{ \"type\": \"push\", \"status\": \"sent\" }],\n      \"fired_at\": \"2026-07-16T02:00:00.000000Z\"\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "List a rule's execution log.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/rules\/:rule_id\/executions",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/rules\/:rule_id\/executions",
+                            "variable": [
+                                {
+                                    "id": "rule_id",
+                                    "key": "rule_id",
+                                    "value": 16,
+                                    "description": "The ID of the rule."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Most recent 50 firings, newest first."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"executions\": [\n      {\n        \"id\": 10,\n        \"order_id\": 1,\n        \"trigger\": \"high_value_order\",\n        \"actions_result\": [{ \"type\": \"push\", \"status\": \"sent\" }],\n        \"fired_at\": \"2026-07-16T01:00:00.000000Z\"\n      }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Settings",
+            "description": "",
+            "item": [
+                {
+                    "name": "Get notification preferences.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/settings\/notifications",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/settings\/notifications"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Returns defaults (all channels enabled, no quiet hours) if the user has never saved any."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"preferences\": {\n      \"push_enabled\": true,\n      \"email_enabled\": true,\n      \"sms_enabled\": false,\n      \"quiet_hours_start\": \"21:00\",\n      \"quiet_hours_end\": \"07:00\",\n      \"quiet_hours_timezone\": \"Australia\/Sydney\",\n      \"sound\": \"default\"\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Update notification preferences.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/settings\/notifications",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/settings\/notifications"
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"push_enabled\":false,\"email_enabled\":false,\"sms_enabled\":true,\"quiet_hours_start\":\"18:25\",\"quiet_hours_end\":\"18:25\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"n\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"preferences\": {\n      \"push_enabled\": true,\n      \"email_enabled\": false,\n      \"sms_enabled\": false,\n      \"quiet_hours_start\": \"21:00\",\n      \"quiet_hours_end\": \"07:00\",\n      \"quiet_hours_timezone\": \"Australia\/Sydney\",\n      \"sound\": \"chime\"\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Support",
+            "description": "\nLive support chat (Plan \u00a74.9). One thread per user, resumed across visits \u2014\nnever a fresh thread. Internal staff notes (`direction=note`) are never\nreturned here.",
+            "item": [
+                {
+                    "name": "Get (or start) the support thread.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/support\/thread",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/support\/thread"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"thread\": { \"id\": 1, \"status\": \"open\" },\n    \"messages\": [\n      { \"id\": 1, \"direction\": \"user\", \"body\": \"My orders stopped syncing\", \"attachments\": null, \"created_at\": \"2026-07-16T02:00:00.000000Z\" }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Send a message.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/support\/messages",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/support\/messages"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\"}"
+                        },
+                        "description": "Reopens the thread if it was previously resolved."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"message\": { \"id\": 2, \"direction\": \"user\", \"body\": \"Any update?\", \"attachments\": null, \"created_at\": \"2026-07-16T02:05:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Team",
+            "description": "\nTeam seats and roles (owner\/manager\/staff), with per-member `store_visibility` restriction.",
+            "item": [
+                {
+                    "name": "List members and pending invites.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/team",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/team"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"members\": [\n      { \"id\": 1, \"role\": \"owner\", \"store_visibility\": null, \"user\": { \"id\": 1, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\" } }\n    ],\n    \"pending_invites\": [\n      { \"id\": 1, \"email\": \"sam@example.com\", \"role\": \"manager\", \"status\": \"pending\", \"expires_at\": \"2026-07-23T00:00:00+00:00\" }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Invite a team member.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/team\/invite",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/team\/invite"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"viewer\",\"store_visibility\":[16]}"
+                        },
+                        "description": "`store_visibility` optionally restricts the invited member to specific connection IDs."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"invite\": { \"id\": 2, \"email\": \"sam@example.com\", \"role\": \"manager\", \"status\": \"pending\", \"expires_at\": \"2026-07-23T00:00:00+00:00\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Update a team member.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/team\/:member_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/team\/:member_id",
+                            "variable": [
+                                {
+                                    "id": "member_id",
+                                    "key": "member_id",
+                                    "value": 16,
+                                    "description": "The ID of the member."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"role\":\"viewer\",\"store_visibility\":[16]}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"member\": { \"id\": 2, \"role\": \"staff\", \"store_visibility\": [1], \"user\": { \"id\": 3, \"name\": \"Sam Lee\", \"email\": \"sam@example.com\" } }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "Authorization",
+                "type": "string"
+            }
+        ]
+    }
+}

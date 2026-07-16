@@ -1,0 +1,201 @@
+name: Analytics
+description: |-
+
+  Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
+  (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
+  tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/analytics/summary
+    metadata:
+      custom: []
+      groupName: Analytics
+      groupDescription: |-
+
+        Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
+        (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
+        tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get the analytics summary.'
+      description: '`comparison` and `goal` are only present at the `full` analytics level (Pro/Premium).'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters:
+      range:
+        custom: []
+        name: range
+        description: 'One of `today`, `7d`, `30d`.'
+        required: true
+        example: 7d
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanQueryParameters:
+      range: 7d
+    bodyParameters:
+      range:
+        custom: []
+        name: range
+        description: ''
+        required: false
+        example: 30d
+        type: string
+        enumValues:
+          - today
+          - 7d
+          - 30d
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      range: 30d
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "range": "7d",
+              "total": { "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 },
+              "by_channel": [
+                { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 }
+              ],
+              "comparison": { "previous_period_revenue": 1500.0, "change_pct": 22.7 },
+              "goal": { "current_month_revenue": 4200.0, "best_month_revenue": 6100.0, "pct_of_best_month": 68.9 }
+            }
+          }
+        headers: []
+        description: 'full (Pro/Premium)'
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "range": "today",
+              "total": { "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 },
+              "by_channel": [
+                { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 }
+              ]
+            }
+          }
+        headers: []
+        description: 'today only (Free)'
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "range": ["Upgrade your plan for more analytics history."] }
+          }
+        headers: []
+        description: 'range not allowed on this plan'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/analytics/products
+    metadata:
+      custom: []
+      groupName: Analytics
+      groupDescription: |-
+
+        Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
+        (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
+        tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get top products.'
+      description: 'Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters:
+      range:
+        custom: []
+        name: range
+        description: 'One of `today`, `7d`, `30d`.'
+        required: true
+        example: 7d
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanQueryParameters:
+      range: 7d
+    bodyParameters:
+      range:
+        custom: []
+        name: range
+        description: ''
+        required: false
+        example: 7d
+        type: string
+        enumValues:
+          - today
+          - 7d
+          - 30d
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      range: 7d
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "products": [
+                { "sku": "VNT-014", "title": "Vintage Denim Jacket", "units": 12, "revenue": 1008.0 }
+              ]
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

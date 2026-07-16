@@ -16,8 +16,29 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Team
+ *
+ * Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+ */
 class TeamController extends Controller
 {
+    /**
+     * List members and pending invites.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "members": [
+     *       { "id": 1, "role": "owner", "store_visibility": null, "user": { "id": 1, "name": "Jamie Rivera", "email": "jamie@example.com" } }
+     *     ],
+     *     "pending_invites": [
+     *       { "id": 1, "email": "sam@example.com", "role": "manager", "status": "pending", "expires_at": "2026-07-23T00:00:00+00:00" }
+     *     ]
+     *   }
+     * }
+     */
     public function index(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -40,6 +61,19 @@ class TeamController extends Controller
         ]);
     }
 
+    /**
+     * Invite a team member.
+     *
+     * `store_visibility` optionally restricts the invited member to specific connection IDs.
+     *
+     * @response 201 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "invite": { "id": 2, "email": "sam@example.com", "role": "manager", "status": "pending", "expires_at": "2026-07-23T00:00:00+00:00" }
+     *   }
+     * }
+     */
     public function invite(InviteTeamMemberRequest $request, InviteTeamMemberAction $action): JsonResponse
     {
         /** @var User $user */
@@ -61,6 +95,17 @@ class TeamController extends Controller
         return ApiResponse::success(['invite' => new TeamInviteResource($invite)], status: 201);
     }
 
+    /**
+     * Update a team member.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "member": { "id": 2, "role": "staff", "store_visibility": [1], "user": { "id": 3, "name": "Sam Lee", "email": "sam@example.com" } }
+     *   }
+     * }
+     */
     public function update(UpdateTeamMemberRequest $request, TeamMember $member, UpdateTeamMemberAction $action): JsonResponse
     {
         /** @var User $user */

@@ -1,0 +1,4212 @@
+openapi: 3.0.3
+info:
+  title: 'StockBeat API Documentation'
+  description: 'Token-authenticated REST API consumed by the StockBeat mobile app (React Native).'
+  version: 1.0.0
+servers:
+  - url: 'https://stockbeat.ddev.site'
+tags:
+  - name: Account
+    description: "\nGDPR-related self-service actions."
+  - name: Analytics
+    description: "\nAnalytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan\n(`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal\ntracking). \"Today\" is always computed live, never from the `daily_stats` pre-aggregation."
+  - name: Announcements
+    description: ''
+  - name: 'Auth — OTP'
+    description: "\nPasswordless sign-in: request a one-time code by email, then verify it for a bearer token."
+  - name: 'Auth — Profile'
+    description: ''
+  - name: 'Auth — Session'
+    description: ''
+  - name: Connections
+    description: "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).\nOnly WooCommerce is fully live end-to-end today — the others accept a connection\nrecord but adapter operations are not yet available."
+  - name: Devices
+    description: ''
+  - name: Me
+    description: ''
+  - name: Notifications
+    description: ''
+  - name: Orders
+    description: "\nThe unified order feed across all connected channels, plus quick actions\n(fulfill/tracking, refund, cancel, notes/tags, packing slip)."
+  - name: Rules
+    description: "\nCustom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,\nand an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.\n`new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`)."
+  - name: Settings
+    description: ''
+  - name: Support
+    description: "\nLive support chat (Plan §4.9). One thread per user, resumed across visits —\nnever a fresh thread. Internal staff notes (`direction=note`) are never\nreturned here."
+  - name: Team
+    description: "\nTeam seats and roles (owner/manager/staff), with per-member `store_visibility` restriction."
+components:
+  securitySchemes:
+    default:
+      type: http
+      scheme: bearer
+      description: 'Obtain a token via `POST /auth/otp/request` then `POST /auth/otp/verify` (Laravel Sanctum bearer token).'
+security:
+  -
+    default: []
+paths:
+  /api/v1/account/data-export:
+    post:
+      summary: 'Request a data export.'
+      operationId: requestADataExport
+      description: 'Queues a GDPR data export; the user receives it by email.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: "We're preparing your data export — you'll receive it by email shortly."
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "We're preparing your data export — you'll receive it by email shortly."
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Account
+  /api/v1/account/delete-request:
+    post:
+      summary: 'Request account deletion.'
+      operationId: requestAccountDeletion
+      description: 'Schedules a GDPR soft-delete; the account is retained for a grace period before purge.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Your account has been scheduled for deletion.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Your account has been scheduled for deletion.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Account
+  /api/v1/analytics/summary:
+    get:
+      summary: 'Get the analytics summary.'
+      operationId: getTheAnalyticsSummary
+      description: '`comparison` and `goal` are only present at the `full` analytics level (Pro/Premium).'
+      parameters:
+        -
+          in: query
+          name: range
+          description: 'One of `today`, `7d`, `30d`.'
+          example: 7d
+          required: true
+          schema:
+            type: string
+            description: 'One of `today`, `7d`, `30d`.'
+            example: 7d
+      responses:
+        200:
+          description: ''
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  -
+                    description: 'full (Pro/Premium)'
+                    type: object
+                    example:
+                      success: true
+                      message: null
+                      data:
+                        range: 7d
+                        total:
+                          revenue: 1840.0
+                          revenue_base: 1840.0
+                          orders_count: 23
+                          aov: 80.0
+                        by_channel:
+                          -
+                            connection_id: 1
+                            platform: woo
+                            name: 'Rivera Vintage Co'
+                            revenue: 1840.0
+                            revenue_base: 1840.0
+                            orders_count: 23
+                            aov: 80.0
+                        comparison:
+                          previous_period_revenue: 1500.0
+                          change_pct: 22.7
+                        goal:
+                          current_month_revenue: 4200.0
+                          best_month_revenue: 6100.0
+                          pct_of_best_month: 68.9
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: null
+                        nullable: true
+                      data:
+                        type: object
+                        properties:
+                          range:
+                            type: string
+                            example: 7d
+                          total:
+                            type: object
+                            properties:
+                              revenue:
+                                type: number
+                                example: 1840.0
+                              revenue_base:
+                                type: number
+                                example: 1840.0
+                              orders_count:
+                                type: integer
+                                example: 23
+                              aov:
+                                type: number
+                                example: 80.0
+                          by_channel:
+                            type: array
+                            example:
+                              - connection_id: 1
+                                platform: woo
+                                name: 'Rivera Vintage Co'
+                                revenue: 1840
+                                revenue_base: 1840
+                                orders_count: 23
+                                aov: 80
+                            items:
+                              type: object
+                              properties:
+                                connection_id:
+                                  type: integer
+                                  example: 1
+                                platform:
+                                  type: string
+                                  example: woo
+                                name:
+                                  type: string
+                                  example: 'Rivera Vintage Co'
+                                revenue:
+                                  type: number
+                                  example: 1840.0
+                                revenue_base:
+                                  type: number
+                                  example: 1840.0
+                                orders_count:
+                                  type: integer
+                                  example: 23
+                                aov:
+                                  type: number
+                                  example: 80.0
+                          comparison:
+                            type: object
+                            properties:
+                              previous_period_revenue:
+                                type: number
+                                example: 1500.0
+                              change_pct:
+                                type: number
+                                example: 22.7
+                          goal:
+                            type: object
+                            properties:
+                              current_month_revenue:
+                                type: number
+                                example: 4200.0
+                              best_month_revenue:
+                                type: number
+                                example: 6100.0
+                              pct_of_best_month:
+                                type: number
+                                example: 68.9
+                  -
+                    description: 'today only (Free)'
+                    type: object
+                    example:
+                      success: true
+                      message: null
+                      data:
+                        range: today
+                        total:
+                          revenue: 240.0
+                          revenue_base: 240.0
+                          orders_count: 3
+                          aov: 80.0
+                        by_channel:
+                          -
+                            connection_id: 1
+                            platform: woo
+                            name: 'Rivera Vintage Co'
+                            revenue: 240.0
+                            revenue_base: 240.0
+                            orders_count: 3
+                            aov: 80.0
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: null
+                        nullable: true
+                      data:
+                        type: object
+                        properties:
+                          range:
+                            type: string
+                            example: today
+                          total:
+                            type: object
+                            properties:
+                              revenue:
+                                type: number
+                                example: 240.0
+                              revenue_base:
+                                type: number
+                                example: 240.0
+                              orders_count:
+                                type: integer
+                                example: 3
+                              aov:
+                                type: number
+                                example: 80.0
+                          by_channel:
+                            type: array
+                            example:
+                              - connection_id: 1
+                                platform: woo
+                                name: 'Rivera Vintage Co'
+                                revenue: 240
+                                revenue_base: 240
+                                orders_count: 3
+                                aov: 80
+                            items:
+                              type: object
+                              properties:
+                                connection_id:
+                                  type: integer
+                                  example: 1
+                                platform:
+                                  type: string
+                                  example: woo
+                                name:
+                                  type: string
+                                  example: 'Rivera Vintage Co'
+                                revenue:
+                                  type: number
+                                  example: 240.0
+                                revenue_base:
+                                  type: number
+                                  example: 240.0
+                                orders_count:
+                                  type: integer
+                                  example: 3
+                                aov:
+                                  type: number
+                                  example: 80.0
+        422:
+          description: 'range not allowed on this plan'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    range:
+                      - 'Upgrade your plan for more analytics history.'
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      range:
+                        type: array
+                        example:
+                          - 'Upgrade your plan for more analytics history.'
+                        items:
+                          type: string
+      tags:
+        - Analytics
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                range:
+                  type: string
+                  description: ''
+                  example: 30d
+                  enum:
+                    - today
+                    - 7d
+                    - 30d
+  /api/v1/analytics/products:
+    get:
+      summary: 'Get top products.'
+      operationId: getTopProducts
+      description: 'Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary.'
+      parameters:
+        -
+          in: query
+          name: range
+          description: 'One of `today`, `7d`, `30d`.'
+          example: 7d
+          required: true
+          schema:
+            type: string
+            description: 'One of `today`, `7d`, `30d`.'
+            example: 7d
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    products:
+                      -
+                        sku: VNT-014
+                        title: 'Vintage Denim Jacket'
+                        units: 12
+                        revenue: 1008.0
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        example:
+                          - sku: VNT-014
+                            title: 'Vintage Denim Jacket'
+                            units: 12
+                            revenue: 1008
+                        items:
+                          type: object
+                          properties:
+                            sku:
+                              type: string
+                              example: VNT-014
+                            title:
+                              type: string
+                              example: 'Vintage Denim Jacket'
+                            units:
+                              type: integer
+                              example: 12
+                            revenue:
+                              type: number
+                              example: 1008.0
+      tags:
+        - Analytics
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                range:
+                  type: string
+                  description: ''
+                  example: 7d
+                  enum:
+                    - today
+                    - 7d
+                    - 30d
+  /api/v1/announcements:
+    get:
+      summary: 'List active announcements.'
+      operationId: listActiveAnnouncements
+      description: "In-app banners currently active (within `starts_at`/`ends_at`) and matching the caller's\naudience rules, newest first."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    announcements:
+                      -
+                        id: 1
+                        title: 'New: order-spike alerts'
+                        body: 'Premium now includes order and refund spike alerts.'
+                        dismissible: true
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      announcements:
+                        type: array
+                        example:
+                          - id: 1
+                            title: 'New: order-spike alerts'
+                            body: 'Premium now includes order and refund spike alerts.'
+                            dismissible: true
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            title:
+                              type: string
+                              example: 'New: order-spike alerts'
+                            body:
+                              type: string
+                              example: 'Premium now includes order and refund spike alerts.'
+                            dismissible:
+                              type: boolean
+                              example: true
+      tags:
+        - Announcements
+  /api/v1/auth/otp/request:
+    post:
+      summary: 'Request an OTP code.'
+      operationId: requestAnOTPCode
+      description: "Always returns 200 regardless of whether the email is registered, to avoid account enumeration.\nRate limited (`otp-request`); a fresh code can be requested every 30s."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'A verification code has been sent if the email is registered.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'A verification code has been sent if the email is registered.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - 'Auth — OTP'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: 'Must be a valid email address. Must not be greater than 255 characters.'
+                  example: gbailey@example.net
+              required:
+                - email
+      security: []
+  /api/v1/auth/otp/verify:
+    post:
+      summary: 'Verify an OTP code.'
+      operationId: verifyAnOTPCode
+      description: "Returns a Sanctum bearer token on success. `is_new_user` tells the client whether to route\ninto `/profile/setup` next. Rate limited (`otp-verify`); locks out after 5 failed attempts."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    token: 1|abcdef1234567890
+                    is_new_user: false
+                    user:
+                      id: 1
+                      name: 'Jamie Rivera'
+                      email: jamie@example.com
+                      business_name: 'Rivera Vintage Co'
+                      base_currency: AUD
+                      timezone: Australia/Sydney
+                      sells_on:
+                        - woocommerce
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: 1|abcdef1234567890
+                      is_new_user:
+                        type: boolean
+                        example: false
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          name:
+                            type: string
+                            example: 'Jamie Rivera'
+                          email:
+                            type: string
+                            example: jamie@example.com
+                          business_name:
+                            type: string
+                            example: 'Rivera Vintage Co'
+                          base_currency:
+                            type: string
+                            example: AUD
+                          timezone:
+                            type: string
+                            example: Australia/Sydney
+                          sells_on:
+                            type: array
+                            example:
+                              - woocommerce
+                            items:
+                              type: string
+        422:
+          description: 'invalid or expired code'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'That code is invalid or has expired.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'That code is invalid or has expired.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - 'Auth — OTP'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: 'Must be a valid email address. Must not be greater than 255 characters.'
+                  example: gbailey@example.net
+                code:
+                  type: string
+                  description: 'Must be 6 digits.'
+                  example: '569775'
+              required:
+                - email
+                - code
+      security: []
+  /api/v1/profile/setup:
+    post:
+      summary: 'Complete profile setup.'
+      operationId: completeProfileSetup
+      description: "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    user:
+                      id: 1
+                      name: 'Jamie Rivera'
+                      email: jamie@example.com
+                      business_name: 'Rivera Vintage Co'
+                      base_currency: AUD
+                      timezone: Australia/Sydney
+                      sells_on:
+                        - woocommerce
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          name:
+                            type: string
+                            example: 'Jamie Rivera'
+                          email:
+                            type: string
+                            example: jamie@example.com
+                          business_name:
+                            type: string
+                            example: 'Rivera Vintage Co'
+                          base_currency:
+                            type: string
+                            example: AUD
+                          timezone:
+                            type: string
+                            example: Australia/Sydney
+                          sells_on:
+                            type: array
+                            example:
+                              - woocommerce
+                            items:
+                              type: string
+      tags:
+        - 'Auth — Profile'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+                business_name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: 'n'
+                  nullable: true
+                phone:
+                  type: string
+                  description: 'Must match the regex /^\+[1-9]\d{1,14}$/.'
+                  example: '+36'
+                  nullable: true
+                sells_on:
+                  type: array
+                  description: ''
+                  example:
+                    - woo
+                  items:
+                    type: string
+                    enum:
+                      - shopify
+                      - woo
+                      - ebay
+                      - etsy
+                      - amazon
+                timezone:
+                  type: string
+                  description: ''
+                  example: Pacific/Kiritimati
+                  enum:
+                    - Africa/Abidjan
+                    - Africa/Accra
+                    - Africa/Addis_Ababa
+                    - Africa/Algiers
+                    - Africa/Asmara
+                    - Africa/Bamako
+                    - Africa/Bangui
+                    - Africa/Banjul
+                    - Africa/Bissau
+                    - Africa/Blantyre
+                    - Africa/Brazzaville
+                    - Africa/Bujumbura
+                    - Africa/Cairo
+                    - Africa/Casablanca
+                    - Africa/Ceuta
+                    - Africa/Conakry
+                    - Africa/Dakar
+                    - Africa/Dar_es_Salaam
+                    - Africa/Djibouti
+                    - Africa/Douala
+                    - Africa/El_Aaiun
+                    - Africa/Freetown
+                    - Africa/Gaborone
+                    - Africa/Harare
+                    - Africa/Johannesburg
+                    - Africa/Juba
+                    - Africa/Kampala
+                    - Africa/Khartoum
+                    - Africa/Kigali
+                    - Africa/Kinshasa
+                    - Africa/Lagos
+                    - Africa/Libreville
+                    - Africa/Lome
+                    - Africa/Luanda
+                    - Africa/Lubumbashi
+                    - Africa/Lusaka
+                    - Africa/Malabo
+                    - Africa/Maputo
+                    - Africa/Maseru
+                    - Africa/Mbabane
+                    - Africa/Mogadishu
+                    - Africa/Monrovia
+                    - Africa/Nairobi
+                    - Africa/Ndjamena
+                    - Africa/Niamey
+                    - Africa/Nouakchott
+                    - Africa/Ouagadougou
+                    - Africa/Porto-Novo
+                    - Africa/Sao_Tome
+                    - Africa/Tripoli
+                    - Africa/Tunis
+                    - Africa/Windhoek
+                    - America/Adak
+                    - America/Anchorage
+                    - America/Anguilla
+                    - America/Antigua
+                    - America/Araguaina
+                    - America/Argentina/Buenos_Aires
+                    - America/Argentina/Catamarca
+                    - America/Argentina/Cordoba
+                    - America/Argentina/Jujuy
+                    - America/Argentina/La_Rioja
+                    - America/Argentina/Mendoza
+                    - America/Argentina/Rio_Gallegos
+                    - America/Argentina/Salta
+                    - America/Argentina/San_Juan
+                    - America/Argentina/San_Luis
+                    - America/Argentina/Tucuman
+                    - America/Argentina/Ushuaia
+                    - America/Aruba
+                    - America/Asuncion
+                    - America/Atikokan
+                    - America/Bahia
+                    - America/Bahia_Banderas
+                    - America/Barbados
+                    - America/Belem
+                    - America/Belize
+                    - America/Blanc-Sablon
+                    - America/Boa_Vista
+                    - America/Bogota
+                    - America/Boise
+                    - America/Cambridge_Bay
+                    - America/Campo_Grande
+                    - America/Cancun
+                    - America/Caracas
+                    - America/Cayenne
+                    - America/Cayman
+                    - America/Chicago
+                    - America/Chihuahua
+                    - America/Ciudad_Juarez
+                    - America/Costa_Rica
+                    - America/Coyhaique
+                    - America/Creston
+                    - America/Cuiaba
+                    - America/Curacao
+                    - America/Danmarkshavn
+                    - America/Dawson
+                    - America/Dawson_Creek
+                    - America/Denver
+                    - America/Detroit
+                    - America/Dominica
+                    - America/Edmonton
+                    - America/Eirunepe
+                    - America/El_Salvador
+                    - America/Fort_Nelson
+                    - America/Fortaleza
+                    - America/Glace_Bay
+                    - America/Goose_Bay
+                    - America/Grand_Turk
+                    - America/Grenada
+                    - America/Guadeloupe
+                    - America/Guatemala
+                    - America/Guayaquil
+                    - America/Guyana
+                    - America/Halifax
+                    - America/Havana
+                    - America/Hermosillo
+                    - America/Indiana/Indianapolis
+                    - America/Indiana/Knox
+                    - America/Indiana/Marengo
+                    - America/Indiana/Petersburg
+                    - America/Indiana/Tell_City
+                    - America/Indiana/Vevay
+                    - America/Indiana/Vincennes
+                    - America/Indiana/Winamac
+                    - America/Inuvik
+                    - America/Iqaluit
+                    - America/Jamaica
+                    - America/Juneau
+                    - America/Kentucky/Louisville
+                    - America/Kentucky/Monticello
+                    - America/Kralendijk
+                    - America/La_Paz
+                    - America/Lima
+                    - America/Los_Angeles
+                    - America/Lower_Princes
+                    - America/Maceio
+                    - America/Managua
+                    - America/Manaus
+                    - America/Marigot
+                    - America/Martinique
+                    - America/Matamoros
+                    - America/Mazatlan
+                    - America/Menominee
+                    - America/Merida
+                    - America/Metlakatla
+                    - America/Mexico_City
+                    - America/Miquelon
+                    - America/Moncton
+                    - America/Monterrey
+                    - America/Montevideo
+                    - America/Montserrat
+                    - America/Nassau
+                    - America/New_York
+                    - America/Nome
+                    - America/Noronha
+                    - America/North_Dakota/Beulah
+                    - America/North_Dakota/Center
+                    - America/North_Dakota/New_Salem
+                    - America/Nuuk
+                    - America/Ojinaga
+                    - America/Panama
+                    - America/Paramaribo
+                    - America/Phoenix
+                    - America/Port-au-Prince
+                    - America/Port_of_Spain
+                    - America/Porto_Velho
+                    - America/Puerto_Rico
+                    - America/Punta_Arenas
+                    - America/Rankin_Inlet
+                    - America/Recife
+                    - America/Regina
+                    - America/Resolute
+                    - America/Rio_Branco
+                    - America/Santarem
+                    - America/Santiago
+                    - America/Santo_Domingo
+                    - America/Sao_Paulo
+                    - America/Scoresbysund
+                    - America/Sitka
+                    - America/St_Barthelemy
+                    - America/St_Johns
+                    - America/St_Kitts
+                    - America/St_Lucia
+                    - America/St_Thomas
+                    - America/St_Vincent
+                    - America/Swift_Current
+                    - America/Tegucigalpa
+                    - America/Thule
+                    - America/Tijuana
+                    - America/Toronto
+                    - America/Tortola
+                    - America/Vancouver
+                    - America/Whitehorse
+                    - America/Winnipeg
+                    - America/Yakutat
+                    - Antarctica/Casey
+                    - Antarctica/Davis
+                    - Antarctica/DumontDUrville
+                    - Antarctica/Macquarie
+                    - Antarctica/Mawson
+                    - Antarctica/McMurdo
+                    - Antarctica/Palmer
+                    - Antarctica/Rothera
+                    - Antarctica/Syowa
+                    - Antarctica/Troll
+                    - Antarctica/Vostok
+                    - Arctic/Longyearbyen
+                    - Asia/Aden
+                    - Asia/Almaty
+                    - Asia/Amman
+                    - Asia/Anadyr
+                    - Asia/Aqtau
+                    - Asia/Aqtobe
+                    - Asia/Ashgabat
+                    - Asia/Atyrau
+                    - Asia/Baghdad
+                    - Asia/Bahrain
+                    - Asia/Baku
+                    - Asia/Bangkok
+                    - Asia/Barnaul
+                    - Asia/Beirut
+                    - Asia/Bishkek
+                    - Asia/Brunei
+                    - Asia/Chita
+                    - Asia/Colombo
+                    - Asia/Damascus
+                    - Asia/Dhaka
+                    - Asia/Dili
+                    - Asia/Dubai
+                    - Asia/Dushanbe
+                    - Asia/Famagusta
+                    - Asia/Gaza
+                    - Asia/Hebron
+                    - Asia/Ho_Chi_Minh
+                    - Asia/Hong_Kong
+                    - Asia/Hovd
+                    - Asia/Irkutsk
+                    - Asia/Jakarta
+                    - Asia/Jayapura
+                    - Asia/Jerusalem
+                    - Asia/Kabul
+                    - Asia/Kamchatka
+                    - Asia/Karachi
+                    - Asia/Kathmandu
+                    - Asia/Khandyga
+                    - Asia/Kolkata
+                    - Asia/Krasnoyarsk
+                    - Asia/Kuala_Lumpur
+                    - Asia/Kuching
+                    - Asia/Kuwait
+                    - Asia/Macau
+                    - Asia/Magadan
+                    - Asia/Makassar
+                    - Asia/Manila
+                    - Asia/Muscat
+                    - Asia/Nicosia
+                    - Asia/Novokuznetsk
+                    - Asia/Novosibirsk
+                    - Asia/Omsk
+                    - Asia/Oral
+                    - Asia/Phnom_Penh
+                    - Asia/Pontianak
+                    - Asia/Pyongyang
+                    - Asia/Qatar
+                    - Asia/Qostanay
+                    - Asia/Qyzylorda
+                    - Asia/Riyadh
+                    - Asia/Sakhalin
+                    - Asia/Samarkand
+                    - Asia/Seoul
+                    - Asia/Shanghai
+                    - Asia/Singapore
+                    - Asia/Srednekolymsk
+                    - Asia/Taipei
+                    - Asia/Tashkent
+                    - Asia/Tbilisi
+                    - Asia/Tehran
+                    - Asia/Thimphu
+                    - Asia/Tokyo
+                    - Asia/Tomsk
+                    - Asia/Ulaanbaatar
+                    - Asia/Urumqi
+                    - Asia/Ust-Nera
+                    - Asia/Vientiane
+                    - Asia/Vladivostok
+                    - Asia/Yakutsk
+                    - Asia/Yangon
+                    - Asia/Yekaterinburg
+                    - Asia/Yerevan
+                    - Atlantic/Azores
+                    - Atlantic/Bermuda
+                    - Atlantic/Canary
+                    - Atlantic/Cape_Verde
+                    - Atlantic/Faroe
+                    - Atlantic/Madeira
+                    - Atlantic/Reykjavik
+                    - Atlantic/South_Georgia
+                    - Atlantic/St_Helena
+                    - Atlantic/Stanley
+                    - Australia/Adelaide
+                    - Australia/Brisbane
+                    - Australia/Broken_Hill
+                    - Australia/Darwin
+                    - Australia/Eucla
+                    - Australia/Hobart
+                    - Australia/Lindeman
+                    - Australia/Lord_Howe
+                    - Australia/Melbourne
+                    - Australia/Perth
+                    - Australia/Sydney
+                    - Europe/Amsterdam
+                    - Europe/Andorra
+                    - Europe/Astrakhan
+                    - Europe/Athens
+                    - Europe/Belgrade
+                    - Europe/Berlin
+                    - Europe/Bratislava
+                    - Europe/Brussels
+                    - Europe/Bucharest
+                    - Europe/Budapest
+                    - Europe/Busingen
+                    - Europe/Chisinau
+                    - Europe/Copenhagen
+                    - Europe/Dublin
+                    - Europe/Gibraltar
+                    - Europe/Guernsey
+                    - Europe/Helsinki
+                    - Europe/Isle_of_Man
+                    - Europe/Istanbul
+                    - Europe/Jersey
+                    - Europe/Kaliningrad
+                    - Europe/Kirov
+                    - Europe/Kyiv
+                    - Europe/Lisbon
+                    - Europe/Ljubljana
+                    - Europe/London
+                    - Europe/Luxembourg
+                    - Europe/Madrid
+                    - Europe/Malta
+                    - Europe/Mariehamn
+                    - Europe/Minsk
+                    - Europe/Monaco
+                    - Europe/Moscow
+                    - Europe/Oslo
+                    - Europe/Paris
+                    - Europe/Podgorica
+                    - Europe/Prague
+                    - Europe/Riga
+                    - Europe/Rome
+                    - Europe/Samara
+                    - Europe/San_Marino
+                    - Europe/Sarajevo
+                    - Europe/Saratov
+                    - Europe/Simferopol
+                    - Europe/Skopje
+                    - Europe/Sofia
+                    - Europe/Stockholm
+                    - Europe/Tallinn
+                    - Europe/Tirane
+                    - Europe/Ulyanovsk
+                    - Europe/Vaduz
+                    - Europe/Vatican
+                    - Europe/Vienna
+                    - Europe/Vilnius
+                    - Europe/Volgograd
+                    - Europe/Warsaw
+                    - Europe/Zagreb
+                    - Europe/Zurich
+                    - Indian/Antananarivo
+                    - Indian/Chagos
+                    - Indian/Christmas
+                    - Indian/Cocos
+                    - Indian/Comoro
+                    - Indian/Kerguelen
+                    - Indian/Mahe
+                    - Indian/Maldives
+                    - Indian/Mauritius
+                    - Indian/Mayotte
+                    - Indian/Reunion
+                    - Pacific/Apia
+                    - Pacific/Auckland
+                    - Pacific/Bougainville
+                    - Pacific/Chatham
+                    - Pacific/Chuuk
+                    - Pacific/Easter
+                    - Pacific/Efate
+                    - Pacific/Fakaofo
+                    - Pacific/Fiji
+                    - Pacific/Funafuti
+                    - Pacific/Galapagos
+                    - Pacific/Gambier
+                    - Pacific/Guadalcanal
+                    - Pacific/Guam
+                    - Pacific/Honolulu
+                    - Pacific/Kanton
+                    - Pacific/Kiritimati
+                    - Pacific/Kosrae
+                    - Pacific/Kwajalein
+                    - Pacific/Majuro
+                    - Pacific/Marquesas
+                    - Pacific/Midway
+                    - Pacific/Nauru
+                    - Pacific/Niue
+                    - Pacific/Norfolk
+                    - Pacific/Noumea
+                    - Pacific/Pago_Pago
+                    - Pacific/Palau
+                    - Pacific/Pitcairn
+                    - Pacific/Pohnpei
+                    - Pacific/Port_Moresby
+                    - Pacific/Rarotonga
+                    - Pacific/Saipan
+                    - Pacific/Tahiti
+                    - Pacific/Tarawa
+                    - Pacific/Tongatapu
+                    - Pacific/Wake
+                    - Pacific/Wallis
+                    - UTC
+                  nullable: true
+                base_currency:
+                  type: string
+                  description: 'Must be 3 characters.'
+                  example: iyv
+                  nullable: true
+              required:
+                - name
+  /api/v1/auth/logout:
+    post:
+      summary: 'Log out.'
+      operationId: logOut
+      description: 'Revokes the bearer token used for this request only.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Logged out.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Logged out.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - 'Auth — Session'
+  /api/v1/auth/logout-all:
+    post:
+      summary: 'Log out of all devices.'
+      operationId: logOutOfAllDevices
+      description: 'Revokes every Sanctum token for the user, not just the current one.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Logged out of all devices.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Logged out of all devices.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - 'Auth — Session'
+  '/api/v1/connections/{platform}/start':
+    post:
+      summary: 'Start connecting a store.'
+      operationId: startConnectingAStore
+      description: "`credentials` shape depends on `platform` — WooCommerce expects `{store_url, consumer_key,\nconsumer_secret}` (key-intake); OAuth-based platforms (Shopify/eBay/Etsy/Amazon) are\npending adapter approval and will return an OAuth URL once available."
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    connection:
+                      id: 1
+                      platform: woo
+                      name: 'Rivera Vintage Co'
+                      status: active
+                      last_sync_at: null
+                      webhook_status: registered
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      connection:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          platform:
+                            type: string
+                            example: woo
+                          name:
+                            type: string
+                            example: 'Rivera Vintage Co'
+                          status:
+                            type: string
+                            example: active
+                          last_sync_at:
+                            type: string
+                            example: null
+                            nullable: true
+                          webhook_status:
+                            type: string
+                            example: registered
+        422:
+          description: 'profile setup incomplete'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Complete profile setup before connecting a store.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Complete profile setup before connecting a store.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Connections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+                credentials:
+                  type: object
+                  description: ''
+                  example: null
+                  properties: {}
+              required:
+                - name
+    parameters:
+      -
+        in: path
+        name: platform
+        description: 'One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`.'
+        example: woo
+        required: true
+        schema:
+          type: string
+  /api/v1/connections:
+    get:
+      summary: 'List connections.'
+      operationId: listConnections
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    connections:
+                      -
+                        id: 1
+                        platform: woo
+                        name: 'Rivera Vintage Co'
+                        status: active
+                        last_sync_at: '2026-07-16T01:45:00.000000Z'
+                        webhook_status: registered
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      connections:
+                        type: array
+                        example:
+                          - id: 1
+                            platform: woo
+                            name: 'Rivera Vintage Co'
+                            status: active
+                            last_sync_at: '2026-07-16T01:45:00.000000Z'
+                            webhook_status: registered
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            platform:
+                              type: string
+                              example: woo
+                            name:
+                              type: string
+                              example: 'Rivera Vintage Co'
+                            status:
+                              type: string
+                              example: active
+                            last_sync_at:
+                              type: string
+                              example: '2026-07-16T01:45:00.000000Z'
+                            webhook_status:
+                              type: string
+                              example: registered
+      tags:
+        - Connections
+  '/api/v1/connections/{connection_id}/health':
+    get:
+      summary: 'Get connection health.'
+      operationId: getConnectionHealth
+      description: "Plain-language status for the connection-health screen — never raw error codes.\n`fix_action` is a key the client maps to a concrete flow (e.g. `reauth`), not a URL."
+      parameters: []
+      responses:
+        200:
+          description: ''
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  -
+                    description: healthy
+                    type: object
+                    example:
+                      success: true
+                      message: null
+                      data:
+                        connection_id: 1
+                        status: active
+                        webhook_status: registered
+                        last_sync_at: '2026-07-16T01:45:00+00:00'
+                        message: 'Rivera Vintage Co is connected and syncing normally.'
+                        fix_action: null
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: null
+                        nullable: true
+                      data:
+                        type: object
+                        properties:
+                          connection_id:
+                            type: integer
+                            example: 1
+                          status:
+                            type: string
+                            example: active
+                          webhook_status:
+                            type: string
+                            example: registered
+                          last_sync_at:
+                            type: string
+                            example: '2026-07-16T01:45:00+00:00'
+                          message:
+                            type: string
+                            example: 'Rivera Vintage Co is connected and syncing normally.'
+                          fix_action:
+                            type: string
+                            example: null
+                            nullable: true
+                  -
+                    description: 'needs reauth'
+                    type: object
+                    example:
+                      success: true
+                      message: null
+                      data:
+                        connection_id: 1
+                        status: needs_reauth
+                        webhook_status: registered
+                        last_sync_at: '2026-07-15T20:00:00+00:00'
+                        message: 'Your connection to Rivera Vintage Co needs to be reconnected.'
+                        fix_action: reauth
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: null
+                        nullable: true
+                      data:
+                        type: object
+                        properties:
+                          connection_id:
+                            type: integer
+                            example: 1
+                          status:
+                            type: string
+                            example: needs_reauth
+                          webhook_status:
+                            type: string
+                            example: registered
+                          last_sync_at:
+                            type: string
+                            example: '2026-07-15T20:00:00+00:00'
+                          message:
+                            type: string
+                            example: 'Your connection to Rivera Vintage Co needs to be reconnected.'
+                          fix_action:
+                            type: string
+                            example: reauth
+      tags:
+        - Connections
+    parameters:
+      -
+        in: path
+        name: connection_id
+        description: 'The ID of the connection.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/connections/{id}':
+    delete:
+      summary: 'Disconnect a store.'
+      operationId: disconnectAStore
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Store disconnected.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Store disconnected.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Connections
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the connection.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  /api/v1/devices:
+    post:
+      summary: 'Register a push device.'
+      operationId: registerAPushDevice
+      description: "Upserts the device's push token so the backend can deliver notifications to it."
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    device:
+                      id: 1
+                      platform: ios
+                      last_seen_at: '2026-07-16T02:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      device:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          platform:
+                            type: string
+                            example: ios
+                          last_seen_at:
+                            type: string
+                            example: '2026-07-16T02:00:00.000000Z'
+      tags:
+        - Devices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  type: string
+                  description: ''
+                  example: android
+                  enum:
+                    - ios
+                    - android
+                push_token:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+              required:
+                - platform
+                - push_token
+  /api/v1/me:
+    get:
+      summary: 'Get the current user.'
+      operationId: getTheCurrentUser
+      description: "Combines profile, current team/role, plan entitlements, and SMS credit balance —\nthe client's single call after launch/login. `needs_profile_setup` is true until\n`/profile/setup` has been completed."
+      parameters: []
+      responses:
+        200:
+          description: ''
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  -
+                    description: 'profile setup complete'
+                    type: object
+                    example:
+                      success: true
+                      message: null
+                      data:
+                        user:
+                          id: 1
+                          name: 'Jamie Rivera'
+                          email: jamie@example.com
+                          business_name: 'Rivera Vintage Co'
+                          base_currency: AUD
+                          timezone: Australia/Sydney
+                          sells_on:
+                            - woocommerce
+                        team:
+                          id: 1
+                          name: 'Rivera Vintage Co'
+                          role: owner
+                        entitlements:
+                          plan: pro
+                          history_days: 90
+                          sms_balance: 42
+                        needs_profile_setup: false
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: null
+                        nullable: true
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 1
+                              name:
+                                type: string
+                                example: 'Jamie Rivera'
+                              email:
+                                type: string
+                                example: jamie@example.com
+                              business_name:
+                                type: string
+                                example: 'Rivera Vintage Co'
+                              base_currency:
+                                type: string
+                                example: AUD
+                              timezone:
+                                type: string
+                                example: Australia/Sydney
+                              sells_on:
+                                type: array
+                                example:
+                                  - woocommerce
+                                items:
+                                  type: string
+                          team:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 1
+                              name:
+                                type: string
+                                example: 'Rivera Vintage Co'
+                              role:
+                                type: string
+                                example: owner
+                          entitlements:
+                            type: object
+                            properties:
+                              plan:
+                                type: string
+                                example: pro
+                              history_days:
+                                type: integer
+                                example: 90
+                              sms_balance:
+                                type: integer
+                                example: 42
+                          needs_profile_setup:
+                            type: boolean
+                            example: false
+                  -
+                    description: 'profile setup pending'
+                    type: object
+                    example:
+                      success: true
+                      message: null
+                      data:
+                        user:
+                          id: 1
+                          name: 'Jamie Rivera'
+                          email: jamie@example.com
+                          business_name: null
+                          base_currency: null
+                          timezone: null
+                          sells_on: null
+                        team: null
+                        entitlements: null
+                        needs_profile_setup: true
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: null
+                        nullable: true
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 1
+                              name:
+                                type: string
+                                example: 'Jamie Rivera'
+                              email:
+                                type: string
+                                example: jamie@example.com
+                              business_name:
+                                type: string
+                                example: null
+                                nullable: true
+                              base_currency:
+                                type: string
+                                example: null
+                                nullable: true
+                              timezone:
+                                type: string
+                                example: null
+                                nullable: true
+                              sells_on:
+                                type: string
+                                example: null
+                                nullable: true
+                          team:
+                            type: string
+                            example: null
+                            nullable: true
+                          entitlements:
+                            type: string
+                            example: null
+                            nullable: true
+                          needs_profile_setup:
+                            type: boolean
+                            example: true
+      tags:
+        - Me
+  /api/v1/notifications:
+    get:
+      summary: 'List notifications.'
+      operationId: listNotifications
+      description: 'Most recent 50, newest first.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    notifications:
+                      -
+                        id: 1
+                        type: rule_fired
+                        title: 'High-value order'
+                        body: 'Order #1042 — $84.00'
+                        data:
+                          order_id: 1
+                          rule_id: 1
+                        read_at: null
+                        created_at: '2026-07-16T01:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        example:
+                          -
+                            id: 1
+                            type: rule_fired
+                            title: 'High-value order'
+                            body: 'Order #1042 — $84.00'
+                            data:
+                              order_id: 1
+                              rule_id: 1
+                            read_at: null
+                            created_at: '2026-07-16T01:00:00.000000Z'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            type:
+                              type: string
+                              example: rule_fired
+                            title:
+                              type: string
+                              example: 'High-value order'
+                            body:
+                              type: string
+                              example: 'Order #1042 — $84.00'
+                            data:
+                              type: object
+                              properties:
+                                order_id:
+                                  type: integer
+                                  example: 1
+                                rule_id:
+                                  type: integer
+                                  example: 1
+                            read_at:
+                              type: string
+                              example: null
+                              nullable: true
+                            created_at:
+                              type: string
+                              example: '2026-07-16T01:00:00.000000Z'
+      tags:
+        - Notifications
+  /api/v1/notifications/read:
+    post:
+      summary: 'Mark notifications as read.'
+      operationId: markNotificationsAsRead
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    marked_read: 3
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      marked_read:
+                        type: integer
+                        example: 3
+      tags:
+        - Notifications
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  description: ''
+                  example:
+                    - 16
+                  items:
+                    type: integer
+  /api/v1/orders:
+    get:
+      summary: 'List orders.'
+      operationId: listOrders
+      description: "Cursor-paginated, filterable by channel/store/status/date/value/tag, with global search\nacross order number, customer name/email, and item SKU/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    orders:
+                      -
+                        id: 1
+                        platform: woo
+                        connection_id: 1
+                        order_number: '#1042'
+                        status: unfulfilled
+                        fulfillment_status: unfulfilled
+                        payment_status: paid
+                        currency: AUD
+                        total: '84.00'
+                        total_base_currency: '84.00'
+                        customer_name: 'Alex Chen'
+                        customer_email: alex@example.com
+                        shipping_address:
+                          line1: '1 Example St'
+                          city: Sydney
+                          postcode: '2000'
+                          country: AU
+                        placed_at: '2026-07-16T00:30:00.000000Z'
+                        ship_by_at: '2026-07-18T00:30:00.000000Z'
+                        ship_by_hours_remaining: 46.5
+                        is_ship_by_urgent: false
+                        tags:
+                          - gift
+                        is_test: false
+                        snoozed_until: null
+                    next_cursor: eyJpZCI6MSwiX3BvaW50c1RvTmV4dEl0ZW1zIjp0cnVlfQ
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      orders:
+                        type: array
+                        example:
+                          -
+                            id: 1
+                            platform: woo
+                            connection_id: 1
+                            order_number: '#1042'
+                            status: unfulfilled
+                            fulfillment_status: unfulfilled
+                            payment_status: paid
+                            currency: AUD
+                            total: '84.00'
+                            total_base_currency: '84.00'
+                            customer_name: 'Alex Chen'
+                            customer_email: alex@example.com
+                            shipping_address:
+                              line1: '1 Example St'
+                              city: Sydney
+                              postcode: '2000'
+                              country: AU
+                            placed_at: '2026-07-16T00:30:00.000000Z'
+                            ship_by_at: '2026-07-18T00:30:00.000000Z'
+                            ship_by_hours_remaining: 46.5
+                            is_ship_by_urgent: false
+                            tags:
+                              - gift
+                            is_test: false
+                            snoozed_until: null
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            platform:
+                              type: string
+                              example: woo
+                            connection_id:
+                              type: integer
+                              example: 1
+                            order_number:
+                              type: string
+                              example: '#1042'
+                            status:
+                              type: string
+                              example: unfulfilled
+                            fulfillment_status:
+                              type: string
+                              example: unfulfilled
+                            payment_status:
+                              type: string
+                              example: paid
+                            currency:
+                              type: string
+                              example: AUD
+                            total:
+                              type: string
+                              example: '84.00'
+                            total_base_currency:
+                              type: string
+                              example: '84.00'
+                            customer_name:
+                              type: string
+                              example: 'Alex Chen'
+                            customer_email:
+                              type: string
+                              example: alex@example.com
+                            shipping_address:
+                              type: object
+                              properties:
+                                line1:
+                                  type: string
+                                  example: '1 Example St'
+                                city:
+                                  type: string
+                                  example: Sydney
+                                postcode:
+                                  type: string
+                                  example: '2000'
+                                country:
+                                  type: string
+                                  example: AU
+                            placed_at:
+                              type: string
+                              example: '2026-07-16T00:30:00.000000Z'
+                            ship_by_at:
+                              type: string
+                              example: '2026-07-18T00:30:00.000000Z'
+                            ship_by_hours_remaining:
+                              type: number
+                              example: 46.5
+                            is_ship_by_urgent:
+                              type: boolean
+                              example: false
+                            tags:
+                              type: array
+                              example:
+                                - gift
+                              items:
+                                type: string
+                            is_test:
+                              type: boolean
+                              example: false
+                            snoozed_until:
+                              type: string
+                              example: null
+                              nullable: true
+                      next_cursor:
+                        type: string
+                        example: eyJpZCI6MSwiX3BvaW50c1RvTmV4dEl0ZW1zIjp0cnVlfQ
+      tags:
+        - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                  description: ''
+                  example: woo
+                  enum:
+                    - shopify
+                    - woo
+                    - ebay
+                    - etsy
+                    - amazon
+                store:
+                  type: integer
+                  description: ''
+                  example: 16
+                status:
+                  type: string
+                  description: ''
+                  example: cancelled
+                  enum:
+                    - new
+                    - unfulfilled
+                    - shipped
+                    - refunded
+                    - cancelled
+                date_from:
+                  type: string
+                  description: 'Must be a valid date.'
+                  example: '2026-07-16T18:25:25'
+                date_to:
+                  type: string
+                  description: 'Must be a valid date.'
+                  example: '2026-07-16T18:25:25'
+                value_min:
+                  type: number
+                  description: ''
+                  example: 4326.41688
+                value_max:
+                  type: number
+                  description: ''
+                  example: 4326.41688
+                tag:
+                  type: string
+                  description: ''
+                  example: architecto
+                q:
+                  type: string
+                  description: ''
+                  example: architecto
+                include_snoozed:
+                  type: boolean
+                  description: ''
+                  example: false
+  '/api/v1/orders/{id}':
+    get:
+      summary: 'Get an order.'
+      operationId: getAnOrder
+      description: "Includes items and notes. 404s if the order isn't in the caller's team, or outside the\ncaller's `store_visibility` restriction."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    order:
+                      id: 1
+                      platform: woo
+                      connection_id: 1
+                      order_number: '#1042'
+                      status: unfulfilled
+                      fulfillment_status: unfulfilled
+                      payment_status: paid
+                      currency: AUD
+                      total: '84.00'
+                      total_base_currency: '84.00'
+                      customer_name: 'Alex Chen'
+                      customer_email: alex@example.com
+                      shipping_address:
+                        line1: '1 Example St'
+                        city: Sydney
+                        postcode: '2000'
+                        country: AU
+                      placed_at: '2026-07-16T00:30:00.000000Z'
+                      ship_by_at: '2026-07-18T00:30:00.000000Z'
+                      ship_by_hours_remaining: 46.5
+                      is_ship_by_urgent: false
+                      tags:
+                        - gift
+                      is_test: false
+                      snoozed_until: null
+                      items:
+                        -
+                          id: 1
+                          sku: VNT-014
+                          title: 'Vintage Denim Jacket'
+                          image_url: 'https://example.com/img/vnt-014.jpg'
+                          qty: 1
+                          price: '84.00'
+                      notes: []
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          platform:
+                            type: string
+                            example: woo
+                          connection_id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          status:
+                            type: string
+                            example: unfulfilled
+                          fulfillment_status:
+                            type: string
+                            example: unfulfilled
+                          payment_status:
+                            type: string
+                            example: paid
+                          currency:
+                            type: string
+                            example: AUD
+                          total:
+                            type: string
+                            example: '84.00'
+                          total_base_currency:
+                            type: string
+                            example: '84.00'
+                          customer_name:
+                            type: string
+                            example: 'Alex Chen'
+                          customer_email:
+                            type: string
+                            example: alex@example.com
+                          shipping_address:
+                            type: object
+                            properties:
+                              line1:
+                                type: string
+                                example: '1 Example St'
+                              city:
+                                type: string
+                                example: Sydney
+                              postcode:
+                                type: string
+                                example: '2000'
+                              country:
+                                type: string
+                                example: AU
+                          placed_at:
+                            type: string
+                            example: '2026-07-16T00:30:00.000000Z'
+                          ship_by_at:
+                            type: string
+                            example: '2026-07-18T00:30:00.000000Z'
+                          ship_by_hours_remaining:
+                            type: number
+                            example: 46.5
+                          is_ship_by_urgent:
+                            type: boolean
+                            example: false
+                          tags:
+                            type: array
+                            example:
+                              - gift
+                            items:
+                              type: string
+                          is_test:
+                            type: boolean
+                            example: false
+                          snoozed_until:
+                            type: string
+                            example: null
+                            nullable: true
+                          items:
+                            type: array
+                            example:
+                              - id: 1
+                                sku: VNT-014
+                                title: 'Vintage Denim Jacket'
+                                image_url: 'https://example.com/img/vnt-014.jpg'
+                                qty: 1
+                                price: '84.00'
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                sku:
+                                  type: string
+                                  example: VNT-014
+                                title:
+                                  type: string
+                                  example: 'Vintage Denim Jacket'
+                                image_url:
+                                  type: string
+                                  example: 'https://example.com/img/vnt-014.jpg'
+                                qty:
+                                  type: integer
+                                  example: 1
+                                price:
+                                  type: string
+                                  example: '84.00'
+                          notes:
+                            type: array
+                            example: []
+      tags:
+        - Orders
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/notes':
+    post:
+      summary: 'Add a note to an order.'
+      operationId: addANoteToAnOrder
+      description: ''
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    note:
+                      id: 1
+                      body: 'Customer asked to hold for pickup.'
+                      user_id: 1
+                      created_at: '2026-07-16T02:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      note:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          body:
+                            type: string
+                            example: 'Customer asked to hold for pickup.'
+                          user_id:
+                            type: integer
+                            example: 1
+                          created_at:
+                            type: string
+                            example: '2026-07-16T02:00:00.000000Z'
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  description: 'Must not be greater than 2000 characters.'
+                  example: b
+              required:
+                - body
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/tags':
+    post:
+      summary: "Replace an order's tags."
+      operationId: replaceAnOrdersTags
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    order:
+                      id: 1
+                      order_number: '#1042'
+                      tags:
+                        - gift
+                        - priority
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          tags:
+                            type: array
+                            example:
+                              - gift
+                              - priority
+                            items:
+                              type: string
+      tags:
+        - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tags:
+                  type: array
+                  description: 'Must not be greater than 50 characters.'
+                  example:
+                    - b
+                  items:
+                    type: string
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/snooze':
+    post:
+      summary: 'Snooze or unsnooze an order.'
+      operationId: snoozeOrUnsnoozeAnOrder
+      description: 'Pass `until` as an ISO-8601 datetime to snooze, or omit/null it to clear the snooze.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    order:
+                      id: 1
+                      order_number: '#1042'
+                      snoozed_until: '2026-07-18T00:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          snoozed_until:
+                            type: string
+                            example: '2026-07-18T00:00:00.000000Z'
+      tags:
+        - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                until:
+                  type: string
+                  description: 'Must be a valid date. Must be a date after <code>now</code>.'
+                  example: '2052-08-09'
+                  nullable: true
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/fulfill':
+    post:
+      summary: 'Fulfill an order with tracking info.'
+      operationId: fulfillAnOrderWithTrackingInfo
+      description: "Calls through to the real channel adapter where available (WooCommerce today); capability-checked\nserver-side, so this 422s with a plain-language message on platforms/actions that aren't supported yet."
+      parameters: []
+      responses:
+        200:
+          description: ''
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  -
+                    description: success
+                    type: object
+                    example:
+                      success: true
+                      message: 'Order marked as fulfilled.'
+                      data:
+                        order:
+                          id: 1
+                          order_number: '#1042'
+                          status: shipped
+                          fulfillment_status: fulfilled
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: 'Order marked as fulfilled.'
+                      data:
+                        type: object
+                        properties:
+                          order:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 1
+                              order_number:
+                                type: string
+                                example: '#1042'
+                              status:
+                                type: string
+                                example: shipped
+                              fulfillment_status:
+                                type: string
+                                example: fulfilled
+                  -
+                    description: 'capability not supported'
+                    type: object
+                    example:
+                      success: false
+                      message: "Fulfillment isn't supported for this platform yet."
+                      errors: null
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      message:
+                        type: string
+                        example: "Fulfillment isn't supported for this platform yet."
+                      errors:
+                        type: string
+                        example: null
+                        nullable: true
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tracking_number:
+                  type: string
+                  description: 'Must not be greater than 100 characters.'
+                  example: b
+                carrier:
+                  type: string
+                  description: 'Must not be greater than 100 characters.'
+                  example: 'n'
+                  nullable: true
+              required:
+                - tracking_number
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/refund':
+    post:
+      summary: 'Refund an order.'
+      operationId: refundAnOrder
+      description: "`amount` defaults to a full refund when omitted. Calls through to the real channel adapter\nwhere available (WooCommerce today)."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Order refunded.'
+                  data:
+                    order:
+                      id: 1
+                      order_number: '#1042'
+                      status: refunded
+                      payment_status: refunded
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order refunded.'
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          status:
+                            type: string
+                            example: refunded
+                          payment_status:
+                            type: string
+                            example: refunded
+      tags:
+        - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  description: 'Must be at least 0.01.'
+                  example: 27
+                  nullable: true
+                reason:
+                  type: string
+                  description: 'Must not be greater than 500 characters.'
+                  example: 'n'
+                  nullable: true
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/cancel':
+    post:
+      summary: 'Cancel an order.'
+      operationId: cancelAnOrder
+      description: 'Calls through to the real channel adapter where available (WooCommerce today).'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Order cancelled.'
+                  data:
+                    order:
+                      id: 1
+                      order_number: '#1042'
+                      status: cancelled
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order cancelled.'
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          status:
+                            type: string
+                            example: cancelled
+      tags:
+        - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: 'Must not be greater than 500 characters.'
+                  example: b
+                  nullable: true
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/packing-slip':
+    get:
+      summary: 'Get a packing slip PDF.'
+      operationId: getAPackingSlipPDF
+      description: 'Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.'
+      parameters: []
+      responses: {}
+      tags:
+        - Orders
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  /api/v1/rules:
+    get:
+      summary: 'List rules.'
+      operationId: listRules
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    rules:
+                      -
+                        id: 1
+                        name: 'High-value order alert'
+                        trigger: high_value_order
+                        conditions:
+                          all:
+                            -
+                              field: total
+                              operator: '>='
+                              value: 200
+                        actions:
+                          -
+                            type: push
+                          -
+                            type: email
+                        controls:
+                          quiet_hours: true
+                        enabled: true
+                        created_at: '2026-07-10T00:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      rules:
+                        type: array
+                        example:
+                          -
+                            id: 1
+                            name: 'High-value order alert'
+                            trigger: high_value_order
+                            conditions:
+                              all:
+                                - field: total
+                                  operator: '>='
+                                  value: 200
+                            actions:
+                              - type: push
+                              - type: email
+                            controls:
+                              quiet_hours: true
+                            enabled: true
+                            created_at: '2026-07-10T00:00:00.000000Z'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: 'High-value order alert'
+                            trigger:
+                              type: string
+                              example: high_value_order
+                            conditions:
+                              type: object
+                              properties:
+                                all:
+                                  type: array
+                                  example:
+                                    - field: total
+                                      operator: '>='
+                                      value: 200
+                                  items:
+                                    type: object
+                                    properties:
+                                      field: { type: string, example: total }
+                                      operator: { type: string, example: '>=' }
+                                      value: { type: integer, example: 200 }
+                            actions:
+                              type: array
+                              example:
+                                - type: push
+                                - type: email
+                              items:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: push
+                            controls:
+                              type: object
+                              properties:
+                                quiet_hours:
+                                  type: boolean
+                                  example: true
+                            enabled:
+                              type: boolean
+                              example: true
+                            created_at:
+                              type: string
+                              example: '2026-07-10T00:00:00.000000Z'
+      tags:
+        - Rules
+    post:
+      summary: 'Create a rule.'
+      operationId: createARule
+      description: ''
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    rule:
+                      id: 2
+                      name: 'Order spike alert'
+                      trigger: order_spike
+                      conditions: null
+                      actions:
+                        -
+                          type: push
+                      controls:
+                        spike_count: 10
+                        spike_window_minutes: 30
+                      enabled: true
+                      created_at: '2026-07-16T02:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      rule:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          name:
+                            type: string
+                            example: 'Order spike alert'
+                          trigger:
+                            type: string
+                            example: order_spike
+                          conditions:
+                            type: string
+                            example: null
+                            nullable: true
+                          actions:
+                            type: array
+                            example:
+                              - type: push
+                            items:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: push
+                          controls:
+                            type: object
+                            properties:
+                              spike_count:
+                                type: integer
+                                example: 10
+                              spike_window_minutes:
+                                type: integer
+                                example: 30
+                          enabled:
+                            type: boolean
+                            example: true
+                          created_at:
+                            type: string
+                            example: '2026-07-16T02:00:00.000000Z'
+        422:
+          description: 'profile setup incomplete'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Complete profile setup before creating rules.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Complete profile setup before creating rules.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+                trigger:
+                  type: string
+                  description: ''
+                  example: new_order
+                  enum:
+                    - new_order
+                    - high_value_order
+                    - unfulfilled_after_x
+                    - ship_by_deadline
+                    - refund_requested
+                    - order_cancelled
+                    - payment_failed
+                    - negative_review
+                    - low_stock
+                    - order_spike
+                    - refund_spike
+                    - digest
+                conditions:
+                  type: object
+                  description: ''
+                  example: null
+                  properties:
+                    all:
+                      type: object
+                      description: ''
+                      example: null
+                      properties: {}
+                    any:
+                      type: object
+                      description: ''
+                      example: null
+                      properties: {}
+                actions:
+                  type: array
+                  description: 'Must have at least 1 items.'
+                  example:
+                    - []
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: ''
+                        example: push
+                        enum:
+                          - push
+                          - email
+                          - sms
+                          - notify_member
+                          - auto_tag
+                      tag:
+                        type: string
+                        description: 'This field is required when <code>actions.*.type</code> is <code>auto_tag</code>. Must not be greater than 50 characters.'
+                        example: d
+                      user_id:
+                        type: integer
+                        description: 'This field is required when <code>actions.*.type</code> is <code>notify_member</code>.'
+                        example: 16
+                    required:
+                      - type
+                controls:
+                  type: object
+                  description: ''
+                  example: null
+                  properties:
+                    cooldown_minutes:
+                      type: integer
+                      description: 'Must be at least 0.'
+                      example: 27
+                    quiet_hours:
+                      type: object
+                      description: ''
+                      example: []
+                      properties:
+                        start:
+                          type: string
+                          description: 'Must be a valid date in the format <code>H:i</code>.'
+                          example: '18:25'
+                        end:
+                          type: string
+                          description: 'Must be a valid date in the format <code>H:i</code>.'
+                          example: '18:25'
+                        timezone:
+                          type: string
+                          description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
+                          example: Asia/Ulaanbaatar
+                    threshold_hours:
+                      type: integer
+                      description: 'Must be at least 1.'
+                      example: 67
+                    digest_frequency:
+                      type: string
+                      description: ''
+                      example: weekly
+                      enum:
+                        - daily
+                        - weekly
+                    digest_time:
+                      type: string
+                      description: 'Must be a valid date in the format <code>H:i</code>.'
+                      example: '18:25'
+                    digest_day_of_week:
+                      type: integer
+                      description: 'Must be between 0 and 6.'
+                      example: 1
+                    spike_count:
+                      type: integer
+                      description: 'Must be at least 1.'
+                      example: 27
+                    spike_window_minutes:
+                      type: integer
+                      description: 'Must be at least 1.'
+                      example: 35
+                    low_stock_threshold:
+                      type: integer
+                      description: 'Must be at least 0.'
+                      example: 76
+                    negative_review_max_rating:
+                      type: integer
+                      description: 'Must be between 1 and 5.'
+                      example: 2
+                enabled:
+                  type: boolean
+                  description: ''
+                  example: true
+              required:
+                - name
+                - trigger
+                - actions
+  '/api/v1/rules/{id}':
+    put:
+      summary: 'Update a rule.'
+      operationId: updateARule
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    rule:
+                      id: 1
+                      name: 'High-value order alert'
+                      trigger: high_value_order
+                      conditions:
+                        all:
+                          -
+                            field: total
+                            operator: '>='
+                            value: 250
+                      actions:
+                        -
+                          type: push
+                      controls:
+                        quiet_hours: true
+                      enabled: true
+                      created_at: '2026-07-10T00:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      rule:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          name:
+                            type: string
+                            example: 'High-value order alert'
+                          trigger:
+                            type: string
+                            example: high_value_order
+                          conditions:
+                            type: object
+                            properties:
+                              all:
+                                type: array
+                                example:
+                                  - field: total
+                                    operator: '>='
+                                    value: 250
+                                items:
+                                  type: object
+                                  properties:
+                                    field:
+                                      type: string
+                                      example: total
+                                    operator:
+                                      type: string
+                                      example: '>='
+                                    value:
+                                      type: integer
+                                      example: 250
+                          actions:
+                            type: array
+                            example:
+                              - type: push
+                            items:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: push
+                          controls:
+                            type: object
+                            properties:
+                              quiet_hours:
+                                type: boolean
+                                example: true
+                          enabled:
+                            type: boolean
+                            example: true
+                          created_at:
+                            type: string
+                            example: '2026-07-10T00:00:00.000000Z'
+      tags:
+        - Rules
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+                trigger:
+                  type: string
+                  description: ''
+                  example: negative_review
+                  enum:
+                    - new_order
+                    - high_value_order
+                    - unfulfilled_after_x
+                    - ship_by_deadline
+                    - refund_requested
+                    - order_cancelled
+                    - payment_failed
+                    - negative_review
+                    - low_stock
+                    - order_spike
+                    - refund_spike
+                    - digest
+                conditions:
+                  type: object
+                  description: ''
+                  example: null
+                  properties:
+                    all:
+                      type: object
+                      description: ''
+                      example: null
+                      properties: {}
+                    any:
+                      type: object
+                      description: ''
+                      example: null
+                      properties: {}
+                actions:
+                  type: array
+                  description: 'Must have at least 1 items.'
+                  example: null
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: 'This field is required when <code>actions</code> is present.'
+                        example: notify_member
+                        enum:
+                          - push
+                          - email
+                          - sms
+                          - notify_member
+                          - auto_tag
+                      tag:
+                        type: string
+                        description: 'This field is required when <code>actions.*.type</code> is <code>auto_tag</code>. Must not be greater than 50 characters.'
+                        example: l
+                      user_id:
+                        type: integer
+                        description: 'This field is required when <code>actions.*.type</code> is <code>notify_member</code>.'
+                        example: 16
+                controls:
+                  type: object
+                  description: ''
+                  example: null
+                  properties:
+                    cooldown_minutes:
+                      type: integer
+                      description: 'Must be at least 0.'
+                      example: 39
+                    quiet_hours:
+                      type: object
+                      description: ''
+                      example: []
+                      properties:
+                        start:
+                          type: string
+                          description: 'Must be a valid date in the format <code>H:i</code>.'
+                          example: '18:25'
+                        end:
+                          type: string
+                          description: 'Must be a valid date in the format <code>H:i</code>.'
+                          example: '18:25'
+                        timezone:
+                          type: string
+                          description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
+                          example: Antarctica/Rothera
+                    threshold_hours:
+                      type: integer
+                      description: 'Must be at least 1.'
+                      example: 66
+                    digest_frequency:
+                      type: string
+                      description: ''
+                      example: daily
+                      enum:
+                        - daily
+                        - weekly
+                    digest_time:
+                      type: string
+                      description: 'Must be a valid date in the format <code>H:i</code>.'
+                      example: '18:25'
+                    digest_day_of_week:
+                      type: integer
+                      description: 'Must be between 0 and 6.'
+                      example: 0
+                    spike_count:
+                      type: integer
+                      description: 'Must be at least 1.'
+                      example: 35
+                    spike_window_minutes:
+                      type: integer
+                      description: 'Must be at least 1.'
+                      example: 43
+                    low_stock_threshold:
+                      type: integer
+                      description: 'Must be at least 0.'
+                      example: 60
+                    negative_review_max_rating:
+                      type: integer
+                      description: 'Must be between 1 and 5.'
+                      example: 2
+                enabled:
+                  type: boolean
+                  description: ''
+                  example: false
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the rule.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/rules/{rule_id}/test':
+    post:
+      summary: 'Test-fire a rule.'
+      operationId: testFireARule
+      description: "Evaluates the rule immediately against real state (not a dry run) and logs the execution —\nlets a merchant confirm a rule works before waiting for it to trigger naturally."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    execution:
+                      id: 10
+                      order_id: null
+                      trigger: high_value_order
+                      actions_result:
+                        -
+                          type: push
+                          status: sent
+                      fired_at: '2026-07-16T02:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      execution:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 10
+                          order_id:
+                            type: string
+                            example: null
+                            nullable: true
+                          trigger:
+                            type: string
+                            example: high_value_order
+                          actions_result:
+                            type: array
+                            example:
+                              - type: push
+                                status: sent
+                            items:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: push
+                                status:
+                                  type: string
+                                  example: sent
+                          fired_at:
+                            type: string
+                            example: '2026-07-16T02:00:00.000000Z'
+      tags:
+        - Rules
+    parameters:
+      -
+        in: path
+        name: rule_id
+        description: 'The ID of the rule.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/rules/{rule_id}/executions':
+    get:
+      summary: "List a rule's execution log."
+      operationId: listARulesExecutionLog
+      description: 'Most recent 50 firings, newest first.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    executions:
+                      -
+                        id: 10
+                        order_id: 1
+                        trigger: high_value_order
+                        actions_result:
+                          -
+                            type: push
+                            status: sent
+                        fired_at: '2026-07-16T01:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      executions:
+                        type: array
+                        example:
+                          -
+                            id: 10
+                            order_id: 1
+                            trigger: high_value_order
+                            actions_result:
+                              - type: push
+                                status: sent
+                            fired_at: '2026-07-16T01:00:00.000000Z'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 10
+                            order_id:
+                              type: integer
+                              example: 1
+                            trigger:
+                              type: string
+                              example: high_value_order
+                            actions_result:
+                              type: array
+                              example:
+                                - type: push
+                                  status: sent
+                              items:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: push
+                                  status:
+                                    type: string
+                                    example: sent
+                            fired_at:
+                              type: string
+                              example: '2026-07-16T01:00:00.000000Z'
+      tags:
+        - Rules
+    parameters:
+      -
+        in: path
+        name: rule_id
+        description: 'The ID of the rule.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  /api/v1/settings/notifications:
+    get:
+      summary: 'Get notification preferences.'
+      operationId: getNotificationPreferences
+      description: 'Returns defaults (all channels enabled, no quiet hours) if the user has never saved any.'
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    preferences:
+                      push_enabled: true
+                      email_enabled: true
+                      sms_enabled: false
+                      quiet_hours_start: '21:00'
+                      quiet_hours_end: '07:00'
+                      quiet_hours_timezone: Australia/Sydney
+                      sound: default
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      preferences:
+                        type: object
+                        properties:
+                          push_enabled:
+                            type: boolean
+                            example: true
+                          email_enabled:
+                            type: boolean
+                            example: true
+                          sms_enabled:
+                            type: boolean
+                            example: false
+                          quiet_hours_start:
+                            type: string
+                            example: '21:00'
+                          quiet_hours_end:
+                            type: string
+                            example: '07:00'
+                          quiet_hours_timezone:
+                            type: string
+                            example: Australia/Sydney
+                          sound:
+                            type: string
+                            example: default
+      tags:
+        - Settings
+    put:
+      summary: 'Update notification preferences.'
+      operationId: updateNotificationPreferences
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    preferences:
+                      push_enabled: true
+                      email_enabled: false
+                      sms_enabled: false
+                      quiet_hours_start: '21:00'
+                      quiet_hours_end: '07:00'
+                      quiet_hours_timezone: Australia/Sydney
+                      sound: chime
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      preferences:
+                        type: object
+                        properties:
+                          push_enabled:
+                            type: boolean
+                            example: true
+                          email_enabled:
+                            type: boolean
+                            example: false
+                          sms_enabled:
+                            type: boolean
+                            example: false
+                          quiet_hours_start:
+                            type: string
+                            example: '21:00'
+                          quiet_hours_end:
+                            type: string
+                            example: '07:00'
+                          quiet_hours_timezone:
+                            type: string
+                            example: Australia/Sydney
+                          sound:
+                            type: string
+                            example: chime
+      tags:
+        - Settings
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                push_enabled:
+                  type: boolean
+                  description: ''
+                  example: false
+                email_enabled:
+                  type: boolean
+                  description: ''
+                  example: false
+                sms_enabled:
+                  type: boolean
+                  description: ''
+                  example: true
+                quiet_hours_start:
+                  type: string
+                  description: 'Must be a valid date in the format <code>H:i</code>.'
+                  example: '18:25'
+                  nullable: true
+                quiet_hours_end:
+                  type: string
+                  description: 'Must be a valid date in the format <code>H:i</code>.'
+                  example: '18:25'
+                  nullable: true
+                quiet_hours_timezone:
+                  type: string
+                  description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
+                  example: Asia/Yekaterinburg
+                  nullable: true
+                sound:
+                  type: string
+                  description: 'Must not be greater than 50 characters.'
+                  example: 'n'
+  /api/v1/support/thread:
+    get:
+      summary: 'Get (or start) the support thread.'
+      operationId: getorStartTheSupportThread
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    thread:
+                      id: 1
+                      status: open
+                    messages:
+                      -
+                        id: 1
+                        direction: user
+                        body: 'My orders stopped syncing'
+                        attachments: null
+                        created_at: '2026-07-16T02:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      thread:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          status:
+                            type: string
+                            example: open
+                      messages:
+                        type: array
+                        example:
+                          - id: 1
+                            direction: user
+                            body: 'My orders stopped syncing'
+                            attachments: null
+                            created_at: '2026-07-16T02:00:00.000000Z'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            direction:
+                              type: string
+                              example: user
+                            body:
+                              type: string
+                              example: 'My orders stopped syncing'
+                            attachments:
+                              type: string
+                              example: null
+                              nullable: true
+                            created_at:
+                              type: string
+                              example: '2026-07-16T02:00:00.000000Z'
+      tags:
+        - Support
+  /api/v1/support/messages:
+    post:
+      summary: 'Send a message.'
+      operationId: sendAMessage
+      description: 'Reopens the thread if it was previously resolved.'
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    message:
+                      id: 2
+                      direction: user
+                      body: 'Any update?'
+                      attachments: null
+                      created_at: '2026-07-16T02:05:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          direction:
+                            type: string
+                            example: user
+                          body:
+                            type: string
+                            example: 'Any update?'
+                          attachments:
+                            type: string
+                            example: null
+                            nullable: true
+                          created_at:
+                            type: string
+                            example: '2026-07-16T02:05:00.000000Z'
+      tags:
+        - Support
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  description: 'Must not be greater than 4000 characters.'
+                  example: b
+              required:
+                - body
+  /api/v1/team:
+    get:
+      summary: 'List members and pending invites.'
+      operationId: listMembersAndPendingInvites
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    members:
+                      -
+                        id: 1
+                        role: owner
+                        store_visibility: null
+                        user:
+                          id: 1
+                          name: 'Jamie Rivera'
+                          email: jamie@example.com
+                    pending_invites:
+                      -
+                        id: 1
+                        email: sam@example.com
+                        role: manager
+                        status: pending
+                        expires_at: '2026-07-23T00:00:00+00:00'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      members:
+                        type: array
+                        example:
+                          -
+                            id: 1
+                            role: owner
+                            store_visibility: null
+                            user:
+                              id: 1
+                              name: 'Jamie Rivera'
+                              email: jamie@example.com
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            role:
+                              type: string
+                              example: owner
+                            store_visibility:
+                              type: string
+                              example: null
+                              nullable: true
+                            user:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                name:
+                                  type: string
+                                  example: 'Jamie Rivera'
+                                email:
+                                  type: string
+                                  example: jamie@example.com
+                      pending_invites:
+                        type: array
+                        example:
+                          - id: 1
+                            email: sam@example.com
+                            role: manager
+                            status: pending
+                            expires_at: '2026-07-23T00:00:00+00:00'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            email:
+                              type: string
+                              example: sam@example.com
+                            role:
+                              type: string
+                              example: manager
+                            status:
+                              type: string
+                              example: pending
+                            expires_at:
+                              type: string
+                              example: '2026-07-23T00:00:00+00:00'
+      tags:
+        - Team
+  /api/v1/team/invite:
+    post:
+      summary: 'Invite a team member.'
+      operationId: inviteATeamMember
+      description: '`store_visibility` optionally restricts the invited member to specific connection IDs.'
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    invite:
+                      id: 2
+                      email: sam@example.com
+                      role: manager
+                      status: pending
+                      expires_at: '2026-07-23T00:00:00+00:00'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      invite:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          email:
+                            type: string
+                            example: sam@example.com
+                          role:
+                            type: string
+                            example: manager
+                          status:
+                            type: string
+                            example: pending
+                          expires_at:
+                            type: string
+                            example: '2026-07-23T00:00:00+00:00'
+      tags:
+        - Team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: 'Must be a valid email address. Must not be greater than 255 characters.'
+                  example: gbailey@example.net
+                role:
+                  type: string
+                  description: ''
+                  example: viewer
+                  enum:
+                    - manager
+                    - agent
+                    - viewer
+                store_visibility:
+                  type: array
+                  description: ''
+                  example:
+                    - 16
+                  items:
+                    type: integer
+              required:
+                - email
+                - role
+  '/api/v1/team/{member_id}':
+    put:
+      summary: 'Update a team member.'
+      operationId: updateATeamMember
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    member:
+                      id: 2
+                      role: staff
+                      store_visibility:
+                        - 1
+                      user:
+                        id: 3
+                        name: 'Sam Lee'
+                        email: sam@example.com
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      member:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          role:
+                            type: string
+                            example: staff
+                          store_visibility:
+                            type: array
+                            example:
+                              - 1
+                            items:
+                              type: integer
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 3
+                              name:
+                                type: string
+                                example: 'Sam Lee'
+                              email:
+                                type: string
+                                example: sam@example.com
+      tags:
+        - Team
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  description: ''
+                  example: viewer
+                  enum:
+                    - manager
+                    - agent
+                    - viewer
+                store_visibility:
+                  type: array
+                  description: ''
+                  example:
+                    - 16
+                  items:
+                    type: integer
+    parameters:
+      -
+        in: path
+        name: member_id
+        description: 'The ID of the member.'
+        example: 16
+        required: true
+        schema:
+          type: integer

@@ -1,0 +1,101 @@
+name: Account
+description: |-
+
+  GDPR-related self-service actions.
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/account/data-export
+    metadata:
+      custom: []
+      groupName: Account
+      groupDescription: |-
+
+        GDPR-related self-service actions.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Request a data export.'
+      description: 'Queues a GDPR data export; the user receives it by email.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "We're preparing your data export — you'll receive it by email shortly.",
+            "data": null
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/account/delete-request
+    metadata:
+      custom: []
+      groupName: Account
+      groupDescription: |-
+
+        GDPR-related self-service actions.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Request account deletion.'
+      description: 'Schedules a GDPR soft-delete; the account is retained for a grace period before purge.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "Your account has been scheduled for deletion.",
+            "data": null
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

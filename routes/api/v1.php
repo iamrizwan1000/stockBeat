@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\AnnouncementController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\RuleController;
 use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\TeamController;
 use App\Models\StoreConnection;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +97,11 @@ Route::middleware(['auth:sanctum', 'user.not_suspended'])->group(function () {
 
     Route::get('analytics/summary', [AnalyticsController::class, 'summary'])->name('analytics.summary');
     Route::get('analytics/products', [AnalyticsController::class, 'products'])->name('analytics.products');
+
+    Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+
+    Route::get('support/thread', [SupportController::class, 'show'])->name('support.thread');
+    Route::post('support/messages', [SupportController::class, 'store'])->name('support.messages.store');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])

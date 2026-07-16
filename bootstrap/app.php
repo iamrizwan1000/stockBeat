@@ -14,6 +14,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -30,6 +31,16 @@ return Application::configure(basePath: dirname(__DIR__))
             // §17.7) — stateless 'api' middleware (no CSRF), no Sanctum
             // auth. Each platform's own signature scheme is the boundary.
             Route::middleware('api')->group(base_path('routes/webhooks.php'));
+
+            // Broadcasting auth (support inbox, Plan §4.9/§8.7.6): both the
+            // mobile app (Sanctum bearer token) and the admin panel (session
+            // guard 'admin') need to authorize private support-thread
+            // channels, so both guards are tried against the same endpoint
+            // rather than registering it twice — not the framework's
+            // `channels:` shortcut (which only wires the default 'web'
+            // guard, unused by either real caller in this app).
+            Broadcast::routes(['middleware' => ['auth:admin,sanctum']]);
+            require base_path('routes/channels.php');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

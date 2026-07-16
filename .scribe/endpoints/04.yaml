@@ -1,0 +1,77 @@
+name: Devices
+description: ''
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/devices
+    metadata:
+      custom: []
+      groupName: Devices
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Register a push device.'
+      description: "Upserts the device's push token so the backend can deliver notifications to it."
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      platform:
+        custom: []
+        name: platform
+        description: ''
+        required: true
+        example: android
+        type: string
+        enumValues:
+          - ios
+          - android
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      push_token:
+        custom: []
+        name: push_token
+        description: 'Must not be greater than 255 characters.'
+        required: true
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      platform: android
+      push_token: b
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 201
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "device": { "id": 1, "platform": "ios", "last_seen_at": "2026-07-16T02:00:00.000000Z" }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

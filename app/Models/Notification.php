@@ -34,6 +34,10 @@ class Notification extends Model
 
     public const TYPE_DIGEST = 'digest';
 
+    public const TYPE_ADMIN_BROADCAST = 'admin_broadcast';
+
+    public const TYPE_SUPPORT_REPLY = 'support_reply';
+
     /**
      * Get the attributes that should be cast.
      *

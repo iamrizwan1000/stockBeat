@@ -12,8 +12,34 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Notifications
+ */
 class NotificationController extends Controller
 {
+    /**
+     * List notifications.
+     *
+     * Most recent 50, newest first.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "notifications": [
+     *       {
+     *         "id": 1,
+     *         "type": "rule_fired",
+     *         "title": "High-value order",
+     *         "body": "Order #1042 — $84.00",
+     *         "data": { "order_id": 1, "rule_id": 1 },
+     *         "read_at": null,
+     *         "created_at": "2026-07-16T01:00:00.000000Z"
+     *       }
+     *     ]
+     *   }
+     * }
+     */
     public function index(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -28,6 +54,15 @@ class NotificationController extends Controller
         return ApiResponse::success(['notifications' => NotificationResource::collection($notifications)]);
     }
 
+    /**
+     * Mark notifications as read.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": { "marked_read": 3 }
+     * }
+     */
     public function markRead(MarkNotificationsReadRequest $request, MarkNotificationsReadAction $action): JsonResponse
     {
         /** @var User $user */
