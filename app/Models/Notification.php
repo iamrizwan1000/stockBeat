@@ -38,6 +38,10 @@ class Notification extends Model
 
     public const TYPE_SUPPORT_REPLY = 'support_reply';
 
+    public const TYPE_TRIAL_REMINDER = 'trial_reminder';
+
+    public const TYPE_INBOX_MESSAGE = 'inbox_message';
+
     /**
      * Get the attributes that should be cast.
      *

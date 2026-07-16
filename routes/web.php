@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CannedReplyController;
@@ -8,6 +10,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OpsController;
 use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\PromoCampaignController;
 use App\Http\Controllers\Admin\SegmentController;
 use App\Http\Controllers\Admin\SupportInboxController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +29,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
+    Route::get('promotions', [PromoCampaignController::class, 'index'])->name('promotions.index');
+
     Route::get('segments', [SegmentController::class, 'index'])->name('segments.index');
     Route::post('segments/preview-count', [SegmentController::class, 'previewCount'])->name('segments.preview-count');
 
@@ -42,6 +47,9 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     Route::get('canned-replies', [CannedReplyController::class, 'index'])->name('canned-replies.index');
 
+    Route::get('team', [AdminUserController::class, 'index'])->name('team.index');
+    Route::get('audit-log', [AdminAuditLogController::class, 'index'])->name('audit-log.index');
+
     Route::middleware('admin.write')->group(function () {
         Route::post('customers/{user}/extend-trial', [CustomerActionController::class, 'extendTrial'])->name('customers.extend-trial');
         Route::post('customers/{user}/grant-pro', [CustomerActionController::class, 'grantPro'])->name('customers.grant-pro');
@@ -50,6 +58,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::post('customers/{user}/suspend', [CustomerActionController::class, 'suspend'])->name('customers.suspend');
         Route::post('customers/{user}/unsuspend', [CustomerActionController::class, 'unsuspend'])->name('customers.unsuspend');
         Route::put('plans/limits/{limit}', [PlanController::class, 'update'])->name('plans.limits.update');
+
+        Route::post('promotions', [PromoCampaignController::class, 'store'])->name('promotions.store');
+        Route::put('promotions/{promoCampaign}', [PromoCampaignController::class, 'update'])->name('promotions.update');
+        Route::delete('promotions/{promoCampaign}', [PromoCampaignController::class, 'destroy'])->name('promotions.destroy');
+        Route::post('promotions/{promoCampaign}/apply', [PromoCampaignController::class, 'applyServerComp'])->name('promotions.apply');
 
         Route::post('segments', [SegmentController::class, 'store'])->name('segments.store');
         Route::put('segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
@@ -73,5 +86,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::post('canned-replies', [CannedReplyController::class, 'store'])->name('canned-replies.store');
         Route::put('canned-replies/{cannedReply}', [CannedReplyController::class, 'update'])->name('canned-replies.update');
         Route::delete('canned-replies/{cannedReply}', [CannedReplyController::class, 'destroy'])->name('canned-replies.destroy');
+
+        Route::post('team', [AdminUserController::class, 'store'])->name('team.store');
+        Route::put('team/{adminUser}/role', [AdminUserController::class, 'updateRole'])->name('team.update-role');
+        Route::post('team/{adminUser}/reset-2fa', [AdminUserController::class, 'resetTwoFactor'])->name('team.reset-2fa');
+        Route::delete('team/{adminUser}', [AdminUserController::class, 'destroy'])->name('team.destroy');
     });
 });

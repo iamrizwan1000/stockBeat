@@ -11,17 +11,21 @@ use Illuminate\Support\Str;
 /**
  * Plan §8.7.7 operations/health board. Every figure here is a live snapshot
  * of real data — no synthetic history charts, since nothing logs
- * webhook-failure or poller-lag *history* yet (only current state). Two
- * items from the spec are honestly omitted entirely: API quota usage for
- * Etsy/Amazon (those adapters are still stubs — nothing to meter) and
- * trial-abuse fingerprint matches (no fingerprinting mechanism exists
- * anywhere in the codebase yet, despite being flagged as a risk in §13).
+ * webhook-failure or poller-lag *history* yet (only current state). One
+ * item from the spec is still honestly omitted: API quota usage for
+ * Etsy/Amazon (those adapters are still stubs — nothing to meter). SMS
+ * anomaly detection also isn't implemented yet — `abuse` covers runaway
+ * rule volume and trial-abuse fingerprint matches only.
  */
 class GetOpsHealthSnapshotAction
 {
     private const STALE_SYNC_HOURS = 2;
 
     private const RUNAWAY_RULE_THRESHOLD = 50;
+
+    public function __construct(
+        private readonly DetectTrialAbuseFlagsAction $detectTrialAbuse,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -140,6 +144,8 @@ class GetOpsHealthSnapshotAction
             ->orderByDesc('executions')
             ->get();
 
+        $trialAbuse = $this->detectTrialAbuse->handle();
+
         return [
             'runaway_rule_teams' => $runaway->map(fn ($row) => [
                 'team_id' => (int) $row->team_id,
@@ -147,6 +153,8 @@ class GetOpsHealthSnapshotAction
                 'executions_last_hour' => (int) $row->executions,
             ])->all(),
             'threshold_per_hour' => self::RUNAWAY_RULE_THRESHOLD,
+            'shared_fingerprint_teams' => $trialAbuse['shared_fingerprint_teams'],
+            'shared_signup_ip_teams' => $trialAbuse['shared_signup_ip_teams'],
         ];
     }
 }

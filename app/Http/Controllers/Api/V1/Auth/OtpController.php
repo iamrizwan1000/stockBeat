@@ -76,6 +76,7 @@ class OtpController extends Controller
             $request->string('email')->toString(),
             $request->string('code')->toString(),
             $request->userAgent() ?? 'mobile',
+            $request->ip(),
         );
 
         return ApiResponse::success([

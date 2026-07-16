@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Rules\CheckNegativeReviewAction;
+use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\Review;
 use App\Models\StoreConnection;
 use Illuminate\Bus\Queueable;
@@ -23,11 +24,13 @@ use Illuminate\Support\Facades\Http;
  */
 class PollWooReviewsJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ThrottlesPerStoreConnection;
 
     public function __construct(
         public readonly int $connectionId,
-    ) {}
+    ) {
+        $this->onQueue('poll');
+    }
 
     public function handle(CheckNegativeReviewAction $checkNegativeReview): void
     {

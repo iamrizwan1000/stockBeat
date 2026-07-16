@@ -69,6 +69,38 @@ test('verifying a correct code creates a new user and issues a token', function 
     expect(User::query()->where('email', 'new-seller@example.com')->exists())->toBeTrue();
 });
 
+test('verifying a correct code records the requesting ip as signup_ip on the new user', function () {
+    requestOtp('new-seller@example.com');
+    $code = capturedOtpCode('new-seller@example.com');
+
+    test()
+        ->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+        ->postJson('/api/v1/auth/otp/verify', [
+            'email' => 'new-seller@example.com',
+            'code' => $code,
+        ])
+        ->assertOk();
+
+    $user = User::query()->where('email', 'new-seller@example.com')->firstOrFail();
+    expect($user->signup_ip)->toBe('203.0.113.7');
+});
+
+test('signup_ip is never overwritten on a repeat login', function () {
+    $user = User::factory()->create(['signup_ip' => '198.51.100.1']);
+    requestOtp($user->email);
+    $code = capturedOtpCode($user->email);
+
+    test()
+        ->withServerVariables(['REMOTE_ADDR' => '203.0.113.99'])
+        ->postJson('/api/v1/auth/otp/verify', [
+            'email' => $user->email,
+            'code' => $code,
+        ])
+        ->assertOk();
+
+    expect($user->fresh()->signup_ip)->toBe('198.51.100.1');
+});
+
 test('verifying a correct code for an existing user does not create a duplicate', function () {
     $user = User::factory()->create();
     requestOtp($user->email);

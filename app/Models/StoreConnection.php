@@ -16,7 +16,9 @@ use Illuminate\Support\Carbon;
  * @property string $platform
  * @property string $name
  * @property array<string, mixed>|null $credentials
+ * @property string|null $fingerprint
  * @property string $status
+ * @property Carbon|null $paused_at
  * @property Carbon|null $last_sync_at
  * @property string|null $webhook_status
  * @property string|null $region
@@ -24,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'platform', 'name', 'credentials', 'status', 'region', 'settings', 'webhook_status', 'last_sync_at'])]
+#[Fillable(['team_id', 'platform', 'name', 'credentials', 'fingerprint', 'status', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at'])]
 #[Hidden(['credentials'])]
 class StoreConnection extends Model
 {
@@ -48,6 +50,13 @@ class StoreConnection extends Model
     public const STATUS_DISCONNECTED = 'disconnected';
 
     /**
+     * Auto-paused by downgrade freeze (Plan §6.4) — distinct from
+     * `disconnected` (the merchant removed it) or `needs_reauth` (a token
+     * expired). Excluded from polling; restored, not deleted, on upgrade.
+     */
+    public const STATUS_PAUSED = 'paused';
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -58,6 +67,7 @@ class StoreConnection extends Model
             'credentials' => 'encrypted:array',
             'settings' => 'array',
             'last_sync_at' => 'datetime',
+            'paused_at' => 'datetime',
         ];
     }
 

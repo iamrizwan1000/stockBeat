@@ -28,6 +28,8 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $shipping_address
  * @property Carbon $placed_at
  * @property Carbon|null $ship_by_at
+ * @property string|null $tracking_number
+ * @property string|null $carrier
  * @property Carbon|null $check_at
  * @property array<int, string>|null $tags
  * @property array<string, mixed>|null $raw
@@ -40,7 +42,8 @@ use Illuminate\Support\Carbon;
     'team_id', 'connection_id', 'platform', 'external_id', 'order_number',
     'status', 'fulfillment_status', 'payment_status', 'currency', 'total',
     'total_base_currency', 'customer_name', 'customer_email', 'shipping_address',
-    'placed_at', 'ship_by_at', 'check_at', 'tags', 'raw', 'is_test', 'snoozed_until',
+    'placed_at', 'ship_by_at', 'tracking_number', 'carrier', 'check_at', 'tags',
+    'raw', 'is_test', 'snoozed_until',
 ])]
 class Order extends Model
 {

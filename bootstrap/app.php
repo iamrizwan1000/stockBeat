@@ -2,6 +2,7 @@
 
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Http\Middleware\EnsureAdminCanWrite;
+use App\Http\Middleware\EnsureTeamMemberIsNotSuspended;
 use App\Http\Middleware\EnsureTeamRole;
 use App\Http\Middleware\EnsureUserIsNotSuspended;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -52,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.write' => EnsureAdminCanWrite::class,
             'user.not_suspended' => EnsureUserIsNotSuspended::class,
+            'team.not_suspended' => EnsureTeamMemberIsNotSuspended::class,
             'team.role' => EnsureTeamRole::class,
         ]);
     })

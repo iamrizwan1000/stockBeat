@@ -44,6 +44,11 @@ class ProcessRevenueCatEventAction
         'premium_yearly' => Plan::PREMIUM,
     ];
 
+    public function __construct(
+        private readonly ApplyDowngradeFreezeAction $applyFreeze,
+        private readonly ReverseDowngradeFreezeAction $reverseFreeze,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $event
      */
@@ -121,6 +126,16 @@ class ProcessRevenueCatEventAction
 
         $subscription->raw = $event;
         $subscription->save();
+
+        // §6.4: "same logic applies to a lapsed Pro subscription" — an
+        // expiring paid subscription freezes exactly like an expiring
+        // trial; a reactivation (fresh purchase, renewal, tier change, or
+        // turning auto-renew back on before it lapsed) springs it back.
+        match ($type) {
+            'EXPIRATION' => $this->applyFreeze->handle($team),
+            'INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION' => $this->reverseFreeze->handle($team),
+            default => null,
+        };
     }
 
     private function mapStore(?string $store): ?string

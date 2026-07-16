@@ -45,7 +45,8 @@ class SendBroadcastAction
 
         foreach ($recipients as $recipient) {
             foreach ($broadcast->channels as $channel) {
-                SendBroadcastToRecipientJob::dispatch($broadcast->id, $recipient->id, $channel);
+                SendBroadcastToRecipientJob::dispatch($broadcast->id, $recipient->id, $channel)
+                    ->onQueue($this->queueForChannel($channel));
             }
         }
 
@@ -69,6 +70,20 @@ class SendBroadcastAction
             Broadcast::AUDIENCE_SEGMENT => $this->resolveAudience->handle($broadcast->segment?->filters)->get(),
             Broadcast::AUDIENCE_USER => $broadcast->user !== null ? collect([$broadcast->user]) : collect(),
             default => collect(),
+        };
+    }
+
+    /**
+     * Named per-channel queues (Plan §15.1: `notify-push`/`notify-email`/`notify-sms`)
+     * so a slow email provider can never delay a push send or vice versa. Banner
+     * is in-app-only (writes a `Notification` row, no external API call) — routed
+     * alongside push since both are near-instant, low-cost sends.
+     */
+    private function queueForChannel(string $channel): string
+    {
+        return match ($channel) {
+            Broadcast::CHANNEL_EMAIL => 'notify-email',
+            default => 'notify-push',
         };
     }
 }

@@ -10,7 +10,9 @@ import {
 import en from '@shopify/polaris/locales/en.json';
 import {
     ChatIcon,
+    ClockIcon,
     CreditCardIcon,
+    DiscountIcon,
     ExitIcon,
     HeartIcon,
     HomeIcon,
@@ -19,6 +21,7 @@ import {
     NotificationIcon,
     PersonIcon,
     TargetIcon,
+    TeamIcon,
 } from '@shopify/polaris-icons';
 import { forwardRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -37,6 +40,12 @@ const NAV_ITEMS = [
         label: 'Plans & Limits',
         url: '/admin/plans',
         icon: CreditCardIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Promotions',
+        url: '/admin/promotions',
+        icon: DiscountIcon,
         exactMatch: false,
     },
     {
@@ -73,6 +82,18 @@ const NAV_ITEMS = [
         label: 'Operations & Health',
         url: '/admin/ops',
         icon: HeartIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Admin Team',
+        url: '/admin/team',
+        icon: TeamIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Audit Log',
+        url: '/admin/audit-log',
+        icon: ClockIcon,
         exactMatch: false,
     },
 ];

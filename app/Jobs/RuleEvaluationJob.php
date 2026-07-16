@@ -22,7 +22,9 @@ class RuleEvaluationJob implements ShouldQueue
     public function __construct(
         public readonly int $orderId,
         public readonly string $trigger,
-    ) {}
+    ) {
+        $this->onQueue('rules');
+    }
 
     public function handle(RuleEvaluationAction $action): void
     {

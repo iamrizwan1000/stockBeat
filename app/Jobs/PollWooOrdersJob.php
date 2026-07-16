@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Orders\IngestOrderAction;
+use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\Woo\WooOrderMapper;
 use Illuminate\Bus\Queueable;
@@ -19,11 +20,13 @@ use Illuminate\Support\Facades\Http;
  */
 class PollWooOrdersJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ThrottlesPerStoreConnection;
 
     public function __construct(
         public readonly int $connectionId,
-    ) {}
+    ) {
+        $this->onQueue('poll');
+    }
 
     public function handle(WooOrderMapper $mapper, IngestOrderAction $ingestOrder): void
     {

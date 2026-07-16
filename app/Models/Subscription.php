@@ -18,13 +18,15 @@ use Illuminate\Support\Carbon;
  * @property string|null $plan_key
  * @property string $status
  * @property Carbon|null $trial_ends_at
+ * @property Carbon|null $trial_reminder_day5_sent_at
+ * @property Carbon|null $trial_reminder_day7_sent_at
  * @property Carbon|null $expires_at
  * @property Carbon|null $renewed_at
  * @property array<string, mixed>|null $raw
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'provider', 'rc_app_user_id', 'product_id', 'plan_key', 'status', 'trial_ends_at', 'expires_at', 'renewed_at', 'raw'])]
+#[Fillable(['team_id', 'provider', 'rc_app_user_id', 'product_id', 'plan_key', 'status', 'trial_ends_at', 'trial_reminder_day5_sent_at', 'trial_reminder_day7_sent_at', 'expires_at', 'renewed_at', 'raw'])]
 class Subscription extends Model
 {
     /** @use HasFactory<SubscriptionFactory> */
@@ -47,6 +49,8 @@ class Subscription extends Model
     {
         return [
             'trial_ends_at' => 'datetime',
+            'trial_reminder_day5_sent_at' => 'datetime',
+            'trial_reminder_day7_sent_at' => 'datetime',
             'expires_at' => 'datetime',
             'renewed_at' => 'datetime',
             'raw' => 'array',

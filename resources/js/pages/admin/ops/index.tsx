@@ -50,6 +50,19 @@ type Health = {
             executions_last_hour: number;
         }>;
         threshold_per_hour: number;
+        shared_fingerprint_teams: Array<{
+            fingerprint: string;
+            platform: string;
+            teams: Array<{ team_id: number; team_name: string | null }>;
+        }>;
+        shared_signup_ip_teams: Array<{
+            signup_ip: string;
+            teams: Array<{
+                team_id: number | null;
+                team_name: string | null;
+                user_email: string;
+            }>;
+        }>;
     };
 };
 
@@ -122,6 +135,18 @@ export default function OpsIndex({
         row.team_name,
         String(row.executions_last_hour),
     ]);
+    const sharedFingerprintRows = health.abuse.shared_fingerprint_teams.map(
+        (row) => [
+            row.platform,
+            row.teams.map((t) => t.team_name ?? `#${t.team_id}`).join(', '),
+        ],
+    );
+    const sharedSignupIpRows = health.abuse.shared_signup_ip_teams.map(
+        (row) => [
+            row.signup_ip,
+            row.teams.map((t) => t.team_name ?? t.user_email).join(', '),
+        ],
+    );
 
     return (
         <>
@@ -240,6 +265,54 @@ export default function OpsIndex({
                                 ) : (
                                     <Text as="p" tone="subdued">
                                         No teams over the threshold right now.
+                                    </Text>
+                                )}
+                            </Card>
+                        </BlockStack>
+                    </InlineGrid>
+
+                    <Text as="h2" variant="headingMd">
+                        Trial-abuse guard
+                    </Text>
+                    <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                        <BlockStack gap="300">
+                            <Text as="h3" variant="headingSm">
+                                Same store, multiple teams
+                            </Text>
+                            <Card>
+                                {sharedFingerprintRows.length > 0 ? (
+                                    <DataTable
+                                        columnContentTypes={['text', 'text']}
+                                        headings={[
+                                            'Platform',
+                                            'Teams sharing this store',
+                                        ]}
+                                        rows={sharedFingerprintRows}
+                                    />
+                                ) : (
+                                    <Text as="p" tone="subdued">
+                                        No stores connected under more than one
+                                        team.
+                                    </Text>
+                                )}
+                            </Card>
+                        </BlockStack>
+
+                        <BlockStack gap="300">
+                            <Text as="h3" variant="headingSm">
+                                Same signup IP, multiple trials
+                            </Text>
+                            <Card>
+                                {sharedSignupIpRows.length > 0 ? (
+                                    <DataTable
+                                        columnContentTypes={['text', 'text']}
+                                        headings={['Signup IP', 'Teams']}
+                                        rows={sharedSignupIpRows}
+                                    />
+                                ) : (
+                                    <Text as="p" tone="subdued">
+                                        No shared signup IPs across
+                                        trial-consuming teams.
                                     </Text>
                                 )}
                             </Card>

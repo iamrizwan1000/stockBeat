@@ -2,6 +2,7 @@
 
 namespace App\Actions\Admin;
 
+use App\Actions\Billing\ReverseDowngradeFreezeAction;
 use App\Models\AdminUser;
 use App\Models\Subscription;
 use App\Models\Team;
@@ -15,6 +16,7 @@ class GrantComplimentaryProAction
 {
     public function __construct(
         private readonly AuditLogAction $auditLog,
+        private readonly ReverseDowngradeFreezeAction $reverseFreeze,
     ) {}
 
     public function handle(AdminUser $admin, Team $team, int $days): Subscription
@@ -33,6 +35,10 @@ class GrantComplimentaryProAction
                 'expires_at' => now()->addDays($days),
             ],
         );
+
+        // A comp is a real re-upgrade (Plan §6.4 "springs back on upgrade")
+        // — same as an organic RevenueCat purchase reactivating a lapsed team.
+        $this->reverseFreeze->handle($team);
 
         $this->auditLog->handle($admin, 'customer.grant_complimentary_pro', Team::class, $team->id, $before, [
             'status' => $subscription->status,

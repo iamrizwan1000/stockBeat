@@ -19,11 +19,12 @@ use Illuminate\Support\Carbon;
  * @property array<int, array<string, mixed>> $actions
  * @property array{quiet_hours?: array<string, string>, cooldown_minutes?: int, threshold_hours?: int, digest_frequency?: 'daily'|'weekly', digest_time?: string, digest_day_of_week?: int, spike_count?: int, spike_window_minutes?: int, low_stock_threshold?: int, negative_review_max_rating?: int}|null $controls
  * @property bool $enabled
+ * @property Carbon|null $auto_disabled_at
  * @property int $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'name', 'trigger', 'conditions', 'actions', 'controls', 'enabled', 'created_by'])]
+#[Fillable(['team_id', 'name', 'trigger', 'conditions', 'actions', 'controls', 'enabled', 'auto_disabled_at', 'created_by'])]
 class Rule extends Model
 {
     /** @use HasFactory<RuleFactory> */
@@ -106,6 +107,7 @@ class Rule extends Model
             'actions' => 'array',
             'controls' => 'array',
             'enabled' => 'boolean',
+            'auto_disabled_at' => 'datetime',
         ];
     }
 

@@ -15,10 +15,11 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property string $role
  * @property array<int, string>|null $store_visibility
+ * @property Carbon|null $suspended_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'user_id', 'role', 'store_visibility'])]
+#[Fillable(['team_id', 'user_id', 'role', 'store_visibility', 'suspended_at'])]
 class TeamMember extends Model
 {
     /** @use HasFactory<TeamMemberFactory> */
@@ -41,6 +42,7 @@ class TeamMember extends Model
     {
         return [
             'store_visibility' => 'array',
+            'suspended_at' => 'datetime',
         ];
     }
 

@@ -18,6 +18,7 @@ class ConnectStoreAction
     public function __construct(
         private readonly ChannelAdapterManager $adapters,
         private readonly ResolveEntitlementsAction $resolveEntitlements,
+        private readonly ComputeStoreConnectionFingerprintAction $computeFingerprint,
     ) {}
 
     /**
@@ -37,8 +38,16 @@ class ConnectStoreAction
             }
         }
 
-        return $this->adapters->driver($platform)->connect(
+        $connection = $this->adapters->driver($platform)->connect(
             new ConnectRequest($team, $name, $credentials),
         );
+
+        $fingerprint = $this->computeFingerprint->handle($platform, $connection->credentials ?? []);
+
+        if ($fingerprint !== null) {
+            $connection->update(['fingerprint' => $fingerprint]);
+        }
+
+        return $connection;
     }
 }

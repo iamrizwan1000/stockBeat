@@ -5,6 +5,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -30,7 +31,7 @@ function onboardedRevenueCatUser(): User
 /**
  * @param  array<string, mixed>  $event
  */
-function postRevenueCatEvent(array $event, ?string $bearer = 'test-secret'): \Illuminate\Testing\TestResponse
+function postRevenueCatEvent(array $event, ?string $bearer = 'test-secret'): TestResponse
 {
     $headers = $bearer !== null ? ['Authorization' => "Bearer {$bearer}"] : [];
 

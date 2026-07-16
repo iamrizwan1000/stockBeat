@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Rules\CheckLowStockAction;
 use App\Jobs\PollWooProductsJob;
 use App\Models\Product;
 use App\Models\Rule;
@@ -38,7 +39,7 @@ test('the poller upserts products and clears stock_quantity when stock is unmana
         ], 200),
     ]);
 
-    (new PollWooProductsJob($connection->id))->handle(app(App\Actions\Rules\CheckLowStockAction::class));
+    (new PollWooProductsJob($connection->id))->handle(app(CheckLowStockAction::class));
 
     $widget = Product::query()->where('connection_id', $connection->id)->where('external_id', '1')->first();
     $gadget = Product::query()->where('connection_id', $connection->id)->where('external_id', '2')->first();
@@ -63,11 +64,11 @@ test('the poller triggers a low_stock rule end to end when a product is at or be
         ], 200),
     ]);
 
-    (new PollWooProductsJob($connection->id))->handle(app(App\Actions\Rules\CheckLowStockAction::class));
+    (new PollWooProductsJob($connection->id))->handle(app(CheckLowStockAction::class));
 
     expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
 });
 
 test('polling a non-woo or missing connection is a safe no-op', function () {
-    (new PollWooProductsJob(999999))->handle(app(App\Actions\Rules\CheckLowStockAction::class));
+    (new PollWooProductsJob(999999))->handle(app(CheckLowStockAction::class));
 })->throwsNoExceptions();

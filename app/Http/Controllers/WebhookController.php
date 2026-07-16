@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Billing\ProcessRevenueCatEventAction;
-use App\Actions\Orders\IngestOrderAction;
-use App\Jobs\RuleEvaluationJob;
-use App\Models\Order;
+use App\Actions\Inbox\ParseInboundEmailTokenAction;
+use App\Actions\Inbox\ReceiveInboxReplyAction;
+use App\Actions\Support\ReceiveInboundEmailReplyAction;
+use App\Jobs\ProcessWooWebhookJob;
+use App\Models\InboxThread;
 use App\Models\RevenueCatEvent;
-use App\Models\Rule;
 use App\Models\StoreConnection;
+use App\Models\SupportThread;
 use App\Models\User;
 use App\Support\Connections\ChannelAdapterManager;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +27,6 @@ class WebhookController extends Controller
         Request $request,
         StoreConnection $connection,
         ChannelAdapterManager $adapters,
-        IngestOrderAction $ingestOrder,
     ): JsonResponse {
         if ($connection->platform !== StoreConnection::PLATFORM_WOO) {
             return response()->json(['error' => 'not found'], 404);
@@ -38,25 +39,10 @@ class WebhookController extends Controller
             return response()->json(['error' => 'invalid signature'], 401);
         }
 
-        if ($parsed['type'] === 'order.deleted') {
-            if ($parsed['external_id'] !== null) {
-                $order = Order::query()
-                    ->where('connection_id', $connection->id)
-                    ->where('external_id', $parsed['external_id'])
-                    ->first();
-
-                if ($order !== null && $order->status !== Order::STATUS_CANCELLED) {
-                    $order->update(['status' => Order::STATUS_CANCELLED, 'check_at' => null]);
-                    RuleEvaluationJob::dispatch($order->id, Rule::TRIGGER_ORDER_CANCELLED)->afterCommit();
-                }
-            }
-
-            return response()->json(['status' => 'ok']);
-        }
-
-        if ($parsed['order'] !== null) {
-            $ingestOrder->handle($connection, $parsed['order']);
-        }
+        // Signature verification needs the raw Request (above), but nothing past
+        // this point does — hand off to the `ingest` queue (Plan §15.1) so Woo
+        // gets its 200 without waiting on our DB.
+        ProcessWooWebhookJob::dispatch($connection->id, $parsed)->onQueue('ingest');
 
         return response()->json(['status' => 'ok']);
     }
@@ -98,6 +84,58 @@ class WebhookController extends Controller
 
         if ($team !== null) {
             $processEvent->handle($team, $payload);
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Inbound email reply threading (Plan §4.5/§4.9/§7.7), shared between
+     * the unified customer inbox and support chat via plus-addressing on
+     * the `to` field. Expects an already-parsed payload (`to`/`from`/`text`)
+     * — the shape a provider like SES+Lambda, Mailgun, or Postmark's Inbound
+     * Parse delivers, not raw MIME (no provider is actually connected yet;
+     * this is the boundary once one is). Auth is a shared secret, same
+     * pattern as `revenuecat()` — there's no per-request signature to
+     * verify without a specific provider chosen.
+     */
+    public function emailInbound(
+        Request $request,
+        ParseInboundEmailTokenAction $parseToken,
+        ReceiveInboundEmailReplyAction $receiveSupportReply,
+        ReceiveInboxReplyAction $receiveInboxReply,
+    ): JsonResponse {
+        $expected = config('services.inbound_email.webhook_secret');
+        $provided = $request->bearerToken();
+
+        if (! is_string($expected) || $expected === '' || $provided === null || ! hash_equals($expected, $provided)) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $to = (string) $request->input('to', '');
+        $from = (string) $request->input('from', '');
+        $body = (string) $request->input('text', '');
+
+        $token = $parseToken->handle($to);
+
+        if ($token === null || $body === '') {
+            return response()->json(['status' => 'ignored']);
+        }
+
+        if ($token['prefix'] === 'support') {
+            $thread = SupportThread::query()->find($token['id']);
+
+            if ($thread !== null) {
+                $receiveSupportReply->handle($thread, $from, $body);
+            }
+        }
+
+        if ($token['prefix'] === 'thread') {
+            $thread = InboxThread::query()->find($token['id']);
+
+            if ($thread !== null) {
+                $receiveInboxReply->handle($thread, $from, $body);
+            }
         }
 
         return response()->json(['status' => 'ok']);

@@ -29,6 +29,12 @@ class FulfillOrderAction
             ]);
         }
 
-        return $adapter->fulfill($order, new FulfillmentData($trackingNumber, $carrier));
+        $result = $adapter->fulfill($order, new FulfillmentData($trackingNumber, $carrier));
+
+        if ($result->success) {
+            $order->update(['tracking_number' => $trackingNumber, 'carrier' => $carrier]);
+        }
+
+        return $result;
     }
 }

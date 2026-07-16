@@ -11,14 +11,16 @@ use Illuminate\Validation\ValidationException;
 /**
  * Verifies an OTP and issues a device token, per Plan §4.1. The user record
  * is created only here, on successful verification — never on request —
- * so a typo'd email never leaves an orphan account (Plan §17.1).
+ * so a typo'd email never leaves an orphan account (Plan §17.1). Records the
+ * requesting IP as `signup_ip` on new users only (Plan §8.7.7 trial-abuse
+ * fingerprinting) — never overwritten on repeat logins.
  */
 class VerifyOtpAction
 {
     /**
      * @return array{token: string, is_new_user: bool, user: User}
      */
-    public function handle(string $email, string $code, string $deviceName): array
+    public function handle(string $email, string $code, string $deviceName, ?string $ip = null): array
     {
         $otpCode = OtpCode::query()
             ->where('email', $email)
@@ -63,6 +65,7 @@ class VerifyOtpAction
         if ($isNewUser) {
             $user->name = '';
             $user->base_currency = 'USD';
+            $user->signup_ip = $ip;
         }
 
         $user->last_active_at = Carbon::now();

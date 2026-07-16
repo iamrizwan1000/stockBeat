@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Billing\ConvertToBaseCurrencyAction;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\Order;
 use App\Models\OrderEvent;
@@ -24,6 +25,10 @@ use Illuminate\Support\Facades\DB;
  */
 class IngestOrderAction
 {
+    public function __construct(
+        private readonly ConvertToBaseCurrencyAction $convertToBaseCurrency,
+    ) {}
+
     public function handle(StoreConnection $connection, NormalizedOrder $normalized): Order
     {
         return DB::transaction(function () use ($connection, $normalized) {
@@ -43,7 +48,7 @@ class IngestOrderAction
                     'payment_status' => $normalized->paymentStatus,
                     'currency' => $normalized->currency,
                     'total' => $normalized->total,
-                    'total_base_currency' => $this->convertToBaseCurrency($connection, $normalized),
+                    'total_base_currency' => $this->resolveBaseCurrencyTotal($connection, $normalized),
                     'customer_name' => $normalized->customerName,
                     'customer_email' => $normalized->customerEmail,
                     'shipping_address' => $normalized->shippingAddress,
@@ -126,14 +131,20 @@ class IngestOrderAction
 
     /**
      * The team's reporting currency isn't its own column (§9 only defines
-     * it on `users`) — the owner's `base_currency` stands in for it. No
-     * `fx_rates` table exists yet, so a genuine mismatch is left `null`
-     * (approximate/unavailable) rather than fabricating a conversion (§17.3).
+     * it on `users`) — the owner's `base_currency` stands in for it.
+     * Resolved via `fx_rates` (§4.6/§9) using the rate on or before the
+     * order's own placed-at date; still `null` (never fabricated) if no
+     * rate has synced for that pair yet.
      */
-    private function convertToBaseCurrency(StoreConnection $connection, NormalizedOrder $normalized): ?float
+    private function resolveBaseCurrencyTotal(StoreConnection $connection, NormalizedOrder $normalized): ?float
     {
         $baseCurrency = $connection->team->owner->base_currency;
 
-        return $normalized->currency === $baseCurrency ? $normalized->total : null;
+        return $this->convertToBaseCurrency->handle(
+            $normalized->total,
+            $normalized->currency,
+            $baseCurrency,
+            $normalized->placedAt,
+        );
     }
 }

@@ -11,10 +11,12 @@ use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\ReplyTemplateController;
 use App\Http\Controllers\Api\V1\RuleController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\TeamController;
+use App\Http\Controllers\Api\V1\ThreadController;
 use App\Models\StoreConnection;
 use Illuminate\Support\Facades\Route;
 
@@ -28,7 +30,7 @@ Route::prefix('auth')->name('auth.')->group(function () {
         ->name('otp.verify');
 });
 
-Route::middleware(['auth:sanctum', 'user.not_suspended'])->group(function () {
+Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])->group(function () {
     Route::post('auth/logout', [SessionController::class, 'logout'])->name('auth.logout');
     Route::post('auth/logout-all', [SessionController::class, 'logoutAll'])->name('auth.logout-all');
 
@@ -79,6 +81,9 @@ Route::middleware(['auth:sanctum', 'user.not_suspended'])->group(function () {
         ->middleware('team.role:owner,manager')
         ->name('orders.cancel');
     Route::get('orders/{order}/packing-slip', [OrderController::class, 'packingSlip'])->name('orders.packing-slip');
+    Route::post('orders/{order}/message', [OrderController::class, 'message'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.message');
 
     Route::get('rules', [RuleController::class, 'index'])->name('rules.index');
     Route::post('rules', [RuleController::class, 'store'])
@@ -102,6 +107,26 @@ Route::middleware(['auth:sanctum', 'user.not_suspended'])->group(function () {
 
     Route::get('support/thread', [SupportController::class, 'show'])->name('support.thread');
     Route::post('support/messages', [SupportController::class, 'store'])->name('support.messages.store');
+
+    Route::get('threads', [ThreadController::class, 'index'])->name('threads.index');
+    Route::get('threads/{thread}/messages', [ThreadController::class, 'messages'])->name('threads.messages');
+    Route::post('threads/{thread}/messages', [ThreadController::class, 'sendMessage'])
+        ->middleware('team.role:owner,manager')
+        ->name('threads.messages.store');
+    Route::post('threads/{thread}/assign', [ThreadController::class, 'assign'])
+        ->middleware('team.role:owner,manager')
+        ->name('threads.assign');
+
+    Route::get('reply-templates', [ReplyTemplateController::class, 'index'])->name('reply-templates.index');
+    Route::post('reply-templates', [ReplyTemplateController::class, 'store'])
+        ->middleware('team.role:owner,manager')
+        ->name('reply-templates.store');
+    Route::put('reply-templates/{replyTemplate}', [ReplyTemplateController::class, 'update'])
+        ->middleware('team.role:owner,manager')
+        ->name('reply-templates.update');
+    Route::delete('reply-templates/{replyTemplate}', [ReplyTemplateController::class, 'destroy'])
+        ->middleware('team.role:owner,manager')
+        ->name('reply-templates.destroy');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])

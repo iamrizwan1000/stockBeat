@@ -2,6 +2,7 @@
 
 namespace App\Actions\Admin;
 
+use App\Actions\Billing\ReverseDowngradeFreezeAction;
 use App\Models\AdminUser;
 use App\Models\Subscription;
 use App\Models\Team;
@@ -15,11 +16,13 @@ class ExtendTrialAction
 {
     public function __construct(
         private readonly AuditLogAction $auditLog,
+        private readonly ReverseDowngradeFreezeAction $reverseFreeze,
     ) {}
 
     public function handle(AdminUser $admin, Team $team, int $days): Subscription
     {
         $subscription = $team->subscription;
+        $wasExpired = $subscription?->status === Subscription::STATUS_EXPIRED;
         $before = $subscription === null ? null : [
             'status' => $subscription->status,
             'trial_ends_at' => $subscription->trial_ends_at?->toIso8601String(),
@@ -36,6 +39,11 @@ class ExtendTrialAction
                 'trial_ends_at' => $baseline->clone()->addDays($days),
             ],
         );
+
+        // Reviving a lapsed trial is a re-upgrade too (Plan §6.4).
+        if ($wasExpired) {
+            $this->reverseFreeze->handle($team);
+        }
 
         $this->auditLog->handle($admin, 'customer.extend_trial', Team::class, $team->id, $before, [
             'status' => $subscription->status,

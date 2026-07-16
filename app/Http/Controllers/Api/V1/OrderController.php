@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Inbox\GetOrCreateInboxThreadAction;
+use App\Actions\Inbox\RenderReplyTemplateAction;
+use App\Actions\Inbox\SendInboxMessageAction;
 use App\Actions\Orders\AddOrderNoteAction;
 use App\Actions\Orders\CancelOrderAction;
 use App\Actions\Orders\FulfillOrderAction;
@@ -11,6 +14,7 @@ use App\Actions\Orders\RefundOrderAction;
 use App\Actions\Orders\SnoozeOrderAction;
 use App\Actions\Orders\UpdateOrderTagsAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Inbox\SendInboxMessageRequest;
 use App\Http\Requests\Orders\AddOrderNoteRequest;
 use App\Http\Requests\Orders\CancelOrderRequest;
 use App\Http\Requests\Orders\FulfillOrderRequest;
@@ -18,10 +22,12 @@ use App\Http\Requests\Orders\ListOrdersRequest;
 use App\Http\Requests\Orders\RefundOrderRequest;
 use App\Http\Requests\Orders\SnoozeOrderRequest;
 use App\Http\Requests\Orders\UpdateOrderTagsRequest;
+use App\Http\Resources\InboxMessageResource;
 use App\Http\Resources\OrderNoteResource;
 use App\Http\Resources\OrderResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Order;
+use App\Models\ReplyTemplate;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -300,6 +306,44 @@ class OrderController extends Controller
         $this->authorizeOrderAccess($request, $order);
 
         return $action->handle($order);
+    }
+
+    /**
+     * Message the customer (Plan §4.3: "opens inbox thread").
+     *
+     * Gets or creates the order's unified-inbox thread (Plan §4.5, Shopify/Woo
+     * order-linked email threading) and sends the first (or next) message —
+     * a repeat call to the same order always continues the same thread.
+     *
+     * @response 201 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "message": { "id": 1, "direction": "out", "body": "Hi! Just checking in on your order.", "status": "sent", "created_at": "2026-07-17T02:00:00.000000Z" }
+     *   }
+     * }
+     */
+    public function message(
+        SendInboxMessageRequest $request,
+        Order $order,
+        GetOrCreateInboxThreadAction $getOrCreateThread,
+        SendInboxMessageAction $sendMessage,
+        RenderReplyTemplateAction $renderTemplate,
+    ): JsonResponse {
+        $this->authorizeOrderAccess($request, $order);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $thread = $getOrCreateThread->handle($order);
+
+        $body = $request->filled('reply_template_id')
+            ? $renderTemplate->handle(ReplyTemplate::query()->findOrFail($request->integer('reply_template_id'))->body_with_variables, $thread)
+            : $request->string('body')->toString();
+
+        $message = $sendMessage->handle($user, $thread, $body);
+
+        return ApiResponse::success(['message' => new InboxMessageResource($message)], status: 201);
     }
 
     private function authorizeOrderAccess(Request $request, Order $order): void

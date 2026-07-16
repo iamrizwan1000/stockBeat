@@ -39,6 +39,21 @@ return [
         'webhook_secret' => env('REVENUECAT_WEBHOOK_SECRET'),
     ],
 
+    'inbound_email' => [
+        // Shared-secret boundary for /hooks/email-inbound (Plan §4.5/§4.9/§7.7),
+        // same pattern as revenuecat.webhook_secret — whatever inbound-email
+        // provider is wired up (SES+Lambda, Mailgun, Postmark) must be
+        // configured to send this same value. Not a per-request signature,
+        // since no such provider is actually connected yet.
+        'webhook_secret' => env('INBOUND_EMAIL_WEBHOOK_SECRET'),
+
+        // The domain plus-addressed Reply-To addresses are built against
+        // (e.g. thread+17@{domain}) — see `SendInboxMessageAction`. No
+        // inbound-parse provider is actually connected yet, so this is a
+        // placeholder until one is (real SES/Mailgun/Postmark domain).
+        'domain' => env('INBOUND_EMAIL_DOMAIN', 'mail.stockbeat.app'),
+    ],
+
     'twilio' => [
         'account_sid' => env('TWILIO_ACCOUNT_SID'),
         'auth_token' => env('TWILIO_AUTH_TOKEN'),

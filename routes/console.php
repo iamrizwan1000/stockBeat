@@ -34,3 +34,13 @@ Schedule::command('reviews:poll-woo')->hourly();
 
 // Admin messaging center (Plan §8.7.5) — dispatches broadcasts once their scheduled_at arrives.
 Schedule::command('messaging:send-scheduled-broadcasts')->everyFiveMinutes();
+
+// Multi-currency consolidation (Plan §4.6/§9). Backfill runs right after sync
+// so orders stuck null the day their currency pair first appeared catch up
+// the same day the rate lands, not a whole cycle later.
+Schedule::command('fx:sync-rates')->dailyAt('00:05');
+Schedule::command('orders:backfill-base-currency')->dailyAt('00:10');
+
+// Trial lifecycle (Plan §6.3/§6.4).
+Schedule::command('trials:send-reminders')->hourly();
+Schedule::command('subscriptions:expire-trials')->hourly();
