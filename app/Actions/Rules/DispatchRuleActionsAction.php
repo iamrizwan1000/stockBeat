@@ -5,6 +5,7 @@ namespace App\Actions\Rules;
 use App\Actions\Notifications\AutoTagAction;
 use App\Actions\Notifications\NotifyMemberAction;
 use App\Actions\Notifications\SendEmailNotificationAction;
+use App\Actions\Notifications\SendOrderPushWithStormProtectionAction;
 use App\Actions\Notifications\SendPushNotificationAction;
 use App\Actions\Notifications\SendSmsNotificationAction;
 use App\Models\DailyStat;
@@ -22,6 +23,7 @@ class DispatchRuleActionsAction
 {
     public function __construct(
         private readonly SendPushNotificationAction $sendPush,
+        private readonly SendOrderPushWithStormProtectionAction $sendOrderPush,
         private readonly SendEmailNotificationAction $sendEmail,
         private readonly SendSmsNotificationAction $sendSms,
         private readonly NotifyMemberAction $notifyMember,
@@ -49,7 +51,9 @@ class DispatchRuleActionsAction
                 $type = $action['type'] ?? 'unknown';
 
                 $status = match ($type) {
-                    'push' => $this->sendPush->handle($creator, $title, $body, $order !== null ? ['order_id' => (string) $order->id] : []),
+                    'push' => $order !== null
+                        ? $this->sendOrderPush->handle($creator, $order, $title, $body)
+                        : $this->sendPush->handle($creator, $title, $body),
                     'email' => $this->sendEmail->handle($team, $creator, $title, $body),
                     'sms' => $this->sendSms->handle($team, $creator, $body),
                     'notify_member' => isset($action['user_id'])

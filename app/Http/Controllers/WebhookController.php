@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Billing\ProcessRevenueCatEventAction;
+use App\Actions\Connections\ProcessShopifyGdprRequestAction;
 use App\Actions\Inbox\ParseInboundEmailTokenAction;
 use App\Actions\Inbox\ReceiveInboxReplyAction;
 use App\Actions\Support\ReceiveInboundEmailReplyAction;
+use App\Jobs\ProcessShopifyWebhookJob;
 use App\Jobs\ProcessWooWebhookJob;
 use App\Models\InboxThread;
 use App\Models\RevenueCatEvent;
@@ -43,6 +45,56 @@ class WebhookController extends Controller
         // this point does — hand off to the `ingest` queue (Plan §15.1) so Woo
         // gets its 200 without waiting on our DB.
         ProcessWooWebhookJob::dispatch($connection->id, $parsed)->onQueue('ingest');
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function shopify(
+        Request $request,
+        StoreConnection $connection,
+        ChannelAdapterManager $adapters,
+    ): JsonResponse {
+        if ($connection->platform !== StoreConnection::PLATFORM_SHOPIFY) {
+            return response()->json(['error' => 'not found'], 404);
+        }
+
+        $adapter = $adapters->driver(StoreConnection::PLATFORM_SHOPIFY);
+        $parsed = $adapter->parseWebhook($connection, $request);
+
+        if ($parsed === null) {
+            return response()->json(['error' => 'invalid signature'], 401);
+        }
+
+        ProcessShopifyWebhookJob::dispatch($connection->id, $parsed)->onQueue('ingest');
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Shopify's mandatory GDPR compliance webhooks (Plan §7.1) — a single
+     * global endpoint (registered app-wide via `shopify.app.toml`, not
+     * per-connection), signed the same way as order webhooks
+     * (`X-Shopify-Hmac-Sha256` over the raw body, app client_secret).
+     */
+    public function shopifyGdpr(Request $request, ProcessShopifyGdprRequestAction $processGdpr): JsonResponse
+    {
+        $secret = config('services.shopify.client_secret');
+        $signature = $request->header('X-Shopify-Hmac-Sha256');
+
+        if (! is_string($secret) || $secret === '' || $signature === null) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $expected = base64_encode(hash_hmac('sha256', $request->getContent(), $secret, true));
+
+        if (! hash_equals($expected, $signature)) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $topic = (string) $request->header('X-Shopify-Topic', '');
+        $payload = (array) $request->json()->all();
+
+        $processGdpr->handle($topic, $payload);
 
         return response()->json(['status' => 'ok']);
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AnnouncementController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
+use App\Http\Controllers\Api\V1\ConfigController;
 use App\Http\Controllers\Api\V1\ConnectionController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\MeController;
@@ -29,6 +30,9 @@ Route::prefix('auth')->name('auth.')->group(function () {
         ->middleware('throttle:otp-verify')
         ->name('otp.verify');
 });
+
+// Public/unauthenticated — must be checkable before the app has a token (Plan §17.7).
+Route::get('config', [ConfigController::class, 'show'])->name('config');
 
 Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])->group(function () {
     Route::post('auth/logout', [SessionController::class, 'logout'])->name('auth.logout');
@@ -107,6 +111,7 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
 
     Route::get('support/thread', [SupportController::class, 'show'])->name('support.thread');
     Route::post('support/messages', [SupportController::class, 'store'])->name('support.messages.store');
+    Route::post('support/csat', [SupportController::class, 'submitCsat'])->name('support.csat');
 
     Route::get('threads', [ThreadController::class, 'index'])->name('threads.index');
     Route::get('threads/{thread}/messages', [ThreadController::class, 'messages'])->name('threads.messages');

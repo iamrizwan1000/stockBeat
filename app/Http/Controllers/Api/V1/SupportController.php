@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Support\GetOrCreateSupportThreadAction;
 use App\Actions\Support\SendUserSupportMessageAction;
+use App\Actions\Support\SubmitSupportCsatAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Support\SendSupportMessageRequest;
+use App\Http\Requests\Support\SubmitCsatRequest;
 use App\Http\Resources\SupportMessageResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\SupportMessage;
+use App\Models\SupportThread;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,5 +74,30 @@ class SupportController extends Controller
         $message = $action->handle($user, $request->string('body')->toString());
 
         return ApiResponse::success(['message' => new SupportMessageResource($message)], status: 201);
+    }
+
+    /**
+     * Rate the (resolved) support conversation — 👍/👎 (Plan §4.9/§8.7.6).
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": { "thread": { "id": 1, "csat": 1 } }
+     * }
+     */
+    public function submitCsat(SubmitCsatRequest $request, SubmitSupportCsatAction $action): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $thread = SupportThread::query()->where('user_id', $user->id)->first();
+
+        if ($thread === null) {
+            return ApiResponse::error('No support thread found.', status: 404);
+        }
+
+        $thread = $action->handle($thread, (int) $request->input('rating'));
+
+        return ApiResponse::success(['thread' => ['id' => $thread->id, 'csat' => $thread->csat]]);
     }
 }

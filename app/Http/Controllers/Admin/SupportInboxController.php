@@ -37,6 +37,7 @@ class SupportInboxController extends Controller
                 'priority' => $thread->priority,
                 'assigned_admin_name' => $thread->assignedAdmin?->name,
                 'last_message_at' => $thread->last_message_at,
+                'csat' => $thread->csat,
             ]);
 
         return Inertia::render('admin/support/index', [
@@ -56,6 +57,7 @@ class SupportInboxController extends Controller
                 'priority' => $thread->priority,
                 'assigned_admin_id' => $thread->assigned_admin_id,
                 'assigned_admin_name' => $thread->assignedAdmin?->name,
+                'csat' => $thread->csat,
             ],
             'messages' => $thread->messages->map(fn ($message) => [
                 'id' => $message->id,

@@ -120,10 +120,35 @@ test('connecting a woo store registers real webhooks and stores the secret', fun
 test('a not-yet-ready platform returns a clear error', function () {
     onboardedUser();
 
+    test()->postJson('/api/v1/connections/amazon/start', [
+        'name' => 'My Amazon Store',
+        'credentials' => [],
+    ])->assertUnprocessable()->assertJsonPath('message', fn ($message) => str_contains($message, 'amazon'));
+});
+
+test('starting a shopify connection without a shop_domain is rejected', function () {
+    onboardedUser();
+
     test()->postJson('/api/v1/connections/shopify/start', [
         'name' => 'My Shopify Store',
         'credentials' => [],
-    ])->assertUnprocessable()->assertJsonPath('message', fn ($message) => str_contains($message, 'shopify'));
+    ])->assertUnprocessable()->assertJsonValidationErrors(['credentials.shop_domain']);
+});
+
+test('starting a shopify connection with a valid shop_domain returns an authorization url', function () {
+    onboardedUser();
+
+    $response = test()->postJson('/api/v1/connections/shopify/start', [
+        'name' => 'My Shopify Store',
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+    ]);
+
+    $response->assertOk();
+    expect($response->json('data.authorization_url'))
+        ->toContain('my-test-shop.myshopify.com/admin/oauth/authorize')
+        ->toContain('state=');
+
+    expect(StoreConnection::query()->count())->toBe(0);
 });
 
 test('a free-plan team is blocked from connecting a second store', function () {

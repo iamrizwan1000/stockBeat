@@ -1,5 +1,7 @@
 <?php
 
+use Laravel\Fortify\Features;
+
 return [
 
     /*
@@ -159,12 +161,11 @@ return [
 
     // Admin panel auth only: no self-registration, no password reset, no
     // email verification (admins are provisioned by a superadmin — Plan §8.7).
-    // 2FA is mandated by the plan; enable once the admin 2FA settings UI exists.
     'features' => [
-        // Features::twoFactorAuthentication([
-        //     'confirm' => true,
-        //     'confirmPassword' => true,
-        // ]),
+        Features::twoFactorAuthentication([
+            'confirm' => true,
+            'confirmPassword' => true,
+        ]),
     ],
 
 ];

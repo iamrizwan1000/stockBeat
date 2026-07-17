@@ -19,6 +19,10 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  * (unregistered token, Plan §17.4). Personal notification preferences
  * (Plan §4.8) gate the actual FCM send only — muting push or being in
  * quiet hours never hides the notification from the in-app center itself.
+ * `$deliver = false` gates the FCM send the same way — used by
+ * `SendOrderPushWithStormProtectionAction` (Plan §17.4 notification-storm
+ * bundling) to still log an in-app record per order without fanning out an
+ * individual ping once a burst has crossed into "bundle mode".
  */
 class SendPushNotificationAction
 {
@@ -29,7 +33,7 @@ class SendPushNotificationAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH): string
+    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true): string
     {
         Notification::query()->create([
             'user_id' => $user->id,
@@ -38,6 +42,10 @@ class SendPushNotificationAction
             'body' => $body,
             'data' => $data,
         ]);
+
+        if (! $deliver) {
+            return 'bundled_suppressed';
+        }
 
         $preference = $user->notificationPreference;
 

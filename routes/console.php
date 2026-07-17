@@ -11,6 +11,16 @@ Artisan::command('inspire', function () {
 // Reconciliation poller — webhook safety net (Plan §7.2 gotcha: "run every
 // 10-15 min").
 Schedule::command('orders:poll-woo')->everyFifteenMinutes();
+Schedule::command('orders:poll-shopify')->everyFifteenMinutes();
+
+// eBay has no webhook subscription built (v1 scope cut, EbayAdapter) — this
+// is the only sync path, not just a safety net, so it runs more frequently
+// than the pure-reconciliation pollers above.
+Schedule::command('orders:poll-ebay')->everyFiveMinutes();
+
+// Etsy has no webhooks at all (Plan §7.4) — same reasoning as eBay above.
+// 5 min stays well within Etsy's 10k requests/day budget per app (§7.4).
+Schedule::command('orders:poll-etsy')->everyFiveMinutes();
 
 // GDPR deletion grace period (Plan §4.8) — daily is plenty for a 30-day window.
 Schedule::command('accounts:purge-deleted')->daily();
@@ -44,3 +54,6 @@ Schedule::command('orders:backfill-base-currency')->dailyAt('00:10');
 // Trial lifecycle (Plan §6.3/§6.4).
 Schedule::command('trials:send-reminders')->hourly();
 Schedule::command('subscriptions:expire-trials')->hourly();
+
+// Support chat (Plan §4.9) — "auto-nudge and auto-close after 7 days idle."
+Schedule::command('support:auto-close-idle-threads')->daily();

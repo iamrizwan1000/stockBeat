@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Connections\ConnectStoreAction;
 use App\Actions\Connections\GetConnectionHealthAction;
+use App\Actions\Connections\StartOAuthConnectionAction;
+use App\Contracts\OAuthChannelAdapter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Connections\ConnectStoreRequest;
 use App\Http\Resources\StoreConnectionResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\StoreConnection;
 use App\Models\User;
+use App\Support\Connections\ChannelAdapterManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,13 +28,16 @@ class ConnectionController extends Controller
     /**
      * Start connecting a store.
      *
-     * `credentials` shape depends on `platform` — WooCommerce expects `{store_url, consumer_key,
-     * consumer_secret}` (key-intake); OAuth-based platforms (Shopify/eBay/Etsy/Amazon) are
-     * pending adapter approval and will return an OAuth URL once available.
+     * `credentials` shape depends on `platform`: WooCommerce expects `{store_url, consumer_key,
+     * consumer_secret}` (key-intake, connects immediately). Shopify expects `{shop_domain}`.
+     * eBay/Etsy expect no credentials at all. Amazon is still pending adapter approval.
+     * OAuth platforms (Shopify/eBay/Etsy) don't connect immediately — this returns an
+     * `authorization_url` to open in an in-app browser; the connection itself is created once
+     * the merchant approves and the platform redirects back to our callback.
      *
      * @urlParam platform string required One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`. Example: woo
      *
-     * @response 201 scenario="success" {
+     * @response 201 scenario="woo — connects immediately" {
      *   "success": true,
      *   "message": null,
      *   "data": {
@@ -45,14 +51,26 @@ class ConnectionController extends Controller
      *     }
      *   }
      * }
+     * @response 200 scenario="shopify/ebay/etsy — OAuth redirect" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "authorization_url": "https://my-shop.myshopify.com/admin/oauth/authorize?client_id=..."
+     *   }
+     * }
      * @response 422 scenario="profile setup incomplete" {
      *   "success": false,
      *   "message": "Complete profile setup before connecting a store.",
      *   "errors": null
      * }
      */
-    public function start(ConnectStoreRequest $request, string $platform, ConnectStoreAction $action): JsonResponse
-    {
+    public function start(
+        ConnectStoreRequest $request,
+        string $platform,
+        ConnectStoreAction $action,
+        StartOAuthConnectionAction $startOAuth,
+        ChannelAdapterManager $adapters,
+    ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
         $team = $user->currentTeam();
@@ -61,11 +79,20 @@ class ConnectionController extends Controller
             return ApiResponse::error('Complete profile setup before connecting a store.', status: 422);
         }
 
+        $name = $request->string('name')->toString();
+        $credentials = $request->input('credentials', []);
+
+        if ($adapters->driver($platform) instanceof OAuthChannelAdapter) {
+            $url = $startOAuth->handle($team, $platform, $name, $credentials);
+
+            return ApiResponse::success(['authorization_url' => $url]);
+        }
+
         $connection = $action->handle(
             team: $team,
             platform: $platform,
-            name: $request->string('name')->toString(),
-            credentials: $request->input('credentials', []),
+            name: $name,
+            credentials: $credentials,
         );
 
         return ApiResponse::success(['connection' => new StoreConnectionResource($connection)], status: 201);

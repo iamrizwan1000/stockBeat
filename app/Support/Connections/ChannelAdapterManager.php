@@ -24,7 +24,7 @@ class ChannelAdapterManager extends Manager
 
     protected function createShopifyDriver(): ChannelAdapter
     {
-        return new ShopifyAdapter;
+        return $this->container->make(ShopifyAdapter::class);
     }
 
     protected function createWooDriver(): ChannelAdapter
@@ -34,12 +34,12 @@ class ChannelAdapterManager extends Manager
 
     protected function createEbayDriver(): ChannelAdapter
     {
-        return new EbayAdapter;
+        return $this->container->make(EbayAdapter::class);
     }
 
     protected function createEtsyDriver(): ChannelAdapter
     {
-        return new EtsyAdapter;
+        return $this->container->make(EtsyAdapter::class);
     }
 
     protected function createAmazonDriver(): ChannelAdapter

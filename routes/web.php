@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OpsController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PromoCampaignController;
+use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SegmentController;
 use App\Http\Controllers\Admin\SupportInboxController;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +50,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     Route::get('team', [AdminUserController::class, 'index'])->name('team.index');
     Route::get('audit-log', [AdminAuditLogController::class, 'index'])->name('audit-log.index');
+
+    // Self-service — any admin manages their own 2FA, not gated by `admin.write`
+    // (that middleware is for actions taken on *other* records).
+    Route::get('security', [SecurityController::class, 'index'])->name('security.index');
 
     Route::middleware('admin.write')->group(function () {
         Route::post('customers/{user}/extend-trial', [CustomerActionController::class, 'extendTrial'])->name('customers.extend-trial');

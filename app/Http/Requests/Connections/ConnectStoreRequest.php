@@ -25,6 +25,8 @@ class ConnectStoreRequest extends FormRequest
             $rules['credentials.store_url'] = ['required', 'url'];
             $rules['credentials.consumer_key'] = ['required', 'string'];
             $rules['credentials.consumer_secret'] = ['required', 'string'];
+        } elseif ($this->route('platform') === StoreConnection::PLATFORM_SHOPIFY) {
+            $rules['credentials.shop_domain'] = ['required', 'string', 'regex:/^[a-z0-9-]+\.myshopify\.com$/i'];
         } else {
             $rules['credentials'] = ['sometimes', 'array'];
         }

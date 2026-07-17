@@ -16,6 +16,7 @@ import {
     ExitIcon,
     HeartIcon,
     HomeIcon,
+    LockIcon,
     MegaphoneIcon,
     NoteIcon,
     NotificationIcon,
@@ -176,6 +177,11 @@ function AdminFrame({ children }: { children: ReactNode }) {
                     actions={[
                         {
                             items: [
+                                {
+                                    content: 'Security (2FA)',
+                                    icon: LockIcon,
+                                    url: '/admin/security',
+                                },
                                 {
                                     content: 'Sign out',
                                     icon: ExitIcon,

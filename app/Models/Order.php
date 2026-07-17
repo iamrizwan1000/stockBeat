@@ -84,7 +84,7 @@ class Order extends Model
     protected function casts(): array
     {
         return [
-            'shipping_address' => 'array',
+            'shipping_address' => 'encrypted:array',
             'tags' => 'array',
             'raw' => 'array',
             'is_test' => 'boolean',

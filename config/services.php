@@ -60,4 +60,21 @@ return [
         'messaging_service_sid' => env('TWILIO_MESSAGING_SERVICE_SID'),
     ],
 
+    'shopify' => [
+        'client_id' => env('SHOPIFY_CLIENT_ID'),
+        'client_secret' => env('SHOPIFY_CLIENT_SECRET'),
+    ],
+
+    'ebay' => [
+        'env' => env('EBAY_ENV', 'sandbox'),
+        'app_id' => env('EBAY_APP_ID'),
+        'cert_id' => env('EBAY_CERT_ID'),
+        'ru_name' => env('EBAY_RU_NAME'),
+    ],
+
+    'etsy' => [
+        'keystring' => env('ETSY_KEYSTRING'),
+        'shared_secret' => env('ETSY_SHARED_SECRET'),
+    ],
+
 ];

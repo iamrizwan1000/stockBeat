@@ -1,0 +1,22 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "f2681fe1ccb959d0752911c04fd91578"
+application_url = "https://stockbeat.qistpay.org"
+embedded = false
+name = "StockBeat"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,write_orders,read_fulfillments,write_fulfillments,read_products,write_products,read_inventory,write_inventory,read_locations,read_customers"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [ "https://stockbeat.qistpay.org/hooks/shopify/oauth/callback" ]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "https://stockbeat.qistpay.org/hooks/shopify/gdpr"
