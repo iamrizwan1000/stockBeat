@@ -20,13 +20,14 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property Carbon|null $paused_at
  * @property Carbon|null $last_sync_at
+ * @property Carbon|null $last_message_sync_at
  * @property string|null $webhook_status
  * @property string|null $region
  * @property array<string, mixed>|null $settings
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'platform', 'name', 'credentials', 'fingerprint', 'status', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at'])]
+#[Fillable(['team_id', 'platform', 'name', 'credentials', 'fingerprint', 'status', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'last_message_sync_at'])]
 #[Hidden(['credentials'])]
 class StoreConnection extends Model
 {
@@ -42,6 +43,12 @@ class StoreConnection extends Model
     public const PLATFORM_ETSY = 'etsy';
 
     public const PLATFORM_AMAZON = 'amazon';
+
+    /**
+     * TikTok Shop (Plan §7.6) — the OAuth authorization-code flow +
+     * webhooks channel adapter, see `TikTokAdapter`.
+     */
+    public const PLATFORM_TIKTOK = 'tiktok';
 
     public const STATUS_ACTIVE = 'active';
 
@@ -67,6 +74,7 @@ class StoreConnection extends Model
             'credentials' => 'encrypted:array',
             'settings' => 'array',
             'last_sync_at' => 'datetime',
+            'last_message_sync_at' => 'datetime',
             'paused_at' => 'datetime',
         ];
     }

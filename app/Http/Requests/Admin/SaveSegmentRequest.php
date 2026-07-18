@@ -35,6 +35,7 @@ class SaveSegmentRequest extends FormRequest
                 StoreConnection::PLATFORM_EBAY,
                 StoreConnection::PLATFORM_ETSY,
                 StoreConnection::PLATFORM_AMAZON,
+                StoreConnection::PLATFORM_TIKTOK,
             ])],
             'filters.inactive_days_gte' => ['nullable', 'integer', 'min:1'],
             'filters.trial_ending_within_days' => ['nullable', 'integer', 'min:1'],

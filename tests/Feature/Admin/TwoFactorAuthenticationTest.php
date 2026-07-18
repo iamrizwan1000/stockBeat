@@ -7,7 +7,7 @@ use PragmaRX\Google2FA\Google2FA;
 uses(RefreshDatabase::class);
 
 test('the security page reports 2FA as disabled by default', function () {
-    $admin = AdminUser::factory()->create();
+    $admin = AdminUser::factory()->unconfirmedTwoFactor()->create();
 
     $this->actingAs($admin, 'admin')
         ->get('/admin/security')
@@ -24,7 +24,7 @@ test('enabling 2FA without a recent password confirmation is rejected', function
 });
 
 test('an admin can enable, confirm, and disable 2FA', function () {
-    $admin = AdminUser::factory()->create();
+    $admin = AdminUser::factory()->unconfirmedTwoFactor()->create();
 
     $this->actingAs($admin, 'admin')
         ->withSession(['auth.password_confirmed_at' => time()])
@@ -71,7 +71,7 @@ test('an admin can enable, confirm, and disable 2FA', function () {
 });
 
 test('confirming with the wrong code fails', function () {
-    $admin = AdminUser::factory()->create();
+    $admin = AdminUser::factory()->unconfirmedTwoFactor()->create();
 
     $this->actingAs($admin, 'admin')
         ->withSession(['auth.password_confirmed_at' => time()])
@@ -117,7 +117,7 @@ test('the two-factor challenge screen renders', function () {
 });
 
 test('a login for an admin without 2FA still goes straight in', function () {
-    $admin = AdminUser::factory()->create();
+    $admin = AdminUser::factory()->unconfirmedTwoFactor()->create();
 
     $response = $this->post('/admin/login', [
         'email' => $admin->email,

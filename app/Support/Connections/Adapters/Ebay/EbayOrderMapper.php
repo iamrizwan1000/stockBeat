@@ -26,7 +26,9 @@ class EbayOrderMapper
 
         $shipTo = $this->shipTo($raw);
         $contactAddress = is_array($shipTo['contactAddress'] ?? null) ? $shipTo['contactAddress'] : [];
-        $customerName = $shipTo['fullName'] ?? (is_array($raw['buyer'] ?? null) ? ($raw['buyer']['username'] ?? null) : null);
+        $buyer = is_array($raw['buyer'] ?? null) ? $raw['buyer'] : [];
+        $buyerUsername = is_string($buyer['username'] ?? null) && $buyer['username'] !== '' ? $buyer['username'] : null;
+        $customerName = $shipTo['fullName'] ?? $buyerUsername;
 
         $pricing = is_array($raw['pricingSummary'] ?? null) ? $raw['pricingSummary'] : [];
         $total = is_array($pricing['total'] ?? null) ? $pricing['total'] : [];
@@ -66,6 +68,7 @@ class EbayOrderMapper
             items: collect($lineItems)
                 ->map(fn (array $item) => $this->mapItem($item))
                 ->all(),
+            buyerUsername: $buyerUsername,
         );
     }
 
@@ -98,6 +101,10 @@ class EbayOrderMapper
             imageUrl: null,
             qty: max((int) ($item['quantity'] ?? 1), 1),
             price: (float) ($cost['value'] ?? 0), // already per-unit
+            // Bridges the REST Sell Fulfillment API's line item to the legacy
+            // Trading API's id space (Plan §7.3) — needed by
+            // EbayAdapter::sendMessage()'s AddMemberMessageAAQToPartner call.
+            legacyItemId: isset($item['legacyItemId']) ? (string) $item['legacyItemId'] : null,
         );
     }
 

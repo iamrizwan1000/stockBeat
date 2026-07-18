@@ -14,6 +14,7 @@ import {
     CreditCardIcon,
     DiscountIcon,
     ExitIcon,
+    FlagIcon,
     HeartIcon,
     HomeIcon,
     LockIcon,
@@ -41,6 +42,12 @@ const NAV_ITEMS = [
         label: 'Plans & Limits',
         url: '/admin/plans',
         icon: CreditCardIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Feature Flags',
+        url: '/admin/feature-flags',
+        icon: FlagIcon,
         exactMatch: false,
     },
     {

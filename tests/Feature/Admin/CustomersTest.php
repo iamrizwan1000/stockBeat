@@ -2,8 +2,10 @@
 
 use App\Models\AdminUser;
 use App\Models\Rule;
+use App\Models\SmsLedger;
 use App\Models\StoreConnection;
 use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
 use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -76,4 +78,32 @@ test('a customer with no team shows a clean empty state, not an error', function
     $user = User::factory()->create();
 
     test()->actingAs($admin, 'admin')->get("/admin/customers/{$user->id}")->assertOk();
+});
+
+test('the customer detail page includes subscription timeline, LTV, and abuse flags', function () {
+    $admin = AdminUser::factory()->create();
+    $owner = User::factory()->create(['base_currency' => 'USD']);
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id, 'role' => TeamMember::ROLE_OWNER]);
+    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_ACTIVE]);
+
+    SubscriptionEvent::factory()->create([
+        'team_id' => $team->id,
+        'event_type' => 'INITIAL_PURCHASE',
+        'price' => 9.99,
+        'currency' => 'USD',
+    ]);
+    SmsLedger::factory()->create(['team_id' => $team->id, 'reason' => SmsLedger::REASON_SEND, 'delta' => -250, 'balance_after' => 0]);
+
+    test()->actingAs($admin, 'admin')
+        ->get("/admin/customers/{$owner->id}")
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/customers/show')
+            ->has('customer.subscription_timeline', 1)
+            ->where('customer.subscription_timeline.0.event_type', 'INITIAL_PURCHASE')
+            ->where('customer.ltv.total', 9.99)
+            ->where('customer.ltv.currency', 'USD')
+            ->where('customer.abuse_flags.high_sms_cost', true)
+            ->where('customer.abuse_flags.trial_abuse_suspected', false)
+        );
 });

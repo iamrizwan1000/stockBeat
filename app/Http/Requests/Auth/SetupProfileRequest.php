@@ -23,7 +23,7 @@ class SetupProfileRequest extends FormRequest
             'business_name' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'regex:/^\+[1-9]\d{1,14}$/'],
             'sells_on' => ['required', 'array', 'min:1'],
-            'sells_on.*' => ['string', Rule::in(['shopify', 'woo', 'ebay', 'etsy', 'amazon'])],
+            'sells_on.*' => ['string', Rule::in(['shopify', 'woo', 'ebay', 'etsy', 'amazon', 'tiktok'])],
             'timezone' => ['nullable', 'string', Rule::in(DateTimeZone::listIdentifiers())],
             'base_currency' => ['nullable', 'string', 'size:3'],
         ];

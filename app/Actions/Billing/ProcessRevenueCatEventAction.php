@@ -4,7 +4,9 @@ namespace App\Actions\Billing;
 
 use App\Models\Plan;
 use App\Models\SmsLedger;
+use App\Models\SmsTopupPack;
 use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
 use App\Models\Team;
 use Illuminate\Support\Carbon;
 
@@ -15,27 +17,37 @@ use Illuminate\Support\Carbon;
  * products (`sms_100`/`sms_500`) are handled separately from the renewing
  * subscription products since they affect `sms_ledger`, not `subscriptions`.
  *
- * Both `SMS_TOPUP_PRODUCTS` and `SUBSCRIPTION_PLAN_PRODUCTS` are an explicit
- * whitelist, not a DB table — unlike `plans`/`plan_limits` (business-tunable
- * numbers, deliberately DB-driven per §5), these IDs are store-controlled:
- * adding a new one means creating it in App Store Connect/Play Console
- * first, so a code change happens either way. `pro_monthly`/`pro_yearly`
- * both map to the same `Plan::PRO` (yearly is just cheaper, not a
- * different tier) — but with 4 plan tiers now, this map genuinely needs to
- * carry *which* tier each product grants, not just a pro/not-pro boolean.
- * An unrecognized product_id is a no-op, not a silent Pro grant.
+ * The credited SMS amount is looked up from `sms_topup_packs` by product id
+ * (Plan §5/§8.7.3 — admin-editable so a pack's credit amount can be
+ * corrected without an app release); a product id with no matching pack row
+ * is simply not an SMS top-up. `SUBSCRIPTION_PLAN_PRODUCTS` stays an
+ * explicit whitelist, not a DB table — unlike `plans`/`plan_limits`
+ * (business-tunable numbers, deliberately DB-driven per §5), these IDs are
+ * store-controlled: adding a new one means creating it in App Store
+ * Connect/Play Console first, so a code change happens either way.
+ * `pro_monthly`/`pro_yearly` both map to the same `Plan::PRO` (yearly is
+ * just cheaper, not a different tier) — but with 4 plan tiers now, this map
+ * genuinely needs to carry *which* tier each product grants, not just a
+ * pro/not-pro boolean. An unrecognized product_id is a no-op, not a silent
+ * Pro grant.
  *
  * Idempotency (a redelivered webhook must never double-credit SMS) is the
  * caller's responsibility via `RevenueCatEvent` — this action assumes it's
  * only ever invoked once per genuine event id.
+ *
+ * Every event this action actually handles (subscription-tier events and SMS
+ * top-up purchases alike) is additionally appended to `subscription_events`
+ * (Plan §8.7.2 "subscription timeline") purely for history/LTV — this never
+ * feeds back into the crediting/entitlement logic above. A price is recorded
+ * only when the RevenueCat payload actually carried one: `price_in_purchased
+ * _currency`+`currency` (the purchase-currency amount) if present, else a
+ * `price` (RevenueCat's USD reference amount) with an assumed `currency` of
+ * `USD`. Event types with no price in the payload (e.g. CANCELLATION,
+ * EXPIRATION) are still logged for the timeline, just with a null price —
+ * never a fabricated amount.
  */
 class ProcessRevenueCatEventAction
 {
-    private const SMS_TOPUP_PRODUCTS = [
-        'sms_100' => 100,
-        'sms_500' => 500,
-    ];
-
     private const SUBSCRIPTION_PLAN_PRODUCTS = [
         'starter_monthly' => Plan::STARTER,
         'pro_monthly' => Plan::PRO,
@@ -57,9 +69,12 @@ class ProcessRevenueCatEventAction
         $productId = (string) ($event['product_id'] ?? '');
         $type = (string) ($event['type'] ?? '');
 
-        if (isset(self::SMS_TOPUP_PRODUCTS[$productId])) {
+        $topupPack = SmsTopupPack::query()->where('key', $productId)->first();
+
+        if ($topupPack !== null) {
             if ($type === 'NON_RENEWING_PURCHASE') {
-                $this->creditSmsTopup($team, $productId, $event);
+                $this->creditSmsTopup($team, $topupPack, $event);
+                $this->logSubscriptionEvent($team, $type, $event);
             }
 
             return;
@@ -67,15 +82,50 @@ class ProcessRevenueCatEventAction
 
         if (isset(self::SUBSCRIPTION_PLAN_PRODUCTS[$productId])) {
             $this->applySubscriptionEvent($team, $type, $productId, self::SUBSCRIPTION_PLAN_PRODUCTS[$productId], $event);
+            $this->logSubscriptionEvent($team, $type, $event);
         }
     }
 
     /**
      * @param  array<string, mixed>  $event
      */
-    private function creditSmsTopup(Team $team, string $productId, array $event): void
+    private function logSubscriptionEvent(Team $team, string $type, array $event): void
     {
-        $delta = self::SMS_TOPUP_PRODUCTS[$productId];
+        [$price, $currency] = $this->extractPrice($event);
+
+        SubscriptionEvent::query()->create([
+            'team_id' => $team->id,
+            'event_type' => $type,
+            'price' => $price,
+            'currency' => $currency,
+            'raw_payload' => $event,
+            'occurred_at' => $this->msToDate($event['event_timestamp_ms'] ?? null) ?? now(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     * @return array{0: float|null, 1: string|null}
+     */
+    private function extractPrice(array $event): array
+    {
+        if (is_numeric($event['price_in_purchased_currency'] ?? null) && is_string($event['currency'] ?? null) && $event['currency'] !== '') {
+            return [(float) $event['price_in_purchased_currency'], (string) $event['currency']];
+        }
+
+        if (is_numeric($event['price'] ?? null)) {
+            return [(float) $event['price'], 'USD'];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function creditSmsTopup(Team $team, SmsTopupPack $pack, array $event): void
+    {
+        $delta = $pack->sms_credits;
         $balanceAfter = SmsLedger::currentBalance($team->id) + $delta;
 
         SmsLedger::query()->create([
@@ -83,7 +133,7 @@ class ProcessRevenueCatEventAction
             'delta' => $delta,
             'reason' => SmsLedger::REASON_TOPUP_IAP,
             'balance_after' => $balanceAfter,
-            'meta' => ['product_id' => $productId, 'revenuecat_event' => $event],
+            'meta' => ['product_id' => $pack->key, 'revenuecat_event' => $event],
         ]);
     }
 

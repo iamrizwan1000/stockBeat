@@ -5,14 +5,17 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CannedReplyController;
+use App\Http\Controllers\Admin\ContentBlockController;
 use App\Http\Controllers\Admin\CustomerActionController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\FeatureFlagController;
 use App\Http\Controllers\Admin\OpsController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PromoCampaignController;
 use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SegmentController;
+use App\Http\Controllers\Admin\SmsTopupPackController;
 use App\Http\Controllers\Admin\SupportInboxController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -21,7 +24,7 @@ Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 
 // Admin panel (Inertia + React + Polaris). Fortify serves /admin/login and
 // /admin/logout on the "admin" guard (the app default) — see config/fortify.php.
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
@@ -30,7 +33,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
+    Route::get('feature-flags', [FeatureFlagController::class, 'index'])->name('feature-flags.index');
+
     Route::get('promotions', [PromoCampaignController::class, 'index'])->name('promotions.index');
+    Route::get('promotions/{promoCampaign}', [PromoCampaignController::class, 'show'])->name('promotions.show');
 
     Route::get('segments', [SegmentController::class, 'index'])->name('segments.index');
     Route::post('segments/preview-count', [SegmentController::class, 'previewCount'])->name('segments.preview-count');
@@ -64,6 +70,18 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::post('customers/{user}/unsuspend', [CustomerActionController::class, 'unsuspend'])->name('customers.unsuspend');
         Route::put('plans/limits/{limit}', [PlanController::class, 'update'])->name('plans.limits.update');
 
+        Route::post('plans/sms-packs', [SmsTopupPackController::class, 'store'])->name('plans.sms-packs.store');
+        Route::put('plans/sms-packs/{smsPack}', [SmsTopupPackController::class, 'update'])->name('plans.sms-packs.update');
+        Route::delete('plans/sms-packs/{smsPack}', [SmsTopupPackController::class, 'destroy'])->name('plans.sms-packs.destroy');
+
+        Route::post('plans/content-blocks', [ContentBlockController::class, 'store'])->name('plans.content-blocks.store');
+        Route::put('plans/content-blocks/{contentBlock}', [ContentBlockController::class, 'update'])->name('plans.content-blocks.update');
+        Route::delete('plans/content-blocks/{contentBlock}', [ContentBlockController::class, 'destroy'])->name('plans.content-blocks.destroy');
+
+        Route::post('feature-flags', [FeatureFlagController::class, 'store'])->name('feature-flags.store');
+        Route::put('feature-flags/{featureFlag}', [FeatureFlagController::class, 'update'])->name('feature-flags.update');
+        Route::delete('feature-flags/{featureFlag}', [FeatureFlagController::class, 'destroy'])->name('feature-flags.destroy');
+
         Route::post('promotions', [PromoCampaignController::class, 'store'])->name('promotions.store');
         Route::put('promotions/{promoCampaign}', [PromoCampaignController::class, 'update'])->name('promotions.update');
         Route::delete('promotions/{promoCampaign}', [PromoCampaignController::class, 'destroy'])->name('promotions.destroy');
@@ -75,6 +93,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
         Route::post('broadcasts', [BroadcastController::class, 'store'])->name('broadcasts.store');
         Route::post('broadcasts/{broadcast}/send-test', [BroadcastController::class, 'sendTest'])->name('broadcasts.send-test');
+        Route::post('broadcasts/{broadcast}/approve', [BroadcastController::class, 'approve'])->name('broadcasts.approve');
         Route::post('broadcasts/{broadcast}/send', [BroadcastController::class, 'send'])->name('broadcasts.send');
 
         Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');

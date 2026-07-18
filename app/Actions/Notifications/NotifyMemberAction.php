@@ -16,7 +16,7 @@ class NotifyMemberAction
         private readonly SendPushNotificationAction $sendPush,
     ) {}
 
-    public function handle(Team $team, int $targetUserId, string $title, string $body): string
+    public function handle(Team $team, int $targetUserId, string $title, string $body, ?string $sound = null): string
     {
         $isMember = TeamMember::query()
             ->where('team_id', $team->id)
@@ -33,6 +33,6 @@ class NotifyMemberAction
             return 'not_a_team_member';
         }
 
-        return $this->sendPush->handle($user, $title, $body);
+        return $this->sendPush->handle($user, $title, $body, sound: $sound);
     }
 }

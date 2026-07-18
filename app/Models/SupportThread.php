@@ -22,10 +22,11 @@ use Illuminate\Support\Carbon;
  * @property string $priority
  * @property Carbon|null $last_message_at
  * @property int|null $csat
+ * @property Carbon|null $resolved_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'status', 'assigned_admin_id', 'priority', 'last_message_at', 'csat'])]
+#[Fillable(['user_id', 'status', 'assigned_admin_id', 'priority', 'last_message_at', 'csat', 'resolved_at'])]
 class SupportThread extends Model
 {
     /** @use HasFactory<SupportThreadFactory> */
@@ -48,6 +49,7 @@ class SupportThread extends Model
     {
         return [
             'last_message_at' => 'datetime',
+            'resolved_at' => 'datetime',
         ];
     }
 

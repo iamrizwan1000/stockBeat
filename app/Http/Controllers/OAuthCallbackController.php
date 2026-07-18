@@ -39,6 +39,16 @@ class OAuthCallbackController extends Controller
         return $this->complete('etsy', $request, $adapters, $fingerprint);
     }
 
+    public function amazon(Request $request, ChannelAdapterManager $adapters, ComputeStoreConnectionFingerprintAction $fingerprint): View
+    {
+        return $this->complete('amazon', $request, $adapters, $fingerprint);
+    }
+
+    public function tiktok(Request $request, ChannelAdapterManager $adapters, ComputeStoreConnectionFingerprintAction $fingerprint): View
+    {
+        return $this->complete('tiktok', $request, $adapters, $fingerprint);
+    }
+
     private function complete(string $platform, Request $request, ChannelAdapterManager $adapters, ComputeStoreConnectionFingerprintAction $fingerprintAction): View
     {
         $rawState = (string) $request->query('state', '');

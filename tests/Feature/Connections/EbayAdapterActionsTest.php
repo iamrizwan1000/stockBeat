@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\EbayAdapter;
@@ -121,6 +122,122 @@ test('refreshAuth updates the access token and expiry on success', function () {
 
     expect($connection->fresh()->credentials['access_token'])->toBe('new-token');
     expect($connection->fresh()->status)->toBe(StoreConnection::STATUS_ACTIVE);
+});
+
+test('sendMessage posts the correct AddMemberMessageAAQToPartner XML and reports success', function () {
+    $successXml = <<<'XML'
+    <?xml version="1.0" encoding="utf-8"?>
+    <AddMemberMessageAAQToPartnerResponse xmlns="urn:ebay:apis:eBLBaseComponents">
+        <Ack>Success</Ack>
+    </AddMemberMessageAAQToPartnerResponse>
+    XML;
+
+    Http::fake(['api.sandbox.ebay.com/ws/api.dll' => Http::response($successXml, 200)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_EBAY,
+        'credentials' => ['access_token' => 'fake-token', 'refresh_token' => 'fake-refresh', 'expires_at' => now()->addHour()->toIso8601String()],
+    ]);
+
+    $thread = InboxThread::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'channel' => StoreConnection::PLATFORM_EBAY,
+        'external_buyer_username' => 'buyer123',
+        'external_item_id' => '110445566778',
+    ]);
+
+    $result = app(EbayAdapter::class)->sendMessage($thread, 'Your order shipped yesterday!');
+
+    expect($result->success)->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), 'api.sandbox.ebay.com/ws/api.dll')
+            && $request->hasHeader('X-EBAY-API-CALL-NAME', 'AddMemberMessageAAQToPartner')
+            && $request->hasHeader('X-EBAY-API-IAF-TOKEN', 'fake-token')
+            && str_contains($request->body(), '<ItemID>110445566778</ItemID>')
+            && str_contains($request->body(), '<RecipientID>buyer123</RecipientID>')
+            && str_contains($request->body(), '<Body>Your order shipped yesterday!</Body>');
+    });
+});
+
+test('sendMessage reports failure when eBay Acks Failure even with a 200 status', function () {
+    $failureXml = <<<'XML'
+    <?xml version="1.0" encoding="utf-8"?>
+    <AddMemberMessageAAQToPartnerResponse xmlns="urn:ebay:apis:eBLBaseComponents">
+        <Ack>Failure</Ack>
+    </AddMemberMessageAAQToPartnerResponse>
+    XML;
+
+    Http::fake(['api.sandbox.ebay.com/ws/api.dll' => Http::response($failureXml, 200)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_EBAY,
+        'credentials' => ['access_token' => 'fake-token', 'expires_at' => now()->addHour()->toIso8601String()],
+    ]);
+
+    $thread = InboxThread::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'channel' => StoreConnection::PLATFORM_EBAY,
+        'external_buyer_username' => 'buyer123',
+        'external_item_id' => '110445566778',
+    ]);
+
+    $result = app(EbayAdapter::class)->sendMessage($thread, 'Hello');
+
+    expect($result->success)->toBeFalse();
+});
+
+test('sendMessage fails cleanly when the thread has no buyer username or item id', function () {
+    $connection = StoreConnection::factory()->create(['platform' => StoreConnection::PLATFORM_EBAY]);
+
+    $thread = InboxThread::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'channel' => StoreConnection::PLATFORM_EBAY,
+        'external_buyer_username' => null,
+        'external_item_id' => null,
+    ]);
+
+    $result = app(EbayAdapter::class)->sendMessage($thread, 'Hello');
+
+    expect($result->success)->toBeFalse();
+});
+
+test('fetchMemberMessages parses inbound buyer messages from the legacy XML response', function () {
+    $responseXml = <<<'XML'
+    <?xml version="1.0" encoding="utf-8"?>
+    <GetMemberMessagesResponse xmlns="urn:ebay:apis:eBLBaseComponents">
+        <Ack>Success</Ack>
+        <MemberMessageExchange>
+            <MemberMessage>
+                <MessageID>msg-1</MessageID>
+                <Sender>buyer123</Sender>
+                <ItemID>110445566778</ItemID>
+                <Body>Where is my order?</Body>
+                <CreationDate>2026-07-18T10:00:00.000Z</CreationDate>
+            </MemberMessage>
+        </MemberMessageExchange>
+    </GetMemberMessagesResponse>
+    XML;
+
+    Http::fake(['api.sandbox.ebay.com/ws/api.dll' => Http::response($responseXml, 200)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_EBAY,
+        'credentials' => ['access_token' => 'fake-token'],
+    ]);
+
+    $messages = app(EbayAdapter::class)->fetchMemberMessages($connection, now()->subDay());
+
+    expect($messages)->toHaveCount(1);
+    expect($messages[0]['external_id'])->toBe('msg-1');
+    expect($messages[0]['buyer_username'])->toBe('buyer123');
+    expect($messages[0]['item_id'])->toBe('110445566778');
+    expect($messages[0]['body'])->toBe('Where is my order?');
+
+    Http::assertSent(fn ($request) => $request->hasHeader('X-EBAY-API-CALL-NAME', 'GetMemberMessages'));
 });
 
 test('refreshAuth marks needs_reauth when the refresh call fails', function () {

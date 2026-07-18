@@ -17,9 +17,10 @@ use Illuminate\Support\Carbon;
  * @property int|null $sent_by
  * @property string|null $external_id
  * @property string $status
+ * @property string|null $failure_reason
  * @property Carbon|null $created_at
  */
-#[Fillable(['thread_id', 'direction', 'body', 'sent_by', 'external_id', 'status'])]
+#[Fillable(['thread_id', 'direction', 'body', 'sent_by', 'external_id', 'status', 'failure_reason'])]
 class InboxMessage extends Model
 {
     /** @use HasFactory<InboxMessageFactory> */

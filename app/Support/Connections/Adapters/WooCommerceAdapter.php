@@ -4,6 +4,7 @@ namespace App\Support\Connections\Adapters;
 
 use App\Contracts\ChannelAdapter;
 use App\Jobs\RuleEvaluationJob;
+use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\Rule;
 use App\Models\StoreConnection;
@@ -19,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 /**
  * WooCommerce needs no OAuth app approval (Plan §7.2) — the merchant hands
@@ -234,6 +236,18 @@ class WooCommerceAdapter implements ChannelAdapter
         $order->update(['status' => Order::STATUS_CANCELLED, 'check_at' => null]);
 
         return ActionResult::success('Order cancelled.');
+    }
+
+    /**
+     * WooCommerce has no native chat/messaging API (Plan §7.2/§7.7,
+     * `capabilities()->messagingMode === 'email'`) — `SendInboxMessageAction`
+     * never reaches this method for a Woo thread, it always uses its own
+     * email path instead. Reachable only if that routing check were
+     * bypassed.
+     */
+    public function sendMessage(InboxThread $thread, string $body): ActionResult
+    {
+        throw new LogicException('WooCommerceAdapter is email-only for messaging (Plan §7.7) — use SendInboxMessageAction\'s email path instead of ChannelAdapter::sendMessage().');
     }
 
     private function httpFor(StoreConnection $connection): PendingRequest

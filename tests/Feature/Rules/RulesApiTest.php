@@ -3,6 +3,7 @@
 use App\Actions\Orders\IngestOrderAction;
 use App\Actions\Rules\RuleEvaluationAction;
 use App\Jobs\RuleEvaluationJob;
+use App\Jobs\SendFreeTierNewOrderAlertJob;
 use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Rule;
@@ -76,6 +77,32 @@ test('a rule can be created and updated', function () {
     test()->putJson("/api/v1/rules/{$ruleId}", ['enabled' => false])
         ->assertOk()
         ->assertJsonPath('data.rule.enabled', false);
+});
+
+test('a rule can be created with a valid sound and it is returned by the API', function () {
+    onboardedRuleUser();
+
+    $response = test()->postJson('/api/v1/rules', validRulePayload(['sound' => Rule::SOUND_CHA_CHING]));
+
+    $response->assertCreated()->assertJsonPath('data.rule.sound', 'cha_ching');
+    expect(Rule::query()->find($response->json('data.rule.id'))->sound)->toBe('cha_ching');
+});
+
+test('an invalid sound is rejected', function () {
+    onboardedRuleUser();
+
+    test()->postJson('/api/v1/rules', validRulePayload(['sound' => 'air-horn']))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('sound');
+});
+
+test('a rule\'s sound can be updated', function () {
+    onboardedRuleUser();
+    $ruleId = test()->postJson('/api/v1/rules', validRulePayload())->json('data.rule.id');
+
+    test()->putJson("/api/v1/rules/{$ruleId}", ['sound' => Rule::SOUND_CHIME])
+        ->assertOk()
+        ->assertJsonPath('data.rule.sound', 'chime');
 });
 
 test('a free-plan team cannot create custom rules', function () {
@@ -184,6 +211,7 @@ test('ingesting a new order dispatches rule evaluation for new_order and high_va
     Queue::assertPushed(fn (RuleEvaluationJob $job) => $job->trigger === Rule::TRIGGER_NEW_ORDER);
     Queue::assertPushed(fn (RuleEvaluationJob $job) => $job->trigger === Rule::TRIGGER_HIGH_VALUE_ORDER);
     Queue::assertPushed(fn (RuleEvaluationJob $job) => $job->trigger === Rule::TRIGGER_ORDER_SPIKE);
+    Queue::assertPushed(fn (SendFreeTierNewOrderAlertJob $job) => $job->orderId !== null);
 });
 
 test('re-ingesting an existing order does not dispatch rule evaluation again', function () {

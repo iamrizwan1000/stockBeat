@@ -1,5 +1,7 @@
 <?php
 
+use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\EtsyAdapter;
@@ -90,6 +92,59 @@ test('cancel always reports failure — etsy has no direct cancel api', function
 
 test('capabilities report cancel as unsupported', function () {
     expect(app(EtsyAdapter::class)->capabilities()->cancel)->toBeFalse();
+});
+
+test('sendMessage throws AdapterNotReadyException when conversations are not approved', function () {
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_ETSY,
+        'credentials' => ['access_token' => '1.fake-token', 'shop_id' => 555111],
+    ]);
+
+    $order = Order::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'platform' => StoreConnection::PLATFORM_ETSY,
+        'external_id' => '99887766',
+    ]);
+
+    $thread = InboxThread::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'order_id' => $order->id,
+        'channel' => StoreConnection::PLATFORM_ETSY,
+    ]);
+
+    app(EtsyAdapter::class)->sendMessage($thread, 'Hello');
+})->throws(AdapterNotReadyException::class);
+
+test('sendMessage posts a conversation message once conversations are approved', function () {
+    Http::fake(['api.etsy.com/v3/application/shops/555111/receipts/99887766/messages' => Http::response(['ok' => true], 200)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_ETSY,
+        'credentials' => ['access_token' => '1.fake-token', 'shop_id' => 555111, 'conversations_approved' => true],
+    ]);
+
+    $order = Order::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'platform' => StoreConnection::PLATFORM_ETSY,
+        'external_id' => '99887766',
+    ]);
+
+    $thread = InboxThread::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'order_id' => $order->id,
+        'channel' => StoreConnection::PLATFORM_ETSY,
+    ]);
+
+    $result = app(EtsyAdapter::class)->sendMessage($thread, 'Your order shipped!');
+
+    expect($result->success)->toBeTrue();
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/shops/555111/receipts/99887766/messages')
+        && ($request['message'] ?? null) === 'Your order shipped!');
 });
 
 test('refreshAuth updates tokens on success', function () {

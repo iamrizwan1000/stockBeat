@@ -11,9 +11,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * Unified customer inbox thread (Plan §4.5/§9). Scoped to Shopify/Woo
- * order-linked email threading only — eBay/Etsy/Amazon native messaging
- * needs those adapters, which are still stubs.
+ * Unified customer inbox thread (Plan §4.5/§9). Shopify/Woo reply via
+ * order-linked email threading (`SendInboxMessageAction`'s email path);
+ * eBay replies via real Trading API member messages (`EbayAdapter::
+ * sendMessage()`); Etsy is wired the same way but gated behind Etsy's own
+ * conversations-API approval (`AdapterNotReadyException`) until that lands.
+ * Amazon messaging is out of scope until its adapter is built.
  *
  * @property int $id
  * @property int $team_id
@@ -21,6 +24,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $order_id
  * @property string $channel
  * @property string|null $external_thread_id
+ * @property string|null $external_buyer_username
+ * @property string|null $external_item_id
  * @property string|null $customer_name
  * @property string|null $customer_email
  * @property int|null $assigned_to
@@ -29,7 +34,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Order|null $order
  */
-#[Fillable(['team_id', 'connection_id', 'order_id', 'channel', 'external_thread_id', 'customer_name', 'customer_email', 'assigned_to', 'last_message_at'])]
+#[Fillable(['team_id', 'connection_id', 'order_id', 'channel', 'external_thread_id', 'external_buyer_username', 'external_item_id', 'customer_name', 'customer_email', 'assigned_to', 'last_message_at'])]
 class InboxThread extends Model
 {
     /** @use HasFactory<InboxThreadFactory> */

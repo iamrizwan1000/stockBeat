@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Rule;
+use App\Models\RuleExecution;
 use App\Models\StoreConnection;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
@@ -150,6 +153,57 @@ test('an app/uninstalled webhook disconnects the store', function () {
     ])->postJson("/hooks/shopify/{$connection->id}", $payload)->assertOk();
 
     expect($connection->fresh()->status)->toBe(StoreConnection::STATUS_DISCONNECTED);
+});
+
+test('an inventory_levels/update webhook syncs stock and fires the low_stock trigger', function () {
+    $connection = connectedShopifyStore();
+
+    $rule = Rule::factory()->create([
+        'team_id' => $connection->team_id,
+        'trigger' => Rule::TRIGGER_LOW_STOCK,
+        'controls' => ['low_stock_threshold' => 5],
+    ]);
+
+    Http::fake([
+        '*/admin/api/*/variants.json*' => Http::response([
+            'variants' => [['id' => 555, 'product_id' => 777, 'sku' => 'SKU-1', 'title' => 'Default Title']],
+        ], 200),
+        '*/admin/api/*/products/777.json*' => Http::response([
+            'product' => ['title' => 'Blue Widget'],
+        ], 200),
+    ]);
+
+    $payload = ['inventory_item_id' => 998877, 'location_id' => 1, 'available' => 2];
+
+    test()->withHeaders([
+        'X-Shopify-Topic' => 'inventory_levels/update',
+        'X-Shopify-Hmac-Sha256' => shopifyBodyHmac($payload, 'test-client-secret'),
+    ])->postJson("/hooks/shopify/{$connection->id}", $payload)->assertOk();
+
+    $product = Product::query()->where('connection_id', $connection->id)->where('external_id', '555')->first();
+    expect($product)->not->toBeNull();
+    expect($product->stock_quantity)->toBe(2);
+    expect($product->title)->toBe('Blue Widget');
+    expect($product->sku)->toBe('SKU-1');
+
+    expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
+});
+
+test('an inventory_levels/update webhook for an unresolvable inventory item is a safe no-op', function () {
+    $connection = connectedShopifyStore();
+
+    Http::fake([
+        '*/admin/api/*/variants.json*' => Http::response(['variants' => []], 200),
+    ]);
+
+    $payload = ['inventory_item_id' => 998877, 'location_id' => 1, 'available' => 2];
+
+    test()->withHeaders([
+        'X-Shopify-Topic' => 'inventory_levels/update',
+        'X-Shopify-Hmac-Sha256' => shopifyBodyHmac($payload, 'test-client-secret'),
+    ])->postJson("/hooks/shopify/{$connection->id}", $payload)->assertOk();
+
+    expect(Product::query()->where('connection_id', $connection->id)->count())->toBe(0);
 });
 
 test('a webhook for the wrong platform connection is rejected', function () {

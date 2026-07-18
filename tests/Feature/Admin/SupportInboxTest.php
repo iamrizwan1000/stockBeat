@@ -31,6 +31,42 @@ test('threads can be filtered by status and unassigned', function () {
         );
 });
 
+test('the support inbox page includes the SLA dashboard with first-response, resolution, per-agent, and CSAT metrics', function () {
+    $admin = AdminUser::factory()->create();
+    $thread = SupportThread::factory()->create([
+        'assigned_admin_id' => $admin->id,
+        'resolved_at' => now(),
+        'csat' => 1,
+    ]);
+    SupportMessage::factory()->create(['thread_id' => $thread->id, 'direction' => SupportMessage::DIRECTION_USER]);
+    SupportMessage::factory()->create(['thread_id' => $thread->id, 'direction' => SupportMessage::DIRECTION_STAFF]);
+
+    test()->actingAs($admin, 'admin')
+        ->get('/admin/support')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('sla.period')
+            ->has('sla.first_response')
+            ->has('sla.resolution')
+            ->has('sla.agents', 1)
+            ->where('sla.agents.0.admin_id', $admin->id)
+            ->has('sla.csat')
+            ->where('sla.csat.positive', 1)
+        );
+});
+
+test('the SLA dashboard honors a custom date range passed via sla_from/sla_to', function () {
+    $admin = AdminUser::factory()->create();
+    SupportThread::factory()->create(['created_at' => now()->subDays(90)]);
+
+    test()->actingAs($admin, 'admin')
+        ->get('/admin/support?sla_from='.now()->subDays(5)->toDateString().'&sla_to='.now()->toDateString())
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('sla.first_response.sample_size', 0)
+        );
+});
+
 test('a staff reply is delivered via websocket, push, and email, and moves the thread to awaiting_user', function () {
     Event::fake([SupportMessageSent::class]);
     Mail::fake();

@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import {
+    Badge,
     Banner,
     BlockStack,
     Button,
@@ -58,6 +59,21 @@ type CustomerDetail = {
     }>;
     notification_volume: { push: number; email: number; sms: number };
     funnel_position: string;
+    subscription_timeline: Array<{
+        id: number;
+        event_type: string;
+        price: number | null;
+        currency: string | null;
+        occurred_at: string | null;
+    }>;
+    ltv: {
+        total: number;
+        currency: string;
+        events_included: number;
+        events_excluded_no_price: number;
+        events_excluded_no_fx_rate: number;
+    } | null;
+    abuse_flags: { trial_abuse_suspected: boolean; high_sms_cost: boolean };
 };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -100,6 +116,17 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
             >
                 <BlockStack gap="500">
                     {props.flash?.status && <Banner tone="success">{props.flash.status}</Banner>}
+
+                    {(customer.abuse_flags.trial_abuse_suspected || customer.abuse_flags.high_sms_cost) && (
+                        <InlineStack gap="200">
+                            {customer.abuse_flags.trial_abuse_suspected && (
+                                <Badge tone="warning">⚠️ Trial abuse suspected</Badge>
+                            )}
+                            {customer.abuse_flags.high_sms_cost && (
+                                <Badge tone="warning">⚠️ High SMS cost</Badge>
+                            )}
+                        </InlineStack>
+                    )}
 
                     <Section title="Actions">
                         <Card>
@@ -254,7 +281,22 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                                         <b>Product:</b> {customer.subscription.product_id}
                                     </Text>
                                 )}
+                                <Text as="p">
+                                    <b>LTV:</b>{' '}
+                                    {customer.ltv
+                                        ? `${customer.ltv.total.toFixed(2)} ${customer.ltv.currency}`
+                                        : '—'}
+                                </Text>
                             </InlineGrid>
+                            {customer.ltv &&
+                                (customer.ltv.events_excluded_no_price > 0 ||
+                                    customer.ltv.events_excluded_no_fx_rate > 0) && (
+                                    <Text as="p" tone="subdued">
+                                        LTV may be incomplete: {customer.ltv.events_excluded_no_price} event(s)
+                                        carried no price, {customer.ltv.events_excluded_no_fx_rate} event(s)
+                                        had no FX rate available for conversion.
+                                    </Text>
+                                )}
                         </Card>
                     </Section>
 
@@ -344,6 +386,32 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                             ) : (
                                 <Text as="p" tone="subdued">
                                     No SMS ledger activity.
+                                </Text>
+                            )}
+                        </Card>
+                    </Section>
+
+                    <Section title="Subscription timeline">
+                        <Card>
+                            {customer.subscription_timeline.length > 0 ? (
+                                <BlockStack gap="200">
+                                    {customer.subscription_timeline.map((event) => (
+                                        <InlineStack key={event.id} align="space-between" blockAlign="center">
+                                            <Text as="p">
+                                                <b>{event.event_type}</b>
+                                                {event.price !== null && event.currency
+                                                    ? ` — ${event.price.toFixed(2)} ${event.currency}`
+                                                    : ''}
+                                            </Text>
+                                            <Text as="p" tone="subdued">
+                                                {formatDate(event.occurred_at)}
+                                            </Text>
+                                        </InlineStack>
+                                    ))}
+                                </BlockStack>
+                            ) : (
+                                <Text as="p" tone="subdued">
+                                    No RevenueCat events recorded yet.
                                 </Text>
                             )}
                         </Card>

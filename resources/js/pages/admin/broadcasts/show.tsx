@@ -8,12 +8,19 @@ import {
     InlineStack,
     Page,
     Text,
+    Tooltip,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
 
 import AdminLayout from '@/layouts/admin-layout';
 
 type DeliveryCounts = Record<string, Record<string, number>>;
+
+type OpenStats = {
+    sent: number;
+    opened: number;
+    rate: number | null;
+};
 
 type BroadcastDetail = {
     id: number;
@@ -29,6 +36,7 @@ type BroadcastDetail = {
     stats: { recipients_total?: number } | null;
     created_by_name: string | null;
     approved_by_name: string | null;
+    approved_at: string | null;
     created_at: string | null;
     template_vars_available: string[];
 };
@@ -36,6 +44,7 @@ type BroadcastDetail = {
 type Props = {
     broadcast: BroadcastDetail;
     delivery_counts: DeliveryCounts;
+    open_stats: OpenStats;
 };
 
 function audienceLabel(broadcast: BroadcastDetail): string {
@@ -53,10 +62,17 @@ function audienceLabel(broadcast: BroadcastDetail): string {
 export default function BroadcastsShow({
     broadcast,
     delivery_counts: deliveryCounts,
+    open_stats: openStats,
 }: Props) {
-    const { props } = usePage<{ flash: { status: string | null } }>();
+    const { props } = usePage<{
+        flash: { status: string | null };
+        auth: { user: { role: string } | null };
+    }>();
+    const isSuperadmin = props.auth?.user?.role === 'superadmin';
     const canSend =
         broadcast.status === 'draft' || broadcast.status === 'scheduled';
+    const needsApproval =
+        broadcast.audience_type === 'all' && !broadcast.approved_at;
 
     const deliveryRows = Object.entries(deliveryCounts).flatMap(
         ([channel, statuses]) =>
@@ -66,6 +82,18 @@ export default function BroadcastsShow({
                 String(count),
             ]),
     );
+
+    const handleApproveAndSend = () => {
+        router.post(
+            `/admin/broadcasts/${broadcast.id}/approve`,
+            {},
+            {
+                onSuccess: () => {
+                    router.post(`/admin/broadcasts/${broadcast.id}/send`);
+                },
+            },
+        );
+    };
 
     return (
         <>
@@ -85,6 +113,11 @@ export default function BroadcastsShow({
                         <BlockStack gap="300">
                             <InlineStack gap="200" blockAlign="center">
                                 <Badge>{broadcast.status}</Badge>
+                                {needsApproval && (
+                                    <Badge tone="attention">
+                                        Awaiting approval
+                                    </Badge>
+                                )}
                                 <Text as="span" tone="subdued">
                                     Sending to: {audienceLabel(broadcast)}
                                 </Text>
@@ -115,6 +148,16 @@ export default function BroadcastsShow({
                                 </Text>
                             )}
 
+                            {needsApproval && (
+                                <Text as="p" tone="subdued">
+                                    This broadcast targets all users, so a
+                                    superadmin must approve it before it can
+                                    be sent.
+                                    {broadcast.approved_by_name &&
+                                        ` Approved by ${broadcast.approved_by_name}.`}
+                                </Text>
+                            )}
+
                             {broadcast.sent_at && (
                                 <Text as="p" tone="subdued">
                                     Sent{' '}
@@ -136,7 +179,22 @@ export default function BroadcastsShow({
                                 >
                                     Send test to my email
                                 </Button>
-                                {canSend && (
+                                {canSend && needsApproval && isSuperadmin && (
+                                    <Button
+                                        variant="primary"
+                                        onClick={handleApproveAndSend}
+                                    >
+                                        Approve &amp; send
+                                    </Button>
+                                )}
+                                {canSend && needsApproval && !isSuperadmin && (
+                                    <Tooltip content="This broadcast targets all users and needs superadmin approval before it can be sent.">
+                                        <Button variant="primary" disabled>
+                                            Send now
+                                        </Button>
+                                    </Tooltip>
+                                )}
+                                {canSend && !needsApproval && (
                                     <Button
                                         variant="primary"
                                         onClick={() =>
@@ -172,11 +230,20 @@ export default function BroadcastsShow({
                                     Nothing sent yet.
                                 </Text>
                             )}
+                            {openStats.rate !== null && (
+                                <Text as="p" fontWeight="semibold">
+                                    {openStats.rate}% opened (
+                                    {openStats.opened} of {openStats.sent})
+                                </Text>
+                            )}
                             <Text as="p" tone="subdued">
                                 Counts reflect attempted delivery
-                                (sent/failed/skipped). Read receipts and email
-                                opens aren&apos;t tracked — no delivery-receipt
-                                or open-pixel infrastructure exists yet.
+                                (sent/failed/skipped). Email opens are tracked
+                                via a real tracking pixel. Push/banner
+                                &quot;opened&quot; is a best-effort proxy —
+                                the recipient marking the linked in-app
+                                notification as read — not a literal push-tap
+                                event.
                             </Text>
                         </BlockStack>
                     </Card>

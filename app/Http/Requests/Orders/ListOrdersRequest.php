@@ -26,6 +26,7 @@ class ListOrdersRequest extends FormRequest
                 StoreConnection::PLATFORM_EBAY,
                 StoreConnection::PLATFORM_ETSY,
                 StoreConnection::PLATFORM_AMAZON,
+                StoreConnection::PLATFORM_TIKTOK,
             ])],
             'store' => ['sometimes', 'integer'],
             'status' => ['sometimes', 'string', Rule::in([

@@ -7,6 +7,7 @@ use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\Ebay\EbayOrderMapper;
 use App\Support\Connections\Adapters\EbayAdapter;
+use App\Support\Connections\ApiQuotaTracker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -68,6 +69,11 @@ class PollEbayOrdersJob implements ShouldQueue
                 'filter' => "lastmodifieddate:[{$since}..]",
                 'limit' => 50,
             ]);
+
+        // One real outbound call against eBay's ~5k/day/API budget (Plan
+        // §7.3) — see `ApiQuotaTracker`'s own docblock for why this hook
+        // lives here rather than on the adapter.
+        ApiQuotaTracker::recordCall(StoreConnection::PLATFORM_EBAY);
 
         if ($response->status() === 401) {
             $connection->update(['status' => StoreConnection::STATUS_NEEDS_REAUTH]);

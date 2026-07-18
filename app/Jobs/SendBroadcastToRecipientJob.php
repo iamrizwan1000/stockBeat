@@ -19,8 +19,10 @@ use Illuminate\Support\Facades\Mail;
 /**
  * Delivers one broadcast to one recipient on one channel (Plan §8.7.5),
  * recording a real `BroadcastDelivery` row so the admin sees an accurate
- * count — never a fabricated "delivered"/"opened" figure, since no
- * receipt/open-pixel infra exists.
+ * count. The delivery row is created up front (not after sending) so its
+ * id exists before the channel handlers run — the email tracking
+ * pixel/unsubscribe link and the push→notification open-tracking link both
+ * need that id.
  */
 class SendBroadcastToRecipientJob implements ShouldQueue
 {
@@ -41,22 +43,27 @@ class SendBroadcastToRecipientJob implements ShouldQueue
             return;
         }
 
-        $status = match ($this->channel) {
-            Broadcast::CHANNEL_PUSH => $this->sendPush($broadcast, $user, $renderTemplate),
-            Broadcast::CHANNEL_EMAIL => $this->sendEmail($broadcast, $user, $renderTemplate),
-            Broadcast::CHANNEL_BANNER => $this->sendBanner($broadcast, $user, $renderTemplate),
-            default => BroadcastDelivery::STATUS_FAILED,
-        };
-
-        BroadcastDelivery::query()->create([
+        $delivery = BroadcastDelivery::query()->create([
             'broadcast_id' => $broadcast->id,
             'user_id' => $user->id,
             'channel' => $this->channel,
-            'status' => $status,
+            'status' => BroadcastDelivery::STATUS_FAILED,
         ]);
+
+        $status = match ($this->channel) {
+            Broadcast::CHANNEL_PUSH => $this->sendPush($broadcast, $user, $renderTemplate, $delivery),
+            Broadcast::CHANNEL_EMAIL => $this->sendEmail($broadcast, $user, $renderTemplate, $delivery),
+            Broadcast::CHANNEL_BANNER => $this->sendBanner($broadcast, $user, $renderTemplate, $delivery),
+            default => BroadcastDelivery::STATUS_FAILED,
+        };
+
+        // `update()` also persists `notification_id` if a channel handler
+        // set it on the in-memory model without saving (see `sendPush`/
+        // `sendBanner`) — one write instead of two.
+        $delivery->update(['status' => $status]);
     }
 
-    private function sendPush(Broadcast $broadcast, User $user, RenderBroadcastTemplateAction $renderTemplate): string
+    private function sendPush(Broadcast $broadcast, User $user, RenderBroadcastTemplateAction $renderTemplate, BroadcastDelivery $delivery): string
     {
         /** @var SendPushNotificationAction $action */
         $action = app(SendPushNotificationAction::class);
@@ -67,6 +74,11 @@ class SendBroadcastToRecipientJob implements ShouldQueue
             $renderTemplate->handle($broadcast->body, $user),
             ['broadcast_id' => $broadcast->id],
             Notification::TYPE_ADMIN_BROADCAST,
+            true,
+            null,
+            function (Notification $notification) use ($delivery): void {
+                $delivery->notification_id = $notification->id;
+            },
         );
 
         return match ($result) {
@@ -79,19 +91,32 @@ class SendBroadcastToRecipientJob implements ShouldQueue
     }
 
     /**
-     * Broadcast emails are marketing communications by definition — always
-     * gated on `marketing_opt_in` (Plan §8.7.5 "marketing emails honor
-     * unsubscribe"), unlike rule-notification emails which are transactional.
+     * Broadcast emails are marketing communications by definition. Two
+     * independent gates apply, most fundamental first: `marketing_opt_in`
+     * (Plan §8.7.5 "marketing emails honor unsubscribe" — never having
+     * consented at all) and then the personal `email_enabled` preference
+     * (Plan §4.8, previously only enforced for push) — a genuine one-click
+     * unsubscribe link in the email flips this off via
+     * `UpdateNotificationPreferencesAction`, so a future send correctly
+     * reports `skipped_unsubscribed` for that recipient rather than
+     * silently vanishing from the count.
      */
-    private function sendEmail(Broadcast $broadcast, User $user, RenderBroadcastTemplateAction $renderTemplate): string
+    private function sendEmail(Broadcast $broadcast, User $user, RenderBroadcastTemplateAction $renderTemplate, BroadcastDelivery $delivery): string
     {
         if (! $user->marketing_opt_in) {
             return BroadcastDelivery::STATUS_SKIPPED_NO_CONSENT;
         }
 
+        $preference = $user->notificationPreference;
+
+        if ($preference !== null && ! $preference->email_enabled) {
+            return BroadcastDelivery::STATUS_SKIPPED_UNSUBSCRIBED;
+        }
+
         Mail::to($user->email)->queue(new BroadcastMail(
             $renderTemplate->handle($broadcast->title, $user),
             $renderTemplate->handle($broadcast->body, $user),
+            $delivery->id,
         ));
 
         return BroadcastDelivery::STATUS_SENT;
@@ -101,16 +126,20 @@ class SendBroadcastToRecipientJob implements ShouldQueue
      * In-app banner: always logged to the notification center regardless of
      * personal push/email preferences — same rule `SendPushNotificationAction`
      * follows for its own record ("the center is a record of what fired").
+     * Linked to the delivery the same way push is, so marking it read in
+     * the notification center stamps `opened_at` here too.
      */
-    private function sendBanner(Broadcast $broadcast, User $user, RenderBroadcastTemplateAction $renderTemplate): string
+    private function sendBanner(Broadcast $broadcast, User $user, RenderBroadcastTemplateAction $renderTemplate, BroadcastDelivery $delivery): string
     {
-        Notification::query()->create([
+        $notification = Notification::query()->create([
             'user_id' => $user->id,
             'type' => Notification::TYPE_ADMIN_BROADCAST,
             'title' => $renderTemplate->handle($broadcast->title, $user),
             'body' => $renderTemplate->handle($broadcast->body, $user),
             'data' => ['broadcast_id' => $broadcast->id],
         ]);
+
+        $delivery->notification_id = $notification->id;
 
         return BroadcastDelivery::STATUS_SENT;
     }

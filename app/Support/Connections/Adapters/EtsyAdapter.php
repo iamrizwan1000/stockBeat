@@ -4,6 +4,8 @@ namespace App\Support\Connections\Adapters;
 
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
+use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\StoreConnection;
 use App\Models\Team;
@@ -253,6 +255,50 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
     public function cancel(Order $order, ?string $reason): ActionResult
     {
         return ActionResult::failure('Etsy does not support direct order cancellation via API — this must be handled as a seller-initiated request through Etsy\'s own seller dashboard.');
+    }
+
+    /**
+     * Real Etsy Open API v3 conversations request-building (Plan §4.5/§7.4:
+     * "conversations endpoints for messaging (approval-gated)"), gated on a
+     * `conversations_approved` flag in the connection's own `credentials` —
+     * Etsy's commercial-access review covers order/listing scopes, but
+     * conversations sit behind a *separate* approval on top of that with no
+     * API to query status, so this is set manually once Etsy grants it
+     * (there's nothing to poll or auto-detect). Until then, every call
+     * throws `AdapterNotReadyException` rather than hitting an endpoint
+     * that would just 403.
+     *
+     * Unverified against a live Etsy shop, same "confirm the exact
+     * endpoint/payload shape at build time" caveat as `refund()` above —
+     * Etsy doesn't document a single canonical "send a conversation
+     * message" call as clearly as eBay/Shopify do.
+     */
+    public function sendMessage(InboxThread $thread, string $body): ActionResult
+    {
+        $connection = $thread->connection;
+        /** @var array<string, mixed> $credentials */
+        $credentials = $connection->credentials ?? [];
+
+        if (($credentials['conversations_approved'] ?? false) !== true) {
+            throw AdapterNotReadyException::forCapability(StoreConnection::PLATFORM_ETSY, 'buyer conversations/messaging');
+        }
+
+        $shopId = $credentials['shop_id'] ?? null;
+        $receiptId = $thread->order?->external_id;
+
+        if ($receiptId === null) {
+            return ActionResult::failure('This Etsy thread has no linked receipt to message about.');
+        }
+
+        $response = $this->http($connection)->post(self::API_BASE."/shops/{$shopId}/receipts/{$receiptId}/messages", [
+            'message' => $body,
+        ]);
+
+        if ($response->failed()) {
+            return ActionResult::failure('Etsy rejected the message.');
+        }
+
+        return ActionResult::success('Message sent to buyer.');
     }
 
     public function capabilities(): CapabilitySet

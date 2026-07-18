@@ -19,9 +19,11 @@ use Illuminate\Http\Request;
 /**
  * @group Inbox
  *
- * Unified customer inbox (Plan §4.5) — scoped to Shopify/WooCommerce
- * order-linked email threading; eBay/Etsy/Amazon native messaging needs
- * those adapters, which are still stubs.
+ * Unified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)
+ * routes per-thread by channel: Shopify/Woo via order-linked email, eBay via
+ * real Trading API member messages, Etsy the same way but gated behind its
+ * own conversations-API approval, Amazon out of scope until that adapter's
+ * built.
  */
 class ThreadController extends Controller
 {

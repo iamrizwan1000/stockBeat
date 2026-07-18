@@ -5,7 +5,9 @@ namespace App\Support\Connections\Adapters;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Jobs\RuleEvaluationJob;
+use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Rule;
 use App\Models\StoreConnection;
 use App\Models\Team;
@@ -38,8 +40,10 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
     /**
      * `orders/fulfilled` and `refunds/create` are real, distinct Shopify
      * webhook topics — not implied by `orders/updated` (§7.1's own list).
+     * `inventory_levels/update` feeds the `low_stock` trigger (§4.4/§7.1) —
+     * real-time, unlike Woo's `products:poll-woo` poller.
      */
-    private const WEBHOOK_TOPICS = ['orders/create', 'orders/updated', 'orders/cancelled', 'orders/fulfilled', 'refunds/create', 'app/uninstalled'];
+    private const WEBHOOK_TOPICS = ['orders/create', 'orders/updated', 'orders/cancelled', 'orders/fulfilled', 'refunds/create', 'inventory_levels/update', 'app/uninstalled'];
 
     public function __construct(
         private readonly ShopifyOrderMapper $orderMapper,
@@ -158,7 +162,7 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
     }
 
     /**
-     * @return array{type: string, external_id: ?string, order: ?NormalizedOrder}|null
+     * @return array{type: string, external_id: ?string, order: ?NormalizedOrder, inventory_item_id?: ?string, available?: ?int}|null
      */
     public function parseWebhook(StoreConnection $connection, Request $request): ?array
     {
@@ -181,6 +185,20 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             ];
         }
 
+        // Bare `{inventory_item_id, location_id, available}` — no product/SKU
+        // in the payload itself (Plan §7.1's `low_stock` trigger), unlike
+        // every other topic here which carries a full order object.
+        // `syncInventoryLevel()` resolves the rest via the Admin API.
+        if ($topic === 'inventory_levels/update' && isset($payload['inventory_item_id'])) {
+            return [
+                'type' => 'inventory_levels/update',
+                'external_id' => null,
+                'order' => null,
+                'inventory_item_id' => (string) $payload['inventory_item_id'],
+                'available' => isset($payload['available']) ? (int) $payload['available'] : null,
+            ];
+        }
+
         if (in_array($topic, ['orders/create', 'orders/updated', 'orders/cancelled', 'orders/fulfilled'], true) && isset($payload['id'])) {
             return [
                 'type' => $topic,
@@ -190,6 +208,57 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         }
 
         return null;
+    }
+
+    /**
+     * Resolves the variant + parent product behind an
+     * `inventory_levels/update` webhook's bare `inventory_item_id` (Plan
+     * §7.1) into the same shape `PollWooProductsJob` writes to `products` —
+     * so `CheckLowStockAction`/the `low_stock` trigger needs no
+     * Shopify-specific branch at all, Woo's poll and Shopify's webhook feed
+     * the identical pipeline. Two REST calls (variant lookup by inventory
+     * item, then its parent product's title) — same "a few sequential
+     * calls per event" shape as `fulfill()`/`refund()` above; assumes a
+     * single default location like `fulfill()` does.
+     */
+    public function syncInventoryLevel(StoreConnection $connection, string $inventoryItemId, ?int $available): ?Product
+    {
+        $variantResponse = $this->http($connection)->get('/variants.json', [
+            'inventory_item_ids' => $inventoryItemId,
+        ]);
+
+        if ($variantResponse->failed()) {
+            return null;
+        }
+
+        /** @var array<int, array<string, mixed>> $variants */
+        $variants = (array) $variantResponse->json('variants', []);
+        $variant = $variants[0] ?? null;
+
+        if ($variant === null || ! isset($variant['id'])) {
+            return null;
+        }
+
+        $title = (string) ($variant['title'] ?? '');
+        $productId = $variant['product_id'] ?? null;
+
+        if ($productId !== null) {
+            $productResponse = $this->http($connection)->get("/products/{$productId}.json", ['fields' => 'title']);
+
+            if ($productResponse->successful()) {
+                $title = (string) ($productResponse->json('product.title') ?? $title);
+            }
+        }
+
+        return Product::query()->updateOrCreate(
+            ['connection_id' => $connection->id, 'external_id' => (string) $variant['id']],
+            [
+                'team_id' => $connection->team_id,
+                'sku' => $variant['sku'] ?? null,
+                'title' => $title !== '' ? $title : 'Unknown product',
+                'stock_quantity' => $available,
+            ],
+        );
     }
 
     /**
@@ -335,6 +404,18 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             inventoryUpdate: true,
             reviewsFeedback: true,
         );
+    }
+
+    /**
+     * Shopify has no native chat/messaging API (Plan §7.1/§7.7,
+     * `capabilities()->messagingMode === 'email'`) — `SendInboxMessageAction`
+     * never reaches this method for a Shopify thread, it always uses its own
+     * email path instead. Reachable only if that routing check were
+     * bypassed.
+     */
+    public function sendMessage(InboxThread $thread, string $body): ActionResult
+    {
+        throw new LogicException('ShopifyAdapter is email-only for messaging (Plan §7.7) — use SendInboxMessageAction\'s email path instead of ChannelAdapter::sendMessage().');
     }
 
     private function http(StoreConnection $connection): PendingRequest

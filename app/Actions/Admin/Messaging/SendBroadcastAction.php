@@ -12,11 +12,11 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Resolves the audience and dispatches one queued job per (recipient,
- * channel) — Plan §8.7.5. Guardrail: only a superadmin may send to
- * `audience_type=all` ("superadmin approval required for all-users sends");
- * enforced here as a role check at send time rather than a separate
- * approve/pending workflow — simpler, and the act of a superadmin sending
- * *is* the approval, recorded via `approved_by`.
+ * channel) — Plan §8.7.5. Guardrail: an `audience_type=all` send is refused
+ * until `approved_by`/`approved_at` are already set — via a superadmin's
+ * separate `POST .../approve` call (`ApproveBroadcastAction`), never as a
+ * side effect of this action. Segmented and single-user sends carry no
+ * such risk and bypass the gate entirely.
  */
 class SendBroadcastAction
 {
@@ -31,15 +31,14 @@ class SendBroadcastAction
             throw ValidationException::withMessages(['broadcast' => 'This broadcast has already been sent.']);
         }
 
-        if ($broadcast->audience_type === Broadcast::AUDIENCE_ALL && $admin->role !== AdminUser::ROLE_SUPERADMIN) {
-            throw ValidationException::withMessages(['broadcast' => 'Only a superadmin can send to all users.']);
+        if ($broadcast->audience_type === Broadcast::AUDIENCE_ALL && $broadcast->approved_by === null) {
+            throw ValidationException::withMessages(['broadcast' => 'This broadcast targets all users and needs superadmin approval before it can be sent.']);
         }
 
         $recipients = $this->resolveRecipients($broadcast);
 
         $broadcast->update([
             'status' => Broadcast::STATUS_SENDING,
-            'approved_by' => $broadcast->audience_type === Broadcast::AUDIENCE_ALL ? $admin->id : null,
             'stats' => ['recipients_total' => $recipients->count(), 'channels' => $broadcast->channels],
         ]);
 

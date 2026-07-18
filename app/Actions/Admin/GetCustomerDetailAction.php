@@ -6,19 +6,28 @@ use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Models\Device;
 use App\Models\Notification;
 use App\Models\SmsLedger;
+use App\Models\SubscriptionEvent;
 use App\Models\Team;
 use App\Models\User;
 
 /**
- * Plan §8.7.2 customer detail page. Payment/LTV is omitted — subscriptions
- * only track current state, not a RevenueCat event timeline (that's the IAP
- * webhook module). Support-chat history is surfaced separately, from the
- * Support Inbox (§8.7.6), rather than duplicated into this payload.
+ * Plan §8.7.2 customer detail page. Subscription timeline, LTV, and
+ * trial-abuse/high-SMS-cost flags (added in the same pass this docblock note
+ * was updated) come from `subscription_events`, `ComputeCustomerLtvAction`,
+ * and `DetectAccountAbuseSignalsAction` respectively — see those classes for
+ * the honest gaps in each (not every RevenueCat event carries a price; abuse
+ * flags are best-effort signals, not proof). Support-chat history is
+ * surfaced separately, from the Support Inbox (§8.7.6), rather than
+ * duplicated into this payload.
  */
 class GetCustomerDetailAction
 {
+    private const SUBSCRIPTION_TIMELINE_LIMIT = 50;
+
     public function __construct(
         private readonly ResolveEntitlementsAction $resolveEntitlements,
+        private readonly ComputeCustomerLtvAction $computeLtv,
+        private readonly DetectAccountAbuseSignalsAction $detectAbuseSignals,
     ) {}
 
     /**
@@ -93,6 +102,22 @@ class GetCustomerDetailAction
                 'sms' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_SMS)->count(),
             ],
             'funnel_position' => $this->funnelPosition($user, $team),
+            'subscription_timeline' => $team === null ? [] : SubscriptionEvent::query()
+                ->where('team_id', $team->id)
+                ->orderByDesc('occurred_at')
+                ->limit(self::SUBSCRIPTION_TIMELINE_LIMIT)
+                ->get()
+                ->map(fn (SubscriptionEvent $event) => [
+                    'id' => $event->id,
+                    'event_type' => $event->event_type,
+                    'price' => $event->price,
+                    'currency' => $event->currency,
+                    'occurred_at' => $event->occurred_at,
+                ])->all(),
+            'ltv' => $team === null ? null : $this->computeLtv->handle($team),
+            'abuse_flags' => $team === null
+                ? ['trial_abuse_suspected' => false, 'high_sms_cost' => false]
+                : $this->detectAbuseSignals->handle($team),
         ];
     }
 

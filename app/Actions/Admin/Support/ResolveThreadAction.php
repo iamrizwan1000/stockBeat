@@ -16,7 +16,7 @@ class ResolveThreadAction
     {
         $before = ['status' => $thread->status];
 
-        $thread->update(['status' => SupportThread::STATUS_RESOLVED]);
+        $thread->update(['status' => SupportThread::STATUS_RESOLVED, 'resolved_at' => now()]);
 
         $this->auditLog->handle($admin, 'support.resolve', SupportThread::class, $thread->id, $before, [
             'status' => $thread->status,

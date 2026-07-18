@@ -4,6 +4,7 @@ namespace App\Actions\Orders;
 
 use App\Actions\Billing\ConvertToBaseCurrencyAction;
 use App\Jobs\RuleEvaluationJob;
+use App\Jobs\SendFreeTierNewOrderAlertJob;
 use App\Models\Order;
 use App\Models\OrderEvent;
 use App\Models\OrderItem;
@@ -21,7 +22,9 @@ use Illuminate\Support\Facades\DB;
  * later changes write `updated` — this is what stops a downstream rules
  * engine from ever re-firing "new order" on an edit (§17.3). A genuinely
  * new order also dispatches the `new_order`/`high_value_order`/
- * `order_spike` rule evaluation (Plan §8.4) once the transaction commits.
+ * `order_spike` rule evaluation (Plan §8.4) once the transaction commits,
+ * plus the independent Free-tier "new order push" preset (Plan §4.4/§4.11,
+ * `SendFreeTierNewOrderAlertJob`) — a no-op for every paid plan.
  */
 class IngestOrderAction
 {
@@ -51,6 +54,7 @@ class IngestOrderAction
                     'total_base_currency' => $this->resolveBaseCurrencyTotal($connection, $normalized),
                     'customer_name' => $normalized->customerName,
                     'customer_email' => $normalized->customerEmail,
+                    'buyer_username' => $normalized->buyerUsername,
                     'shipping_address' => $normalized->shippingAddress,
                     'placed_at' => $normalized->placedAt,
                     'ship_by_at' => $normalized->shipByAt,
@@ -67,6 +71,7 @@ class IngestOrderAction
                 OrderItem::query()->create([
                     'order_id' => $order->id,
                     'external_id' => $item->externalId,
+                    'legacy_item_id' => $item->legacyItemId,
                     'sku' => $item->sku,
                     'title' => $item->title,
                     'image_url' => $item->imageUrl,
@@ -85,6 +90,7 @@ class IngestOrderAction
                 RuleEvaluationJob::dispatch($order->id, Rule::TRIGGER_NEW_ORDER)->afterCommit();
                 RuleEvaluationJob::dispatch($order->id, Rule::TRIGGER_HIGH_VALUE_ORDER)->afterCommit();
                 RuleEvaluationJob::dispatch($order->id, Rule::TRIGGER_ORDER_SPIKE)->afterCommit();
+                SendFreeTierNewOrderAlertJob::dispatch($order->id)->afterCommit();
             } else {
                 $this->dispatchStatusTransitionTriggers($order, $existing);
             }

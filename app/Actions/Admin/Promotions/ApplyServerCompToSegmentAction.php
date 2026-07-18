@@ -8,6 +8,7 @@ use App\Actions\Admin\GrantComplimentaryProAction;
 use App\Actions\Admin\Messaging\ResolveSegmentAudienceAction;
 use App\Models\AdminUser;
 use App\Models\PromoCampaign;
+use App\Models\PromoCampaignRedemption;
 use App\Models\Segment;
 use Illuminate\Validation\ValidationException;
 
@@ -17,6 +18,11 @@ use Illuminate\Validation\ValidationException;
  * extension or a bonus SMS credit top-up, per the campaign's `config`.
  * Applying to "everyone" (no segment) requires a superadmin — same
  * guardrail as `SendBroadcastAction`'s all-users send.
+ *
+ * Also stamps a `PromoCampaignRedemption` row per team (updating
+ * `redeemed_at` if the team already redeemed this campaign before) — the
+ * concrete "this team was targeted by this campaign" linkage
+ * `ComputeCampaignStatsAction` reads to turn `stats` into real numbers.
  */
 class ApplyServerCompToSegmentAction
 {
@@ -55,6 +61,11 @@ class ApplyServerCompToSegmentAction
             } else {
                 $this->grantSmsCredits->handle($admin, $team, $amount);
             }
+
+            PromoCampaignRedemption::query()->updateOrCreate(
+                ['promo_campaign_id' => $campaign->id, 'team_id' => $team->id],
+                ['redeemed_at' => now()],
+            );
         }
 
         $applications = $campaign->stats['applications'] ?? [];

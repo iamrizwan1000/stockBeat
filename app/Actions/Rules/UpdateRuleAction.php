@@ -35,7 +35,7 @@ class UpdateRuleAction
         }
 
         $rule->fill(array_intersect_key($data, array_flip([
-            'name', 'trigger', 'conditions', 'actions', 'controls', 'enabled',
+            'name', 'trigger', 'conditions', 'actions', 'sound', 'controls', 'enabled',
         ])));
         $rule->save();
 

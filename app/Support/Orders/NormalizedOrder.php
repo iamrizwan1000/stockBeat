@@ -33,5 +33,13 @@ final readonly class NormalizedOrder
         public array $raw,
         public bool $isTest,
         public array $items,
+        /**
+         * eBay's login handle for the buyer (Plan §7.3) — distinct from
+         * `customerName` (a real name, when the platform exposes one) and
+         * needed as the recipient identity for Trading API member messages
+         * (`EbayAdapter::sendMessage()`). Always null for every other
+         * platform.
+         */
+        public ?string $buyerUsername = null,
     ) {}
 }

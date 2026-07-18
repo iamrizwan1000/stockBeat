@@ -33,7 +33,7 @@ class SendOrderPushWithStormProtectionAction
         private readonly SendPushNotificationAction $sendPush,
     ) {}
 
-    public function handle(User $user, Order $order, string $title, string $body): string
+    public function handle(User $user, Order $order, string $title, string $body, ?string $sound = null): string
     {
         $orderTotal = (float) ($order->total_base_currency ?? $order->total);
         $data = ['order_id' => (string) $order->id];
@@ -54,7 +54,7 @@ class SendOrderPushWithStormProtectionAction
                 'bundle_sent_at' => null,
             ])->save();
 
-            return $this->sendPush->handle($user, $title, $body, $data);
+            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound);
         }
 
         $window->order_count++;
@@ -63,7 +63,7 @@ class SendOrderPushWithStormProtectionAction
         if ($window->order_count <= self::THRESHOLD) {
             $window->save();
 
-            return $this->sendPush->handle($user, $title, $body, $data);
+            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound);
         }
 
         // Log this order to the in-app center, but never fan out its own
@@ -81,6 +81,6 @@ class SendOrderPushWithStormProtectionAction
 
         $summary = "{$window->order_count} new orders in the last ".self::WINDOW_MINUTES.' min · $'.number_format((float) $window->revenue_total, 2);
 
-        return $this->sendPush->handle($user, 'Order storm', $summary, ['storm' => 'true']);
+        return $this->sendPush->handle($user, 'Order storm', $summary, ['storm' => 'true'], sound: $sound);
     }
 }

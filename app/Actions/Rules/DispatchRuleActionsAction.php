@@ -47,17 +47,17 @@ class DispatchRuleActionsAction
         $body = $order !== null ? $this->describeOrder($order) : $this->describeRuleWithoutOrder($rule, $context);
 
         return collect($actions)
-            ->map(function (array $action) use ($team, $creator, $title, $body, $order) {
+            ->map(function (array $action) use ($team, $creator, $title, $body, $order, $rule) {
                 $type = $action['type'] ?? 'unknown';
 
                 $status = match ($type) {
                     'push' => $order !== null
-                        ? $this->sendOrderPush->handle($creator, $order, $title, $body)
-                        : $this->sendPush->handle($creator, $title, $body),
+                        ? $this->sendOrderPush->handle($creator, $order, $title, $body, $rule->sound)
+                        : $this->sendPush->handle($creator, $title, $body, sound: $rule->sound),
                     'email' => $this->sendEmail->handle($team, $creator, $title, $body),
                     'sms' => $this->sendSms->handle($team, $creator, $body),
                     'notify_member' => isset($action['user_id'])
-                        ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body)
+                        ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body, $rule->sound)
                         : 'missing_user_id',
                     'auto_tag' => $order !== null && isset($action['tag'])
                         ? $this->autoTag->handle($order, (string) $action['tag'])

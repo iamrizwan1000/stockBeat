@@ -15,7 +15,7 @@ test('guests are redirected to the login screen', function () {
 });
 
 test('admins can authenticate with valid credentials', function () {
-    $admin = AdminUser::factory()->create();
+    $admin = AdminUser::factory()->unconfirmedTwoFactor()->create();
 
     $response = $this->post('/admin/login', [
         'email' => $admin->email,

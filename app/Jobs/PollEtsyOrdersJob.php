@@ -7,6 +7,7 @@ use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\Etsy\EtsyOrderMapper;
 use App\Support\Connections\Adapters\EtsyAdapter;
+use App\Support\Connections\ApiQuotaTracker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -64,6 +65,11 @@ class PollEtsyOrdersJob implements ShouldQueue
                 'min_last_modified' => $minLastModified,
                 'limit' => 100,
             ]);
+
+        // One real outbound call against Etsy's 10k requests/day budget
+        // (Plan §7.4) — see `ApiQuotaTracker`'s own docblock for why this
+        // hook lives here rather than on the adapter.
+        ApiQuotaTracker::recordCall(StoreConnection::PLATFORM_ETSY);
 
         if ($response->status() === 401) {
             $connection->update(['status' => StoreConnection::STATUS_NEEDS_REAUTH]);

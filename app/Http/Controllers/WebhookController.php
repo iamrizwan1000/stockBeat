@@ -8,6 +8,7 @@ use App\Actions\Inbox\ParseInboundEmailTokenAction;
 use App\Actions\Inbox\ReceiveInboxReplyAction;
 use App\Actions\Support\ReceiveInboundEmailReplyAction;
 use App\Jobs\ProcessShopifyWebhookJob;
+use App\Jobs\ProcessTikTokWebhookJob;
 use App\Jobs\ProcessWooWebhookJob;
 use App\Models\InboxThread;
 use App\Models\RevenueCatEvent;
@@ -66,6 +67,32 @@ class WebhookController extends Controller
         }
 
         ProcessShopifyWebhookJob::dispatch($connection->id, $parsed)->onQueue('ingest');
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * TikTok Shop order-status-change webhooks (Plan §7.6) — see
+     * `TikTokAdapter::parseWebhook()`'s own docblock for why the payload is
+     * a thin notification rather than a full order object.
+     */
+    public function tiktok(
+        Request $request,
+        StoreConnection $connection,
+        ChannelAdapterManager $adapters,
+    ): JsonResponse {
+        if ($connection->platform !== StoreConnection::PLATFORM_TIKTOK) {
+            return response()->json(['error' => 'not found'], 404);
+        }
+
+        $adapter = $adapters->driver(StoreConnection::PLATFORM_TIKTOK);
+        $parsed = $adapter->parseWebhook($connection, $request);
+
+        if ($parsed === null) {
+            return response()->json(['error' => 'invalid signature'], 401);
+        }
+
+        ProcessTikTokWebhookJob::dispatch($connection->id, $parsed)->onQueue('ingest');
 
         return response()->json(['status' => 'ok']);
     }

@@ -2,8 +2,10 @@
 
 use App\Models\SmsLedger;
 use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
+use Database\Seeders\SmsTopupPackSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -12,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
+    $this->seed(SmsTopupPackSeeder::class);
     config(['services.revenuecat.webhook_secret' => 'test-secret']);
 });
 
@@ -162,4 +165,71 @@ test('an unrecognized product_id is a no-op, not a silent Pro grant', function (
     postRevenueCatEvent(revenueCatEvent($user->id, ['product_id' => 'some_future_sku']))->assertOk();
 
     expect($user->ownedTeam->subscription->fresh()->status)->toBe(Subscription::STATUS_TRIAL);
+});
+
+test('an INITIAL_PURCHASE with price data is appended to the subscription_events timeline', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, [
+        'type' => 'INITIAL_PURCHASE',
+        'product_id' => 'pro_monthly',
+        'price_in_purchased_currency' => 9.99,
+        'currency' => 'USD',
+    ]))->assertOk();
+
+    $event = SubscriptionEvent::query()->where('team_id', $user->ownedTeam->id)->first();
+    expect($event)->not->toBeNull();
+    expect($event->event_type)->toBe('INITIAL_PURCHASE');
+    expect($event->price)->toBe(9.99);
+    expect($event->currency)->toBe('USD');
+});
+
+test('a CANCELLATION with no price data is still logged to the timeline with a null price', function () {
+    $user = onboardedRevenueCatUser();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE']))->assertOk();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'CANCELLATION']))->assertOk();
+
+    $cancellation = SubscriptionEvent::query()
+        ->where('team_id', $user->ownedTeam->id)
+        ->where('event_type', 'CANCELLATION')
+        ->first();
+
+    expect($cancellation)->not->toBeNull();
+    expect($cancellation->price)->toBeNull();
+    expect($cancellation->currency)->toBeNull();
+});
+
+test('a NON_RENEWING_PURCHASE SMS top-up is also appended to the subscription_events timeline', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, [
+        'type' => 'NON_RENEWING_PURCHASE',
+        'product_id' => 'sms_100',
+        'price' => 4.99,
+    ]))->assertOk();
+
+    $event = SubscriptionEvent::query()->where('team_id', $user->ownedTeam->id)->first();
+    expect($event)->not->toBeNull();
+    expect($event->event_type)->toBe('NON_RENEWING_PURCHASE');
+    expect($event->price)->toBe(4.99);
+    expect($event->currency)->toBe('USD');
+});
+
+test('an unrecognized product_id event is not appended to the subscription_events timeline', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, ['product_id' => 'some_future_sku']))->assertOk();
+
+    expect(SubscriptionEvent::query()->where('team_id', $user->ownedTeam->id)->count())->toBe(0);
+});
+
+test('a duplicate event id does not double-append to the subscription_events timeline', function () {
+    $user = onboardedRevenueCatUser();
+    $event = revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE']);
+
+    postRevenueCatEvent($event)->assertOk();
+    postRevenueCatEvent($event)->assertOk()->assertJsonPath('status', 'duplicate');
+
+    expect(SubscriptionEvent::query()->where('team_id', $user->ownedTeam->id)->count())->toBe(1);
 });

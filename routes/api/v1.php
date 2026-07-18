@@ -55,6 +55,7 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
             StoreConnection::PLATFORM_EBAY,
             StoreConnection::PLATFORM_ETSY,
             StoreConnection::PLATFORM_AMAZON,
+            StoreConnection::PLATFORM_TIKTOK,
         ])
         ->middleware('team.role:owner,manager')
         ->name('connections.start');

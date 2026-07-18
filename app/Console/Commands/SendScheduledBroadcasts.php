@@ -10,9 +10,11 @@ use Illuminate\Validation\ValidationException;
 /**
  * Dispatches due scheduled broadcasts (Plan §8.7.5 "schedule for later").
  * Acts as the broadcast's own creator for the audit trail — there's no
- * human in the loop at cron time, and `CreateBroadcastAction` already
- * refused to schedule an all-audience broadcast for anyone but a
- * superadmin, so this can never be unexpectedly blocked here.
+ * human in the loop at cron time. An all-audience broadcast whose
+ * `approved_by` hasn't been stamped by a superadmin yet (`SendBroadcastAction`'s
+ * approval gate) is expected to fail here — caught and logged per-broadcast
+ * below — and stays `scheduled` until a superadmin approves it and this
+ * command next runs.
  */
 class SendScheduledBroadcasts extends Command
 {

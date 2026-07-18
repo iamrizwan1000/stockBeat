@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property float|null $total_base_currency
  * @property string|null $customer_name
  * @property string|null $customer_email
+ * @property string|null $buyer_username
  * @property array<string, mixed>|null $shipping_address
  * @property Carbon $placed_at
  * @property Carbon|null $ship_by_at
@@ -41,7 +42,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'team_id', 'connection_id', 'platform', 'external_id', 'order_number',
     'status', 'fulfillment_status', 'payment_status', 'currency', 'total',
-    'total_base_currency', 'customer_name', 'customer_email', 'shipping_address',
+    'total_base_currency', 'customer_name', 'customer_email', 'buyer_username', 'shipping_address',
     'placed_at', 'ship_by_at', 'tracking_number', 'carrier', 'check_at', 'tags',
     'raw', 'is_test', 'snoozed_until',
 ])]

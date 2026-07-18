@@ -30,6 +30,7 @@ class StoreRuleRequest extends FormRequest
             ])],
             'actions.*.tag' => ['required_if:actions.*.type,auto_tag', 'string', 'max:50'],
             'actions.*.user_id' => ['required_if:actions.*.type,notify_member', 'integer'],
+            'sound' => ['sometimes', 'nullable', 'string', ValidationRule::in(Rule::sounds())],
             'controls' => ['sometimes', 'array'],
             'controls.cooldown_minutes' => ['sometimes', 'integer', 'min:0'],
             'controls.quiet_hours.start' => ['sometimes', 'date_format:H:i'],

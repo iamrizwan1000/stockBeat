@@ -50,6 +50,7 @@ class CreateRuleAction
             'trigger' => $data['trigger'],
             'conditions' => $data['conditions'] ?? null,
             'actions' => $data['actions'],
+            'sound' => $data['sound'] ?? null,
             'controls' => $data['controls'] ?? null,
             'enabled' => $data['enabled'] ?? true,
             'created_by' => $creator->id,

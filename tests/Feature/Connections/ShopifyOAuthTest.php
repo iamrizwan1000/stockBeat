@@ -87,6 +87,7 @@ test('a valid callback completes the connection and registers webhooks', functio
     expect($connection->fingerprint)->not->toBeNull();
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'orders/create');
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'inventory_levels/update');
 });
 
 test('a callback with an invalid hmac is rejected and no connection is created', function () {

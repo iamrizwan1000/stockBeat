@@ -8,6 +8,8 @@ use App\Models\User;
 use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Exception\MessagingException;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
 
@@ -23,6 +25,21 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  * `SendOrderPushWithStormProtectionAction` (Plan §17.4 notification-storm
  * bundling) to still log an in-app record per order without fanning out an
  * individual ping once a burst has crossed into "bundle mode".
+ *
+ * `$sound` is a rule's configured custom sound key (Plan §4.4: "custom
+ * sound option — the 'cha-ching'", see `Rule::sounds()`) — when given, it's
+ * set on both the iOS (`apns.payload.aps.sound`) and Android
+ * (`android.notification.sound`) portions of the FCM payload so the same
+ * key resolves to a bundled sound file on whichever platform the device
+ * is. `null` (the default) leaves the payload untouched — the device/app's
+ * own default notification sound plays, same as before this existed.
+ *
+ * `$onNotificationCreated`, when given, is invoked with the freshly created
+ * `Notification` row right after it's persisted — used by
+ * `SendBroadcastToRecipientJob` to link a `BroadcastDelivery` to it
+ * (`notification_id`) so a later "mark read" on that notification can stamp
+ * the delivery's `opened_at` (Plan §8.7.5 open/read tracking). Optional and
+ * appended last so every existing caller is unaffected.
  */
 class SendPushNotificationAction
 {
@@ -33,15 +50,19 @@ class SendPushNotificationAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true): string
+    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null): string
     {
-        Notification::query()->create([
+        $notification = Notification::query()->create([
             'user_id' => $user->id,
             'type' => $type,
             'title' => $title,
             'body' => $body,
             'data' => $data,
         ]);
+
+        if ($onNotificationCreated !== null) {
+            $onNotificationCreated($notification);
+        }
 
         if (! $deliver) {
             return 'bundled_suppressed';
@@ -87,6 +108,12 @@ class SendPushNotificationAction
                 ->withToken($device->push_token)
                 ->withNotification(FirebaseNotification::create($title, $body))
                 ->withData($stringData);
+
+            if ($sound !== null && $sound !== '') {
+                $message = $message
+                    ->withApnsConfig(ApnsConfig::new()->withSound($sound))
+                    ->withAndroidConfig(AndroidConfig::new()->withSound($sound));
+            }
 
             try {
                 $this->messaging->send($message);

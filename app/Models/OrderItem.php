@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $order_id
  * @property string|null $external_id
+ * @property string|null $legacy_item_id
  * @property string|null $sku
  * @property string $title
  * @property string|null $image_url
@@ -21,7 +22,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['order_id', 'external_id', 'sku', 'title', 'image_url', 'qty', 'price'])]
+#[Fillable(['order_id', 'external_id', 'legacy_item_id', 'sku', 'title', 'image_url', 'qty', 'price'])]
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */

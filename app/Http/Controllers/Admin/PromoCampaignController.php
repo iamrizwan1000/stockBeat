@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Admin\Promotions\ApplyServerCompToSegmentAction;
+use App\Actions\Admin\Promotions\ComputeCampaignStatsAction;
 use App\Actions\Admin\Promotions\CreatePromoCampaignAction;
 use App\Actions\Admin\Promotions\DeletePromoCampaignAction;
 use App\Actions\Admin\Promotions\UpdatePromoCampaignAction;
@@ -32,6 +33,14 @@ class PromoCampaignController extends Controller
         return Inertia::render('admin/promotions/index', [
             'campaigns' => $campaigns,
             'segments' => $segments,
+        ]);
+    }
+
+    public function show(PromoCampaign $promoCampaign, ComputeCampaignStatsAction $action): Response
+    {
+        return Inertia::render('admin/promotions/show', [
+            'campaign' => $this->summarize($promoCampaign->load('createdBy')),
+            'computed_stats' => $action->handle($promoCampaign),
         ]);
     }
 

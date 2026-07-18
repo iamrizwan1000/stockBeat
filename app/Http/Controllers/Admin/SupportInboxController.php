@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Admin\GetCustomerDetailAction;
 use App\Actions\Admin\Support\AddSupportNoteAction;
 use App\Actions\Admin\Support\AssignThreadAction;
+use App\Actions\Admin\Support\ComputeSupportSlaMetricsAction;
 use App\Actions\Admin\Support\ResolveThreadAction;
 use App\Actions\Admin\Support\SendStaffReplyAction;
 use App\Http\Controllers\Controller;
@@ -14,12 +15,13 @@ use App\Models\CannedReply;
 use App\Models\SupportThread;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SupportInboxController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, ComputeSupportSlaMetricsAction $computeSlaMetrics): Response
     {
         $status = $request->string('status')->toString() ?: null;
 
@@ -40,9 +42,14 @@ class SupportInboxController extends Controller
                 'csat' => $thread->csat,
             ]);
 
+        $slaFrom = $request->filled('sla_from') ? Carbon::parse($request->string('sla_from')->toString()) : null;
+        $slaTo = $request->filled('sla_to') ? Carbon::parse($request->string('sla_to')->toString()) : null;
+
         return Inertia::render('admin/support/index', [
             'threads' => $threads,
             'filters' => ['status' => $status, 'unassigned' => $request->boolean('unassigned')],
+            'sla' => $computeSlaMetrics->handle($slaFrom, $slaTo),
+            'sla_filters' => ['from' => $slaFrom?->toDateString(), 'to' => $slaTo?->toDateString()],
         ]);
     }
 

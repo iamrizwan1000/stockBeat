@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Badge,
     BlockStack,
@@ -287,9 +287,11 @@ export default function PromotionsIndex({
             position={index}
         >
             <IndexTable.Cell>
-                <Text as="span" fontWeight="semibold">
-                    {campaign.name}
-                </Text>
+                <Link href={`/admin/promotions/${campaign.id}`}>
+                    <Text as="span" fontWeight="semibold">
+                        {campaign.name}
+                    </Text>
+                </Link>
             </IndexTable.Cell>
             <IndexTable.Cell>
                 {TYPE_OPTIONS.find((o) => o.value === campaign.type)?.label ??

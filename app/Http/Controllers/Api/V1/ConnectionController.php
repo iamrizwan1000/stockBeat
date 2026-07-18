@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
 /**
  * @group Connections
  *
- * Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).
+ * Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
  * Only WooCommerce is fully live end-to-end today — the others accept a connection
  * record but adapter operations are not yet available.
  */
@@ -35,7 +35,7 @@ class ConnectionController extends Controller
      * `authorization_url` to open in an in-app browser; the connection itself is created once
      * the merchant approves and the platform redirects back to our callback.
      *
-     * @urlParam platform string required One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`. Example: woo
+     * @urlParam platform string required One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`, `tiktok`. Example: woo
      *
      * @response 201 scenario="woo — connects immediately" {
      *   "success": true,

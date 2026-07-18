@@ -2,6 +2,7 @@
 
 namespace App\Contracts;
 
+use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\StoreConnection;
 use App\Support\Connections\ActionResult;
@@ -16,10 +17,11 @@ use Illuminate\Http\Request;
  * unified while honoring per-platform limits, and a new channel is a new
  * adapter with zero core changes.
  *
- * The full §8.3 contract also defines fetchOrders/sendMessage — still
- * deferred until the Inbox module exists to type-hint against (Thread
- * isn't built yet). Adding them later is additive, not a rework of what's
- * below.
+ * The full §8.3 contract also defines fetchOrders — still deferred (no
+ * caller type-hints against it yet; every adapter currently gets its orders
+ * via its own polling job/webhook parser instead of a shared entry point).
+ * `sendMessage` below is no longer deferred now that the Inbox module
+ * exists.
  */
 interface ChannelAdapter
 {
@@ -58,6 +60,24 @@ interface ChannelAdapter
      * Cancels the order on the platform, per `capabilities()->cancel`.
      */
     public function cancel(Order $order, ?string $reason): ActionResult;
+
+    /**
+     * Sends an outbound reply on the thread's native channel, per
+     * `capabilities()->messagingMode` (Plan §4.5/§7.8):
+     *  - `'full'` (eBay): a real Trading API member message.
+     *  - `'approval_gated'` (Etsy): real request-building, but throws
+     *    `AdapterNotReadyException` until the connection's conversations
+     *    approval is granted.
+     *  - `'email'` (Shopify/Woo): not implemented here — these platforms
+     *    have no native chat API, so `SendInboxMessageAction` handles them
+     *    entirely through its own email path and never reaches this method;
+     *    both adapters throw if called directly.
+     *  - `'template'` (Amazon): the rest of `AmazonAdapter` is real and
+     *    config-gated like every other adapter, but its Messaging API
+     *    request-building is a deliberate deferral (a separate task) —
+     *    always throws `AdapterNotReadyException` regardless of config.
+     */
+    public function sendMessage(InboxThread $thread, string $body): ActionResult;
 
     public function capabilities(): CapabilitySet;
 }

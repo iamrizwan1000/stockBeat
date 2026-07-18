@@ -13,10 +13,17 @@ use Illuminate\Support\Carbon;
 /**
  * Admin → user messaging campaign (Plan §8.7.5): compose to all/a segment/a
  * single user, across push/email/banner channels. Real delivery outcomes
- * (sent/failed/skipped) live in `broadcast_deliveries`, not a mutable
+ * (sent/failed/skipped/opened) live in `broadcast_deliveries`, not a mutable
  * `stats` counter here — `stats` only ever holds a point-in-time dispatch
- * summary (recipient count found at send time), never fabricated
- * delivered/opened figures (no receipt/open-pixel infra exists yet).
+ * summary (recipient count found at send time), never the live
+ * delivered/opened figures (those are always read live from
+ * `broadcast_deliveries`, see `BroadcastController::show()`).
+ *
+ * `approved_by`/`approved_at` are the real send-approval gate (Plan §8.7.5
+ * "superadmin approval required for all-users sends"): set only by
+ * `ApproveBroadcastAction` via a superadmin hitting `POST .../approve`,
+ * never as a side effect of sending — `SendBroadcastAction` refuses an
+ * `audience_type=all` send until both are populated.
  *
  * @property int $id
  * @property string $audience_type
@@ -32,10 +39,11 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $stats
  * @property int $created_by
  * @property int|null $approved_by
+ * @property Carbon|null $approved_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['audience_type', 'segment_id', 'user_id', 'channels', 'title', 'body', 'template_vars', 'status', 'scheduled_at', 'sent_at', 'stats', 'created_by', 'approved_by'])]
+#[Fillable(['audience_type', 'segment_id', 'user_id', 'channels', 'title', 'body', 'template_vars', 'status', 'scheduled_at', 'sent_at', 'stats', 'created_by', 'approved_by', 'approved_at'])]
 class Broadcast extends Model
 {
     /** @use HasFactory<BroadcastFactory> */
@@ -74,6 +82,7 @@ class Broadcast extends Model
             'stats' => 'array',
             'scheduled_at' => 'datetime',
             'sent_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 

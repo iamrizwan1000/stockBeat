@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\GetActiveSmsTopupPacksAction;
 use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Actions\Content\GetActiveContentBlocksAction;
+use App\Actions\FeatureFlags\GetFeatureFlagsForTeamAction;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Http\Responses\ApiResponse;
@@ -19,9 +22,10 @@ class MeController extends Controller
     /**
      * Get the current user.
      *
-     * Combines profile, current team/role, plan entitlements, and SMS credit balance —
-     * the client's single call after launch/login. `needs_profile_setup` is true until
-     * `/profile/setup` has been completed.
+     * Combines profile, current team/role, plan entitlements, SMS credit balance,
+     * resolved feature flags, the active SMS top-up pack catalog, and active
+     * paywall/content copy blocks — the client's single call after launch/login.
+     * `needs_profile_setup` is true until `/profile/setup` has been completed.
      *
      * @response 200 scenario="profile setup complete" {
      *   "success": true,
@@ -38,6 +42,9 @@ class MeController extends Controller
      *     },
      *     "team": { "id": 1, "name": "Rivera Vintage Co", "role": "owner" },
      *     "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42 },
+     *     "feature_flags": { "new_rules_ui": true },
+     *     "sms_topup_packs": [ { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" } ],
+     *     "content": { "paywall_pro_headline": "..." },
      *     "needs_profile_setup": false
      *   }
      * }
@@ -48,12 +55,20 @@ class MeController extends Controller
      *     "user": { "id": 1, "name": "Jamie Rivera", "email": "jamie@example.com", "business_name": null, "base_currency": null, "timezone": null, "sells_on": null },
      *     "team": null,
      *     "entitlements": null,
+     *     "feature_flags": null,
+     *     "sms_topup_packs": [],
+     *     "content": {},
      *     "needs_profile_setup": true
      *   }
      * }
      */
-    public function show(Request $request, ResolveEntitlementsAction $resolveEntitlements): JsonResponse
-    {
+    public function show(
+        Request $request,
+        ResolveEntitlementsAction $resolveEntitlements,
+        GetFeatureFlagsForTeamAction $getFeatureFlags,
+        GetActiveSmsTopupPacksAction $getSmsTopupPacks,
+        GetActiveContentBlocksAction $getContentBlocks,
+    ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
 
@@ -64,6 +79,9 @@ class MeController extends Controller
                 'user' => new UserResource($user),
                 'team' => null,
                 'entitlements' => null,
+                'feature_flags' => null,
+                'sms_topup_packs' => $getSmsTopupPacks->handle(),
+                'content' => $getContentBlocks->handle(),
                 'needs_profile_setup' => true,
             ]);
         }
@@ -77,6 +95,9 @@ class MeController extends Controller
                 ...$entitlements,
                 'sms_balance' => SmsLedger::currentBalance($team->id),
             ],
+            'feature_flags' => $getFeatureFlags->handle($team),
+            'sms_topup_packs' => $getSmsTopupPacks->handle(),
+            'content' => $getContentBlocks->handle(),
             'needs_profile_setup' => false,
         ]);
     }

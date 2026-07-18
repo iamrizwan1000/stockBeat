@@ -5,7 +5,6 @@ namespace App\Actions\Admin\Messaging;
 use App\Actions\Admin\AuditLogAction;
 use App\Models\AdminUser;
 use App\Models\Broadcast;
-use Illuminate\Validation\ValidationException;
 
 class CreateBroadcastAction
 {
@@ -20,15 +19,14 @@ class CreateBroadcastAction
     {
         $scheduledAt = $data['scheduled_at'] ?? null;
 
-        // A scheduled all-audience broadcast fires unattended later (the
-        // cron dispatcher, not a human clicking "Send"), so the superadmin
-        // guardrail (Plan §8.7.5) must be enforced now — an immediate
-        // draft/manual-send broadcast is instead checked at send time
-        // (`SendBroadcastAction`), where a rejection is seen right away.
-        if ($scheduledAt !== null && $data['audience_type'] === Broadcast::AUDIENCE_ALL && $admin->role !== AdminUser::ROLE_SUPERADMIN) {
-            throw ValidationException::withMessages(['audience_type' => 'Only a superadmin can schedule a send to all users.']);
-        }
-
+        // No superadmin-only restriction on *composing* or *scheduling* an
+        // all-audience broadcast: the real guardrail (Plan §8.7.5
+        // "superadmin approval required for all-users sends") is the
+        // `approved_by`/`approved_at` gate `SendBroadcastAction` enforces at
+        // send time — including when the cron dispatcher
+        // (`SendScheduledBroadcasts`) fires a scheduled one unattended. That
+        // lets a support-role admin draft/schedule a to-everyone broadcast
+        // that simply won't go out until a superadmin approves it.
         $broadcast = Broadcast::query()->create([
             'audience_type' => $data['audience_type'],
             'segment_id' => $data['audience_type'] === Broadcast::AUDIENCE_SEGMENT ? $data['segment_id'] : null,

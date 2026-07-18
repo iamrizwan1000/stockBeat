@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     Banner,
     BlockStack,
@@ -47,6 +47,7 @@ function apiFetch(
 }
 
 export default function Security({ twoFactorEnabled }: SecurityProps) {
+    const { props } = usePage<{ flash: { twoFactorRequired: boolean } }>();
     const [enabled, setEnabled] = useState(twoFactorEnabled);
     const [qrSvg, setQrSvg] = useState<string | null>(null);
     const [secretKey, setSecretKey] = useState<string | null>(null);
@@ -181,6 +182,13 @@ export default function Security({ twoFactorEnabled }: SecurityProps) {
                 subtitle="Two-factor authentication for your admin account"
             >
                 <BlockStack gap="400">
+                    {props.flash?.twoFactorRequired && !enabled && (
+                        <Banner tone="critical">
+                            Two-factor authentication is required to access
+                            the admin panel. Set it up below to continue.
+                        </Banner>
+                    )}
+
                     <Card>
                         <BlockStack gap="400">
                             {enabled ? (

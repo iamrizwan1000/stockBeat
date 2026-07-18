@@ -21,6 +21,7 @@ class InboxMessageResource extends JsonResource
             'direction' => $this->direction,
             'body' => $this->body,
             'status' => $this->status,
+            'failure_reason' => $this->failure_reason,
             'created_at' => $this->created_at,
         ];
     }

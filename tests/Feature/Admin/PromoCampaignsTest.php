@@ -2,6 +2,7 @@
 
 use App\Models\AdminUser;
 use App\Models\PromoCampaign;
+use App\Models\PromoCampaignRedemption;
 use App\Models\Segment;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
@@ -9,6 +10,7 @@ use App\Models\Team;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -103,6 +105,93 @@ test('applying a server_comp campaign to a segment grants pro days to every matc
     $campaign = $campaign->fresh();
     expect($campaign->stats['recipients_total_all_time'])->toBe(1);
     expect($campaign->stats['applications'][0]['segment_id'])->toBe($segment->id);
+
+    $redemption = PromoCampaignRedemption::query()
+        ->where('promo_campaign_id', $campaign->id)
+        ->where('team_id', $matchingTeam->id)
+        ->firstOrFail();
+    expect($redemption->redeemed_at)->not->toBeNull();
+});
+
+test('applying a campaign to a team that already redeemed it updates redeemed_at instead of duplicating', function () {
+    // Applied to "everyone" (superadmin, no segment) rather than a status-
+    // based segment — granting the comp itself would flip the team's
+    // subscription from trial to active, which would make it fall out of a
+    // "plan = trial" segment on the second application and never re-redeem.
+    $admin = AdminUser::factory()->superadmin()->create();
+
+    $user = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $user->id]);
+    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_TRIAL]);
+
+    $campaign = PromoCampaign::factory()->serverComp('pro_days', 30)->create();
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/promotions/{$campaign->id}/apply", ['segment_id' => null])
+        ->assertRedirect();
+
+    $firstRedeemedAt = PromoCampaignRedemption::query()
+        ->where('promo_campaign_id', $campaign->id)
+        ->where('team_id', $team->id)
+        ->value('redeemed_at');
+
+    Carbon::setTestNow(now()->addHour());
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/promotions/{$campaign->id}/apply", ['segment_id' => null])
+        ->assertRedirect();
+
+    expect(
+        PromoCampaignRedemption::query()
+            ->where('promo_campaign_id', $campaign->id)
+            ->where('team_id', $team->id)
+            ->count()
+    )->toBe(1);
+
+    $secondRedeemedAt = PromoCampaignRedemption::query()
+        ->where('promo_campaign_id', $campaign->id)
+        ->where('team_id', $team->id)
+        ->value('redeemed_at');
+
+    expect($secondRedeemedAt)->not->toEqual($firstRedeemedAt);
+
+    Carbon::setTestNow();
+});
+
+test('the campaign show page includes real computed stats', function () {
+    $admin = AdminUser::factory()->create();
+
+    $user = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $user->id]);
+
+    $campaign = PromoCampaign::factory()->serverComp('pro_days', 30)->create();
+    PromoCampaignRedemption::factory()->create([
+        'promo_campaign_id' => $campaign->id,
+        'team_id' => $team->id,
+    ]);
+
+    test()->actingAs($admin, 'admin')
+        ->get("/admin/promotions/{$campaign->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/promotions/show')
+            ->where('campaign.id', $campaign->id)
+            ->where('computed_stats.computable', true)
+            ->where('computed_stats.redemptions', 1)
+        );
+});
+
+test('the campaign show page for an offer_code campaign reports stats as not computable', function () {
+    $admin = AdminUser::factory()->create();
+    $campaign = PromoCampaign::factory()->create(['type' => PromoCampaign::TYPE_OFFER_CODE]);
+
+    test()->actingAs($admin, 'admin')
+        ->get("/admin/promotions/{$campaign->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/promotions/show')
+            ->where('computed_stats.computable', false)
+        );
 });
 
 test('applying a server_comp campaign grants bonus sms credits when configured for that', function () {

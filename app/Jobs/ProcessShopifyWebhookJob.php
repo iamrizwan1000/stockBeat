@@ -3,10 +3,12 @@
 namespace App\Jobs;
 
 use App\Actions\Orders\IngestOrderAction;
+use App\Actions\Rules\CheckLowStockAction;
 use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\Order;
 use App\Models\Rule;
 use App\Models\StoreConnection;
+use App\Support\Connections\Adapters\ShopifyAdapter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,10 +18,11 @@ use Illuminate\Queue\SerializesModels;
 /**
  * The DB-mutating side of a verified Shopify webhook, moved off the
  * request/response cycle onto the `ingest` queue — same pattern as
- * `ProcessWooWebhookJob`. Handles two Shopify-specific payload shapes Woo
- * doesn't have: `refunds/create` (a refund object, not a full order) and
- * `app/uninstalled` (disconnects the store, per Plan §17.2's "mark
- * disconnected immediately, stop billing-relevant counting").
+ * `ProcessWooWebhookJob`. Handles payload shapes Woo doesn't have:
+ * `refunds/create` (a refund object, not a full order), `app/uninstalled`
+ * (disconnects the store, per Plan §17.2's "mark disconnected immediately,
+ * stop billing-relevant counting"), and `inventory_levels/update` (feeds
+ * the `low_stock` trigger, Plan §7.1).
  */
 class ProcessShopifyWebhookJob implements ShouldQueue
 {
@@ -33,7 +36,7 @@ class ProcessShopifyWebhookJob implements ShouldQueue
         public readonly array $parsed,
     ) {}
 
-    public function handle(IngestOrderAction $ingestOrder): void
+    public function handle(IngestOrderAction $ingestOrder, ShopifyAdapter $shopifyAdapter, CheckLowStockAction $checkLowStock): void
     {
         $connection = StoreConnection::query()->find($this->connectionId);
 
@@ -49,6 +52,20 @@ class ProcessShopifyWebhookJob implements ShouldQueue
 
         // Paused by a downgrade freeze (Plan §6.4) — same guard as Woo's job.
         if ($connection->status === StoreConnection::STATUS_PAUSED) {
+            return;
+        }
+
+        if ($this->parsed['type'] === 'inventory_levels/update') {
+            $inventoryItemId = $this->parsed['inventory_item_id'] ?? null;
+
+            if ($inventoryItemId !== null) {
+                $product = $shopifyAdapter->syncInventoryLevel($connection, (string) $inventoryItemId, $this->parsed['available'] ?? null);
+
+                if ($product !== null) {
+                    $checkLowStock->handle($product);
+                }
+            }
+
             return;
         }
 

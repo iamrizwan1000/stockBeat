@@ -38,7 +38,7 @@ test('a due scheduled broadcast is sent and an unarrived one is left alone', fun
     expect($notYetDue->fresh()->status)->toBe(Broadcast::STATUS_SCHEDULED);
 });
 
-test('an all-audience broadcast scheduled by a superadmin sends using them as the approver', function () {
+test('a scheduled all-audience broadcast already approved by a superadmin sends on schedule', function () {
     Mail::fake();
     $superadmin = AdminUser::factory()->superadmin()->create();
     User::factory()->create();
@@ -49,6 +49,8 @@ test('an all-audience broadcast scheduled by a superadmin sends using them as th
         'status' => Broadcast::STATUS_SCHEDULED,
         'scheduled_at' => now()->subMinute(),
         'created_by' => $superadmin->id,
+        'approved_by' => $superadmin->id,
+        'approved_at' => now(),
     ]);
 
     Artisan::call('messaging:send-scheduled-broadcasts');
@@ -56,4 +58,22 @@ test('an all-audience broadcast scheduled by a superadmin sends using them as th
     $broadcast->refresh();
     expect($broadcast->status)->toBe(Broadcast::STATUS_SENT);
     expect($broadcast->approved_by)->toBe($superadmin->id);
+});
+
+test('a scheduled all-audience broadcast without approval is left scheduled, not sent', function () {
+    Mail::fake();
+    $admin = AdminUser::factory()->create();
+    User::factory()->create();
+
+    $broadcast = Broadcast::factory()->create([
+        'audience_type' => Broadcast::AUDIENCE_ALL,
+        'channels' => [Broadcast::CHANNEL_BANNER],
+        'status' => Broadcast::STATUS_SCHEDULED,
+        'scheduled_at' => now()->subMinute(),
+        'created_by' => $admin->id,
+    ]);
+
+    Artisan::call('messaging:send-scheduled-broadcasts');
+
+    expect($broadcast->fresh()->status)->toBe(Broadcast::STATUS_SCHEDULED);
 });

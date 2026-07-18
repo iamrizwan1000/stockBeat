@@ -17,6 +17,31 @@ import { useState } from 'react';
 
 import AdminLayout from '@/layouts/admin-layout';
 
+type QuotaUsage = {
+    calls_today: number;
+    daily_limit: number | null;
+    pct_used: number | null;
+    note: string;
+};
+
+type SmsAnomaly = {
+    team_id: number;
+    team_name: string;
+    current: number;
+    baseline: number;
+    multiple: number;
+};
+
+type TrendPoint = {
+    date: string;
+    active_teams: number;
+    mrr: number;
+    churned_teams: number;
+    total_orders_synced: number;
+    failed_jobs_total: number;
+    sms_cost_total: number;
+};
+
 type Health = {
     connections: {
         total: number;
@@ -63,7 +88,21 @@ type Health = {
                 user_email: string;
             }>;
         }>;
+        high_sms_cost_teams: Array<{
+            team_id: number;
+            team_name: string;
+            consumed: number;
+        }>;
+        high_sms_cost_threshold: number;
     };
+    api_quota_usage: {
+        etsy: QuotaUsage;
+        ebay: QuotaUsage;
+        amazon: QuotaUsage;
+        tiktok: QuotaUsage;
+    };
+    sms_anomalies: Array<SmsAnomaly>;
+    trending: Array<TrendPoint>;
 };
 
 type Config = {
@@ -90,6 +129,157 @@ function StatTile({
                 <Text as="p" variant="headingLg" tone={tone}>
                     {value}
                 </Text>
+            </BlockStack>
+        </Card>
+    );
+}
+
+function QuotaTile({ platform, usage }: { platform: string; usage: QuotaUsage }) {
+    const tone: 'critical' | 'caution' | undefined =
+        usage.pct_used === null
+            ? undefined
+            : usage.pct_used >= 90
+              ? 'critical'
+              : usage.pct_used >= 70
+                ? 'caution'
+                : undefined;
+
+    return (
+        <Card>
+            <BlockStack gap="150">
+                <Text as="p" tone="subdued" variant="bodySm">
+                    {platform}
+                </Text>
+                <Text as="p" variant="headingLg" tone={tone}>
+                    {usage.calls_today.toLocaleString()}
+                    {usage.daily_limit !== null && (
+                        <Text as="span" tone="subdued" variant="bodySm">
+                            {' '}
+                            / {usage.daily_limit.toLocaleString()} (
+                            {usage.pct_used}%)
+                        </Text>
+                    )}
+                </Text>
+                <Text as="p" tone="subdued" variant="bodyXs">
+                    {usage.note}
+                </Text>
+            </BlockStack>
+        </Card>
+    );
+}
+
+/**
+ * Small single-series trend line, no charting library (none exists in this
+ * app's `package.json` — checked before adding one). One accent hue per the
+ * app's default data-viz palette (`#2a78d6` light / `#3987e5` dark), a thin
+ * 2px line with a rounded data-end, recessive gridlines, and a direct label
+ * on the latest value so the headline number reads without hovering. Each
+ * point still carries an `<title>` for a plain hover tooltip.
+ */
+function TrendSparkline({
+    label,
+    points,
+    format,
+}: {
+    label: string;
+    points: Array<{ date: string; value: number }>;
+    format?: (value: number) => string;
+}) {
+    const formatValue = format ?? ((value: number) => value.toLocaleString());
+
+    if (points.length < 2) {
+        return (
+            <Card>
+                <BlockStack gap="150">
+                    <Text as="p" tone="subdued" variant="bodySm">
+                        {label}
+                    </Text>
+                    <Text as="p" tone="subdued">
+                        Not enough history yet.
+                    </Text>
+                </BlockStack>
+            </Card>
+        );
+    }
+
+    const width = 280;
+    const height = 72;
+    const padding = 6;
+    const values = points.map((p) => p.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+
+    const coords = points.map((point, index) => {
+        const x =
+            padding +
+            (index / (points.length - 1)) * (width - padding * 2);
+        const y =
+            height -
+            padding -
+            ((point.value - min) / range) * (height - padding * 2);
+
+        return { x, y, point };
+    });
+
+    const path = coords
+        .map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`)
+        .join(' ');
+
+    const last = coords[coords.length - 1];
+    const latest = points[points.length - 1];
+
+    return (
+        <Card>
+            <BlockStack gap="150">
+                <InlineStack align="space-between" blockAlign="center">
+                    <Text as="p" tone="subdued" variant="bodySm">
+                        {label}
+                    </Text>
+                    <Text as="p" variant="headingSm">
+                        {formatValue(latest.value)}
+                    </Text>
+                </InlineStack>
+                <svg
+                    viewBox={`0 0 ${width} ${height}`}
+                    width="100%"
+                    height={height}
+                    role="img"
+                    aria-label={`${label} trend over the last ${points.length} days, latest ${formatValue(latest.value)}`}
+                    style={{ display: 'block' }}
+                >
+                    <line
+                        x1={padding}
+                        y1={height - padding}
+                        x2={width - padding}
+                        y2={height - padding}
+                        stroke="var(--ops-trend-axis, #c3c2b7)"
+                        strokeWidth={1}
+                    />
+                    <path
+                        d={path}
+                        fill="none"
+                        stroke="var(--ops-trend-line, #2a78d6)"
+                        strokeWidth={2}
+                    />
+                    <circle
+                        cx={last.x}
+                        cy={last.y}
+                        r={4}
+                        fill="var(--ops-trend-line, #2a78d6)"
+                    >
+                        <title>
+                            {latest.date}: {formatValue(latest.value)}
+                        </title>
+                    </circle>
+                    {coords.slice(0, -1).map((c, i) => (
+                        <circle key={i} cx={c.x} cy={c.y} r={2.5} fill="transparent">
+                            <title>
+                                {c.point.date}: {formatValue(c.point.value)}
+                            </title>
+                        </circle>
+                    ))}
+                </svg>
             </BlockStack>
         </Card>
     );
@@ -147,10 +337,38 @@ export default function OpsIndex({
             row.teams.map((t) => t.team_name ?? t.user_email).join(', '),
         ],
     );
+    const highSmsCostRows = health.abuse.high_sms_cost_teams.map((row) => [
+        row.team_name,
+        String(row.consumed),
+    ]);
+    const smsAnomalyRows = health.sms_anomalies.map((row) => [
+        row.team_name,
+        String(row.current),
+        String(row.baseline),
+        `${row.multiple}x`,
+    ]);
+    const trendDates = health.trending.map((point) => point.date);
+    const trendSeries = (key: keyof Omit<TrendPoint, 'date'>) =>
+        health.trending.map((point) => ({
+            date: point.date,
+            value: point[key],
+        }));
 
     return (
         <>
             <Head title="Operations & Health" />
+            <style>{`
+                :root {
+                    --ops-trend-line: #2a78d6;
+                    --ops-trend-axis: #c3c2b7;
+                }
+                @media (prefers-color-scheme: dark) {
+                    :root {
+                        --ops-trend-line: #3987e5;
+                        --ops-trend-axis: #383835;
+                    }
+                }
+            `}</style>
             <Page title="Operations & Health" fullWidth>
                 <BlockStack gap="500">
                     {props.flash?.status && (
@@ -192,6 +410,28 @@ export default function OpsIndex({
                         <StatTile
                             label="Never synced"
                             value={health.connections.never_synced}
+                        />
+                    </InlineGrid>
+
+                    <Text as="h2" variant="headingMd">
+                        API quota usage (today)
+                    </Text>
+                    <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="300">
+                        <QuotaTile
+                            platform="Etsy"
+                            usage={health.api_quota_usage.etsy}
+                        />
+                        <QuotaTile
+                            platform="eBay"
+                            usage={health.api_quota_usage.ebay}
+                        />
+                        <QuotaTile
+                            platform="Amazon"
+                            usage={health.api_quota_usage.amazon}
+                        />
+                        <QuotaTile
+                            platform="TikTok Shop"
+                            usage={health.api_quota_usage.tiktok}
                         />
                     </InlineGrid>
 
@@ -272,6 +512,55 @@ export default function OpsIndex({
                     </InlineGrid>
 
                     <Text as="h2" variant="headingMd">
+                        Abuse guard — high SMS cost this month (
+                        {health.abuse.high_sms_cost_threshold}+ credits) —
+                        same flag shown on each customer's own detail page
+                    </Text>
+                    <Card>
+                        {highSmsCostRows.length > 0 ? (
+                            <DataTable
+                                columnContentTypes={['text', 'numeric']}
+                                headings={['Team', 'Credits used']}
+                                rows={highSmsCostRows}
+                            />
+                        ) : (
+                            <Text as="p" tone="subdued">
+                                No teams over the SMS-cost threshold this
+                                month.
+                            </Text>
+                        )}
+                    </Card>
+
+                    <Text as="h2" variant="headingMd">
+                        Abuse guard — SMS anomalies (5x+ a team's own 28-day
+                        baseline, min {'20'} credits)
+                    </Text>
+                    <Card>
+                        {smsAnomalyRows.length > 0 ? (
+                            <DataTable
+                                columnContentTypes={[
+                                    'text',
+                                    'numeric',
+                                    'numeric',
+                                    'numeric',
+                                ]}
+                                headings={[
+                                    'Team',
+                                    'Last 24h',
+                                    'Own daily baseline',
+                                    'Multiple',
+                                ]}
+                                rows={smsAnomalyRows}
+                            />
+                        ) : (
+                            <Text as="p" tone="subdued">
+                                No team's SMS volume is spiking relative to
+                                its own history right now.
+                            </Text>
+                        )}
+                    </Card>
+
+                    <Text as="h2" variant="headingMd">
                         Trial-abuse guard
                     </Text>
                     <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
@@ -318,6 +607,53 @@ export default function OpsIndex({
                             </Card>
                         </BlockStack>
                     </InlineGrid>
+
+                    <Text as="h2" variant="headingMd">
+                        30-day trend
+                        {trendDates.length > 0 && (
+                            <Text as="span" tone="subdued">
+                                {' '}
+                                (since {trendDates[0]})
+                            </Text>
+                        )}
+                    </Text>
+                    {health.trending.length > 0 ? (
+                        <InlineGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="300">
+                            <TrendSparkline
+                                label="Active teams"
+                                points={trendSeries('active_teams')}
+                            />
+                            <TrendSparkline
+                                label="MRR"
+                                points={trendSeries('mrr')}
+                                format={(v) => `$${v.toFixed(2)}`}
+                            />
+                            <TrendSparkline
+                                label="Churned teams (this month)"
+                                points={trendSeries('churned_teams')}
+                            />
+                            <TrendSparkline
+                                label="Total orders synced"
+                                points={trendSeries('total_orders_synced')}
+                            />
+                            <TrendSparkline
+                                label="Failed jobs (total)"
+                                points={trendSeries('failed_jobs_total')}
+                            />
+                            <TrendSparkline
+                                label="SMS cost (this month)"
+                                points={trendSeries('sms_cost_total')}
+                            />
+                        </InlineGrid>
+                    ) : (
+                        <Card>
+                            <Text as="p" tone="subdued">
+                                No history recorded yet — the daily
+                                `ops:record-daily-snapshot` job writes the
+                                first row at the next scheduled run.
+                            </Text>
+                        </Card>
+                    )}
 
                     <Text as="h2" variant="headingMd">
                         App config

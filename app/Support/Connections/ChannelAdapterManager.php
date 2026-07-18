@@ -7,6 +7,7 @@ use App\Support\Connections\Adapters\AmazonAdapter;
 use App\Support\Connections\Adapters\EbayAdapter;
 use App\Support\Connections\Adapters\EtsyAdapter;
 use App\Support\Connections\Adapters\ShopifyAdapter;
+use App\Support\Connections\Adapters\TikTokAdapter;
 use App\Support\Connections\Adapters\WooCommerceAdapter;
 use Illuminate\Support\Manager;
 use RuntimeException;
@@ -44,6 +45,11 @@ class ChannelAdapterManager extends Manager
 
     protected function createAmazonDriver(): ChannelAdapter
     {
-        return new AmazonAdapter;
+        return $this->container->make(AmazonAdapter::class);
+    }
+
+    protected function createTiktokDriver(): ChannelAdapter
+    {
+        return $this->container->make(TikTokAdapter::class);
     }
 }
