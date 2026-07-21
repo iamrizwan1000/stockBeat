@@ -26,6 +26,8 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
             'currency' => $this->currency,
             'total' => $this->total,
+            'discount_amount' => $this->discount_amount,
+            'tax' => $this->tax,
             'total_base_currency' => $this->total_base_currency,
             'customer_name' => $this->customer_name,
             'customer_email' => $this->customer_email,

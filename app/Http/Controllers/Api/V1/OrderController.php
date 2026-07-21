@@ -220,10 +220,10 @@ class OrderController extends Controller
      *   "message": "Order marked as fulfilled.",
      *   "data": { "order": { "id": 1, "order_number": "#1042", "status": "shipped", "fulfillment_status": "fulfilled" } }
      * }
-     * @response 200 scenario="capability not supported" {
+     * @response 422 scenario="capability not supported" {
      *   "success": false,
-     *   "message": "Fulfillment isn't supported for this platform yet.",
-     *   "errors": null
+     *   "message": "The given data was invalid.",
+     *   "errors": { "order": ["This channel doesn't support marking orders fulfilled from here."] }
      * }
      */
     public function fulfill(FulfillOrderRequest $request, Order $order, FulfillOrderAction $action): JsonResponse
