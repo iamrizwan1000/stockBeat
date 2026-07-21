@@ -10,6 +10,7 @@ import {
     Pagination,
     Select,
     Text,
+    TextField,
     useSetIndexFiltersMode,
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
@@ -24,6 +25,7 @@ type CustomerSummary = {
     business_name: string | null;
     plan_status: string;
     platforms: string[];
+    ltv: number | null;
     created_at: string | null;
     last_active_at: string | null;
     suspended_at: string | null;
@@ -33,6 +35,9 @@ type Filters = {
     q?: string;
     plan?: string;
     platform?: string;
+    country?: string;
+    ltv_min?: string;
+    ltv_max?: string;
 };
 
 type Props = {
@@ -95,12 +100,23 @@ export default function CustomersIndex({ filters, customers }: Props) {
     const [queryValue, setQueryValue] = useState(filters.q ?? '');
     const [plan, setPlan] = useState(filters.plan ?? '');
     const [platform, setPlatform] = useState(filters.platform ?? '');
+    const [country, setCountry] = useState(filters.country ?? '');
+    const [ltvMin, setLtvMin] = useState(filters.ltv_min ?? '');
+    const [ltvMax, setLtvMax] = useState(filters.ltv_max ?? '');
     const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Default);
 
     const applyFilters = (next: Partial<Filters> = {}) => {
         router.get(
             '/admin/customers',
-            { q: queryValue, plan, platform, ...next },
+            {
+                q: queryValue,
+                plan,
+                platform,
+                country,
+                ltv_min: ltvMin,
+                ltv_max: ltvMax,
+                ...next,
+            },
             { preserveState: true, replace: true },
         );
     };
@@ -109,6 +125,9 @@ export default function CustomersIndex({ filters, customers }: Props) {
         setQueryValue('');
         setPlan('');
         setPlatform('');
+        setCountry('');
+        setLtvMin('');
+        setLtvMax('');
         router.get(
             '/admin/customers',
             {},
@@ -134,6 +153,27 @@ export default function CustomersIndex({ filters, customers }: Props) {
                   onRemove: () => {
                       setPlatform('');
                       applyFilters({ platform: '' });
+                  },
+              }
+            : null,
+        country
+            ? {
+                  key: 'country',
+                  label: `Shipped to: ${country}`,
+                  onRemove: () => {
+                      setCountry('');
+                      applyFilters({ country: '' });
+                  },
+              }
+            : null,
+        ltvMin || ltvMax
+            ? {
+                  key: 'ltv',
+                  label: `LTV: ${ltvMin || '0'}–${ltvMax || '∞'}`,
+                  onRemove: () => {
+                      setLtvMin('');
+                      setLtvMax('');
+                      applyFilters({ ltv_min: '', ltv_max: '' });
                   },
               }
             : null,
@@ -169,6 +209,9 @@ export default function CustomersIndex({ filters, customers }: Props) {
                 {customer.platforms.join(', ') || '—'}
             </IndexTable.Cell>
             <IndexTable.Cell>
+                {customer.ltv !== null ? `$${customer.ltv.toFixed(2)}` : '—'}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
                 {customer.created_at
                     ? new Date(customer.created_at).toLocaleDateString()
                     : '—'}
@@ -191,7 +234,7 @@ export default function CustomersIndex({ filters, customers }: Props) {
                 secondaryActions={[
                     {
                         content: 'Export CSV',
-                        url: `/admin/customers/export?q=${encodeURIComponent(queryValue)}&plan=${plan}&platform=${platform}`,
+                        url: `/admin/customers/export?q=${encodeURIComponent(queryValue)}&plan=${plan}&platform=${platform}&country=${encodeURIComponent(country)}&ltv_min=${ltvMin}&ltv_max=${ltvMax}`,
                     },
                 ]}
             >
@@ -247,6 +290,58 @@ export default function CustomersIndex({ filters, customers }: Props) {
                                     />
                                 ),
                             },
+                            {
+                                key: 'country',
+                                label: 'Shipped to country',
+                                filter: (
+                                    <TextField
+                                        label="Shipped to country"
+                                        labelHidden
+                                        value={country}
+                                        onChange={setCountry}
+                                        onBlur={() => applyFilters({ country })}
+                                        autoComplete="off"
+                                        placeholder="e.g. US, AU — matches at least one shipped order"
+                                    />
+                                ),
+                            },
+                            {
+                                key: 'ltv',
+                                label: 'LTV range',
+                                filter: (
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            gap: '8px',
+                                        }}
+                                    >
+                                        <TextField
+                                            label="Min LTV"
+                                            type="number"
+                                            value={ltvMin}
+                                            onChange={setLtvMin}
+                                            onBlur={() =>
+                                                applyFilters({
+                                                    ltv_min: ltvMin,
+                                                })
+                                            }
+                                            autoComplete="off"
+                                        />
+                                        <TextField
+                                            label="Max LTV"
+                                            type="number"
+                                            value={ltvMax}
+                                            onChange={setLtvMax}
+                                            onBlur={() =>
+                                                applyFilters({
+                                                    ltv_max: ltvMax,
+                                                })
+                                            }
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                ),
+                            },
                         ]}
                         appliedFilters={appliedFilters}
                         onClearAll={clearAll}
@@ -263,6 +358,7 @@ export default function CustomersIndex({ filters, customers }: Props) {
                             { title: 'Email' },
                             { title: 'Plan' },
                             { title: 'Platforms' },
+                            { title: 'LTV' },
                             { title: 'Signed up' },
                             { title: 'Last active' },
                         ]}
@@ -293,6 +389,9 @@ export default function CustomersIndex({ filters, customers }: Props) {
                                         q: queryValue,
                                         plan,
                                         platform,
+                                        country,
+                                        ltv_min: ltvMin,
+                                        ltv_max: ltvMax,
                                         page: customers.current_page - 1,
                                     })
                                 }
@@ -304,6 +403,9 @@ export default function CustomersIndex({ filters, customers }: Props) {
                                         q: queryValue,
                                         plan,
                                         platform,
+                                        country,
+                                        ltv_min: ltvMin,
+                                        ltv_max: ltvMax,
                                         page: customers.current_page + 1,
                                     })
                                 }

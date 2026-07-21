@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $customer_email
  * @property string|null $buyer_username
  * @property array<string, mixed>|null $shipping_address
+ * @property string|null $shipping_country
  * @property Carbon $placed_at
  * @property Carbon|null $ship_by_at
  * @property string|null $tracking_number
@@ -45,7 +46,7 @@ use Illuminate\Support\Carbon;
     'team_id', 'connection_id', 'platform', 'external_id', 'order_number',
     'status', 'fulfillment_status', 'payment_status', 'currency', 'total',
     'discount_amount', 'tax',
-    'total_base_currency', 'customer_name', 'customer_email', 'buyer_username', 'shipping_address',
+    'total_base_currency', 'customer_name', 'customer_email', 'buyer_username', 'shipping_address', 'shipping_country',
     'placed_at', 'ship_by_at', 'tracking_number', 'carrier', 'check_at', 'tags',
     'raw', 'is_test', 'snoozed_until',
 ])]

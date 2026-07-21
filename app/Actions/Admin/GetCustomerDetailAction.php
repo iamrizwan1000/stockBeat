@@ -8,6 +8,8 @@ use App\Models\Device;
 use App\Models\Notification;
 use App\Models\SmsLedger;
 use App\Models\SubscriptionEvent;
+use App\Models\SupportMessage;
+use App\Models\SupportThread;
 use App\Models\Team;
 use App\Models\User;
 
@@ -17,9 +19,10 @@ use App\Models\User;
  * was updated) come from `subscription_events`, `ComputeCustomerLtvAction`,
  * and `DetectAccountAbuseSignalsAction` respectively — see those classes for
  * the honest gaps in each (not every RevenueCat event carries a price; abuse
- * flags are best-effort signals, not proof). Support-chat history is
- * surfaced separately, from the Support Inbox (§8.7.6), rather than
- * duplicated into this payload.
+ * flags are best-effort signals, not proof). Support-chat history (added
+ * 2026-07-22) is a real read of the same `support_threads`/`support_messages`
+ * tables the standalone Support Inbox page (§8.7.6) uses — a summary here,
+ * a link to the full thread there, not a duplicated data source.
  */
 class GetCustomerDetailAction
 {
@@ -136,6 +139,40 @@ class GetCustomerDetailAction
             'abuse_flags' => $team === null
                 ? ['trial_abuse_suspected' => false, 'high_sms_cost' => false]
                 : $this->detectAbuseSignals->handle($team),
+            'support_thread' => $this->supportThreadSummary($user),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function supportThreadSummary(User $user): ?array
+    {
+        $thread = SupportThread::query()->where('user_id', $user->id)->first();
+
+        if ($thread === null) {
+            return null;
+        }
+
+        return [
+            'id' => $thread->id,
+            'status' => $thread->status,
+            'priority' => $thread->priority,
+            'last_message_at' => $thread->last_message_at,
+            'csat' => $thread->csat,
+            'recent_messages' => SupportMessage::query()
+                ->where('thread_id', $thread->id)
+                ->latest('id')
+                ->limit(5)
+                ->get()
+                ->reverse()
+                ->values()
+                ->map(fn (SupportMessage $message) => [
+                    'id' => $message->id,
+                    'direction' => $message->direction,
+                    'body' => $message->body,
+                    'created_at' => $message->created_at,
+                ])->all(),
         ];
     }
 

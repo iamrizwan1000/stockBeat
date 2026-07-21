@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Badge,
     Banner,
@@ -71,6 +71,19 @@ type CustomerDetail = {
     } | null;
     notification_volume: { push: number; email: number; sms: number };
     funnel_position: string;
+    support_thread: {
+        id: number;
+        status: string;
+        priority: string;
+        last_message_at: string | null;
+        csat: number | null;
+        recent_messages: Array<{
+            id: number;
+            direction: string;
+            body: string;
+            created_at: string | null;
+        }>;
+    } | null;
     subscription_timeline: Array<{
         id: number;
         event_type: string;
@@ -401,6 +414,60 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                                     </Text>
                                 )}
                             </BlockStack>
+                        </Card>
+                    </Section>
+
+                    <Section title="Support">
+                        <Card>
+                            {customer.support_thread ? (
+                                <BlockStack gap="200">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                        <InlineStack gap="200" blockAlign="center">
+                                            <Badge
+                                                tone={
+                                                    customer.support_thread.status === 'resolved'
+                                                        ? 'success'
+                                                        : customer.support_thread.status === 'awaiting_user'
+                                                          ? 'attention'
+                                                          : 'warning'
+                                                }
+                                            >
+                                                {customer.support_thread.status}
+                                            </Badge>
+                                            {customer.support_thread.priority === 'high' && (
+                                                <Badge tone="critical">High priority</Badge>
+                                            )}
+                                        </InlineStack>
+                                        <Link href={`/admin/support/${customer.support_thread.id}`}>
+                                            View full thread
+                                        </Link>
+                                    </InlineStack>
+                                    {customer.support_thread.recent_messages.length > 0 ? (
+                                        <BlockStack gap="150">
+                                            {customer.support_thread.recent_messages.map((message) => (
+                                                <Text as="p" key={message.id}>
+                                                    <Text as="span" fontWeight="semibold">
+                                                        {message.direction === 'user'
+                                                            ? 'Customer: '
+                                                            : message.direction === 'note'
+                                                              ? 'Internal note: '
+                                                              : 'Staff: '}
+                                                    </Text>
+                                                    {message.body}
+                                                </Text>
+                                            ))}
+                                        </BlockStack>
+                                    ) : (
+                                        <Text as="p" tone="subdued">
+                                            No messages yet.
+                                        </Text>
+                                    )}
+                                </BlockStack>
+                            ) : (
+                                <Text as="p" tone="subdued">
+                                    No support thread.
+                                </Text>
+                            )}
                         </Card>
                     </Section>
 

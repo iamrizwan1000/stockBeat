@@ -58,6 +58,7 @@ class IngestOrderAction
                     'customer_email' => $normalized->customerEmail,
                     'buyer_username' => $normalized->buyerUsername,
                     'shipping_address' => $normalized->shippingAddress,
+                    'shipping_country' => $normalized->shippingAddress['country'] ?? null,
                     'placed_at' => $normalized->placedAt,
                     'ship_by_at' => $normalized->shipByAt,
                     'check_at' => $this->resolveCheckAt($normalized),
