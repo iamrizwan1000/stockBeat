@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -58,5 +59,13 @@ class Announcement extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(AdminUser::class, 'created_by');
+    }
+
+    /**
+     * @return HasMany<AnnouncementDismissal, $this>
+     */
+    public function dismissals(): HasMany
+    {
+        return $this->hasMany(AnnouncementDismissal::class);
     }
 }

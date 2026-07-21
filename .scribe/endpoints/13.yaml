@@ -110,3 +110,80 @@ endpoints:
     controller: null
     method: null
     route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: api/v1/products/cost-prices
+    metadata:
+      custom: []
+      groupName: Products
+      groupDescription: |-
+
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. The only seller-editable field is
+        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+        cost-of-goods.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Set (or clear) cost prices on several products in one call.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      updates:
+        custom: []
+        name: updates
+        description: 'Must have at least 1 items. Must not have more than 500 items.'
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'updates[].id':
+        custom: []
+        name: 'updates[].id'
+        description: ''
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'updates[].cost_price':
+        custom: []
+        name: 'updates[].cost_price'
+        description: 'Must be at least 0. Must not be greater than 999999.99.'
+        required: false
+        example: 22
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      updates:
+        - id: 16
+          cost_price: 22
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null

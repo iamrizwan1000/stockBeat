@@ -32,6 +32,7 @@ class GetActiveAnnouncementsForUserAction
         return Announcement::query()
             ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
             ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now))
+            ->whereDoesntHave('dismissals', fn ($q) => $q->where('user_id', $user->id))
             ->latest()
             ->get()
             ->filter(fn (Announcement $announcement) => $this->matchesAudience($user, $announcement->audience));

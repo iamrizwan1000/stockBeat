@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\GetActiveAiTopupPacksAction;
 use App\Actions\Billing\GetActiveSmsTopupPacksAction;
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Content\GetActiveContentBlocksAction;
@@ -9,7 +10,9 @@ use App\Actions\FeatureFlags\GetFeatureFlagsForTeamAction;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Http\Responses\ApiResponse;
+use App\Models\AiUsageLedger;
 use App\Models\SmsLedger;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,9 +44,10 @@ class MeController extends Controller
      *       "sells_on": ["woocommerce"]
      *     },
      *     "team": { "id": 1, "name": "Rivera Vintage Co", "role": "owner" },
-     *     "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42 },
+     *     "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42, "ai_questions_remaining": 148 },
      *     "feature_flags": { "new_rules_ui": true },
      *     "sms_topup_packs": [ { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" } ],
+     *     "ai_topup_packs": [ { "key": "ai_50", "name": "50 AI questions", "ai_questions": 50, "price_usd": "4.99" } ],
      *     "content": { "paywall_pro_headline": "..." },
      *     "needs_profile_setup": false
      *   }
@@ -57,6 +61,7 @@ class MeController extends Controller
      *     "entitlements": null,
      *     "feature_flags": null,
      *     "sms_topup_packs": [],
+     *     "ai_topup_packs": [],
      *     "content": {},
      *     "needs_profile_setup": true
      *   }
@@ -67,6 +72,7 @@ class MeController extends Controller
         ResolveEntitlementsAction $resolveEntitlements,
         GetFeatureFlagsForTeamAction $getFeatureFlags,
         GetActiveSmsTopupPacksAction $getSmsTopupPacks,
+        GetActiveAiTopupPacksAction $getAiTopupPacks,
         GetActiveContentBlocksAction $getContentBlocks,
     ): JsonResponse {
         /** @var User $user */
@@ -81,6 +87,7 @@ class MeController extends Controller
                 'entitlements' => null,
                 'feature_flags' => null,
                 'sms_topup_packs' => $getSmsTopupPacks->handle(),
+                'ai_topup_packs' => $getAiTopupPacks->handle(),
                 'content' => $getContentBlocks->handle(),
                 'needs_profile_setup' => true,
             ]);
@@ -94,11 +101,24 @@ class MeController extends Controller
             'entitlements' => [
                 ...$entitlements,
                 'sms_balance' => SmsLedger::currentBalance($team->id),
+                'ai_questions_remaining' => $this->aiQuestionsRemaining($team, $entitlements['limits']['ai_questions_monthly'] ?? null),
             ],
             'feature_flags' => $getFeatureFlags->handle($team),
             'sms_topup_packs' => $getSmsTopupPacks->handle(),
+            'ai_topup_packs' => $getAiTopupPacks->handle(),
             'content' => $getContentBlocks->handle(),
             'needs_profile_setup' => false,
         ]);
+    }
+
+    private function aiQuestionsRemaining(Team $team, ?int $monthlyLimit): ?int
+    {
+        $effectiveLimit = AiUsageLedger::effectiveMonthlyLimit($team->id, $monthlyLimit);
+
+        if ($effectiveLimit === null) {
+            return null;
+        }
+
+        return max($effectiveLimit - AiUsageLedger::questionsUsedThisMonth($team->id), 0);
     }
 }

@@ -100,7 +100,7 @@ endpoints:
         name: role
         description: ''
         required: true
-        example: viewer
+        example: manager
         type: string
         enumValues:
           - manager
@@ -123,7 +123,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       email: gbailey@example.net
-      role: viewer
+      role: manager
       store_visibility:
         - 16
     fileParameters: []
@@ -192,7 +192,7 @@ endpoints:
         name: role
         description: ''
         required: false
-        example: manager
+        example: agent
         type: string
         enumValues:
           - manager
@@ -214,7 +214,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      role: manager
+      role: agent
       store_visibility:
         - 16
     fileParameters: []
@@ -232,6 +232,77 @@ endpoints:
           }
         headers: []
         description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/v1/team/{member_id}'
+    metadata:
+      custom: []
+      groupName: Team
+      groupDescription: |-
+
+        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Remove a member from the team.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      member_id:
+        custom: []
+        name: member_id
+        description: 'The ID of the member.'
+        required: true
+        example: 3
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      member_id: 3
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "Team member removed.",
+            "data": null
+          }
+        headers: []
+        description: success
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "member": ["The team owner can't be removed."] }
+          }
+        headers: []
+        description: owner
     responseFields: []
     auth:
       - headers

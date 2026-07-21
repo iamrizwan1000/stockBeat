@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AiProviderController;
+use App\Http\Controllers\Admin\AiTopupPackController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CannedReplyController;
@@ -78,6 +79,10 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
         Route::post('plans/sms-packs', [SmsTopupPackController::class, 'store'])->name('plans.sms-packs.store');
         Route::put('plans/sms-packs/{smsPack}', [SmsTopupPackController::class, 'update'])->name('plans.sms-packs.update');
         Route::delete('plans/sms-packs/{smsPack}', [SmsTopupPackController::class, 'destroy'])->name('plans.sms-packs.destroy');
+
+        Route::post('plans/ai-packs', [AiTopupPackController::class, 'store'])->name('plans.ai-packs.store');
+        Route::put('plans/ai-packs/{aiPack}', [AiTopupPackController::class, 'update'])->name('plans.ai-packs.update');
+        Route::delete('plans/ai-packs/{aiPack}', [AiTopupPackController::class, 'destroy'])->name('plans.ai-packs.destroy');
 
         Route::post('plans/content-blocks', [ContentBlockController::class, 'store'])->name('plans.content-blocks.store');
         Route::put('plans/content-blocks/{contentBlock}', [ContentBlockController::class, 'update'])->name('plans.content-blocks.update');

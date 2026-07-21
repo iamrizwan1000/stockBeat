@@ -76,7 +76,17 @@ Admin-authored banners (Plan §8.7.5-adjacent), audience-targeted, **not the sam
 ] } }
 ```
 
-**There is no dismiss endpoint.** `dismissible: true` is a display hint (show a close/X control) — but dismissal has **no server-side persistence**. If you build a dismiss action, it must be purely local (store dismissed announcement `id`s in device storage and filter them out client-side before rendering). Consequences worth designing around: a dismissed announcement **reappears** on a fresh install, a second device, or after clearing app storage — this is expected behavior given what the API actually supports, not a bug to work around with a fake client-side cache that outlives a reinstall.
+### `POST /announcements/{id}/dismiss`
+
+**Requires auth.** No body. Real, server-persisted dismissal (added 2026-07-22 — previously there was no dismiss endpoint at all, only a client-side-only workaround). `dismissible: true` is a display hint (show a close/X control) — dismissing calls this endpoint, not a local-only flag.
+
+```json
+{ "success": true, "message": "Announcement dismissed.", "data": null }
+```
+
+**Per-user, not per-device or global** — dismissing on one device dismisses it everywhere that user is logged in (their next `GET /announcements` on any device won't include it), but every *other* user targeted by the same announcement still sees it until they dismiss it themselves too. Idempotent — dismissing twice is a normal 200, not an error, so don't guard against double-tapping.
+
+**422** if the announcement's `dismissible` is `false` — don't render a close control for those (see the flow doc), but if you ever do call this on a non-dismissible one by mistake, it fails cleanly rather than silently succeeding. **404** if the id doesn't exist.
 
 **Where to show these:** a small banner strip at the top of the Feed tab is the natural placement (consistent with "what's new" banners elsewhere) — call `GET /announcements` once per app foreground/session rather than polling, these change rarely.
 
@@ -88,4 +98,5 @@ Admin-authored banners (Plan §8.7.5-adjacent), audience-targeted, **not the sam
 |---|---|
 | 200 | Success |
 | 401 | Missing/invalid/revoked bearer token |
-| 422 | `ids.*` not an integer (malformed mark-read request) |
+| 404 | Announcement doesn't exist (dismiss only) |
+| 422 | `ids.*` not an integer (malformed mark-read request), or dismissing a non-dismissible announcement |

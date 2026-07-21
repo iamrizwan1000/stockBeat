@@ -29,9 +29,9 @@ Reachable from a bell icon in the app header, visible from any tab — not a bot
 
 ## Screen 2 — Announcement banner (not a separate screen — a strip on the Feed tab)
 
-**On Feed tab load/foreground:** `GET /announcements`, filter out any `id`s already in local "dismissed" storage, render the remainder as a dismissible strip/card above the order list (or wherever the app's existing "what's new" pattern lives).
+**On Feed tab load/foreground:** `GET /announcements` — the response already excludes anything this user has dismissed (server-side, per-user, added 2026-07-22), so render every item returned as-is; no client-side filtering needed.
 
-**Dismiss (`dismissible: true` only):** an X/close tap — **store the `id` locally, there is no server call**. Don't build a loading state or error handling around "dismissing" since nothing is sent over the network.
+**Dismiss (`dismissible: true` only):** an X/close tap → `POST /announcements/{id}/dismiss`, then remove it from the local list optimistically (don't wait for the response to hide it — it's a low-stakes action, revert-and-reshow on a rare failure is fine). Persists server-side and syncs across the user's other devices — no local-only "dismissed" cache needed, and don't build one, since a stale local cache could hide something the server would otherwise correctly show again (e.g. after the user cleared app storage but the server still thinks it's dismissed — trust `GET /announcements`'s response as the source of truth every time, not a merge with local state).
 
 **Multiple active announcements:** show them as a small carousel/stack rather than all at once if there's ever more than one — the API doesn't cap how many can be simultaneously active for a given audience.
 

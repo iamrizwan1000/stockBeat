@@ -166,7 +166,7 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
 
 ## `GET /me`
 
-**Requires auth.** The client's one call to get full app state after login/launch — call this after every OTP verify (existing users) and after every profile setup, and again on every cold app start if a token is stored. This is the **only** endpoint that returns `feature_flags`, `sms_topup_packs`, and `content` — nothing else exposes them, so don't skip re-fetching it just because you already have `user`/`team` cached locally.
+**Requires auth.** The client's one call to get full app state after login/launch — call this after every OTP verify (existing users) and after every profile setup, and again on every cold app start if a token is stored. This is the **only** endpoint that returns `feature_flags`, `sms_topup_packs`, `ai_topup_packs`, and `content` — nothing else exposes them, so don't skip re-fetching it just because you already have `user`/`team` cached locally.
 
 **Success — 200, profile setup already complete:**
 ```json
@@ -197,12 +197,17 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
         "ai_rule_builder_enabled": true,
         "ai_proactive_insights_enabled": false
       },
-      "sms_balance": 42
+      "sms_balance": 42,
+      "ai_questions_remaining": 148
     },
     "feature_flags": { "new_rules_ui": true },
     "sms_topup_packs": [
       { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" },
       { "key": "sms_500", "name": "500 SMS", "sms_credits": 500, "price_usd": "9.99" }
+    ],
+    "ai_topup_packs": [
+      { "key": "ai_50", "name": "50 AI questions", "ai_questions": 50, "price_usd": "4.99" },
+      { "key": "ai_200", "name": "200 AI questions", "ai_questions": 200, "price_usd": "14.99" }
     ],
     "content": { "paywall_pro_headline": "..." },
     "needs_profile_setup": false
@@ -221,6 +226,7 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
     "entitlements": null,
     "feature_flags": null,
     "sms_topup_packs": [],
+    "ai_topup_packs": [],
     "content": {},
     "needs_profile_setup": true
   }
@@ -250,7 +256,7 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
 | `ai_rule_builder_enabled` | bool | Gates the natural-language rule builder entry point. |
 | `ai_proactive_insights_enabled` | bool | Whether unprompted AI insight notifications are possible for this team (nothing to build differently client-side — this only affects whether the *server* ever sends one). |
 
-`entitlements.sms_balance` is **not** in `limits` — it's a sibling key, the team's *current* SMS credit balance (already spent this cycle), distinct from `limits.sms_monthly` (the *allotment*).
+`entitlements.sms_balance` and `entitlements.ai_questions_remaining` are **not** in `limits` — they're sibling keys, the team's *current* standing (SMS: a running lifetime-ish balance from top-ups minus sends; AI: this calendar month's remaining allowance, resetting monthly), distinct from `limits.sms_monthly`/`limits.ai_questions_monthly` (the *allotments*). Full purchase-flow detail for both (and their top-up catalogs, `sms_topup_packs`/`ai_topup_packs` above) lives in `settings-api-reference.md`'s billing section.
 
 **Errors:** `401` if the token is invalid/revoked — clear local token and return to `WelcomeScreen`.
 

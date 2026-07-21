@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\AiUsageLedger;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
 use App\Models\User;
+use Database\Seeders\AiTopupPackSeeder;
 use Database\Seeders\PlanSeeder;
 use Database\Seeders\SmsTopupPackSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,6 +17,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
     $this->seed(SmsTopupPackSeeder::class);
+    $this->seed(AiTopupPackSeeder::class);
     config(['services.revenuecat.webhook_secret' => 'test-secret']);
 });
 
@@ -142,6 +145,28 @@ test('a NON_RENEWING_PURCHASE for sms_100 credits 100 to the sms ledger', functi
     ]))->assertOk();
 
     expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe(100);
+});
+
+test('a NON_RENEWING_PURCHASE for ai_50 credits 50 to the AI usage ledger as a monthly bonus', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, [
+        'type' => 'NON_RENEWING_PURCHASE',
+        'product_id' => 'ai_50',
+    ]))->assertOk();
+
+    expect(AiUsageLedger::bonusGrantedThisMonth($user->ownedTeam->id))->toBe(50);
+});
+
+test('an AI top-up event type other than NON_RENEWING_PURCHASE credits nothing', function () {
+    $user = onboardedRevenueCatUser();
+
+    postRevenueCatEvent(revenueCatEvent($user->id, [
+        'type' => 'INITIAL_PURCHASE',
+        'product_id' => 'ai_50',
+    ]))->assertOk();
+
+    expect(AiUsageLedger::bonusGrantedThisMonth($user->ownedTeam->id))->toBe(0);
 });
 
 test('a duplicate event id is processed only once', function () {

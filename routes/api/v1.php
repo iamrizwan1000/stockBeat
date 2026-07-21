@@ -114,6 +114,9 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
     Route::put('products/{product}/cost-price', [ProductController::class, 'updateCostPrice'])
         ->middleware('team.role:owner,manager')
         ->name('products.cost-price.update');
+    Route::put('products/cost-prices', [ProductController::class, 'bulkUpdateCostPrices'])
+        ->middleware('team.role:owner,manager')
+        ->name('products.cost-prices.bulk-update');
 
     Route::post('assistant/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
     Route::get('assistant/conversations', [AssistantController::class, 'index'])->name('assistant.conversations.index');
@@ -121,6 +124,7 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
     Route::post('assistant/rule-draft', [AssistantController::class, 'ruleDraft'])->name('assistant.rule-draft');
 
     Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+    Route::post('announcements/{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('announcements.dismiss');
 
     Route::get('support/thread', [SupportController::class, 'show'])->name('support.thread');
     Route::post('support/messages', [SupportController::class, 'store'])->name('support.messages.store');
@@ -153,4 +157,7 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
     Route::put('team/{member}', [TeamController::class, 'update'])
         ->middleware('team.role:owner,manager')
         ->name('team.update');
+    Route::delete('team/{member}', [TeamController::class, 'destroy'])
+        ->middleware('team.role:owner,manager')
+        ->name('team.destroy');
 });

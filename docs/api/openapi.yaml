@@ -486,7 +486,7 @@ paths:
                 range:
                   type: string
                   description: ''
-                  example: 7d
+                  example: today
                   enum:
                     - today
                     - 7d
@@ -632,6 +632,73 @@ paths:
                               example: true
       tags:
         - Announcements
+  '/api/v1/announcements/{announcement_id}/dismiss':
+    post:
+      summary: 'Dismiss an announcement.'
+      operationId: dismissAnAnnouncement
+      description: "Per-user — other users targeted by the same announcement are unaffected.\nIdempotent: dismissing twice is not an error."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Announcement dismissed.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Announcement dismissed.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+        422:
+          description: 'not dismissible'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    announcement:
+                      - "This announcement can't be dismissed."
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      announcement:
+                        type: array
+                        example:
+                          - "This announcement can't be dismissed."
+                        items:
+                          type: string
+      tags:
+        - Announcements
+    parameters:
+      -
+        in: path
+        name: announcement_id
+        description: 'The ID of the announcement.'
+        example: 16
+        required: true
+        schema:
+          type: integer
   /api/v1/auth/otp/request:
     post:
       summary: 'Request an OTP code.'
@@ -894,7 +961,7 @@ paths:
                 timezone:
                   type: string
                   description: ''
-                  example: Antarctica/Casey
+                  example: America/Barbados
                   enum:
                     - Africa/Abidjan
                     - Africa/Accra
@@ -1831,7 +1898,7 @@ paths:
                 platform:
                   type: string
                   description: ''
-                  example: android
+                  example: ios
                   enum:
                     - ios
                     - android
@@ -2345,6 +2412,7 @@ paths:
                           plan: pro
                           history_days: 90
                           sms_balance: 42
+                          ai_questions_remaining: 148
                         feature_flags:
                           new_rules_ui: true
                         sms_topup_packs:
@@ -2353,6 +2421,12 @@ paths:
                             name: '100 SMS'
                             sms_credits: 100
                             price_usd: '2.99'
+                        ai_topup_packs:
+                          -
+                            key: ai_50
+                            name: '50 AI questions'
+                            ai_questions: 50
+                            price_usd: '4.99'
                         content:
                           paywall_pro_headline: ...
                         needs_profile_setup: false
@@ -2418,6 +2492,9 @@ paths:
                               sms_balance:
                                 type: integer
                                 example: 42
+                              ai_questions_remaining:
+                                type: integer
+                                example: 148
                           feature_flags:
                             type: object
                             properties:
@@ -2446,6 +2523,28 @@ paths:
                                 price_usd:
                                   type: string
                                   example: '2.99'
+                          ai_topup_packs:
+                            type: array
+                            example:
+                              - key: ai_50
+                                name: '50 AI questions'
+                                ai_questions: 50
+                                price_usd: '4.99'
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  type: string
+                                  example: ai_50
+                                name:
+                                  type: string
+                                  example: '50 AI questions'
+                                ai_questions:
+                                  type: integer
+                                  example: 50
+                                price_usd:
+                                  type: string
+                                  example: '4.99'
                           content:
                             type: object
                             properties:
@@ -2474,6 +2573,7 @@ paths:
                         entitlements: null
                         feature_flags: null
                         sms_topup_packs: []
+                        ai_topup_packs: []
                         content: {}
                         needs_profile_setup: true
                     properties:
@@ -2528,6 +2628,9 @@ paths:
                             example: null
                             nullable: true
                           sms_topup_packs:
+                            type: array
+                            example: []
+                          ai_topup_packs:
                             type: array
                             example: []
                           content:
@@ -2850,7 +2953,7 @@ paths:
                 channel:
                   type: string
                   description: ''
-                  example: woo
+                  example: ebay
                   enum:
                     - shopify
                     - woo
@@ -2865,7 +2968,7 @@ paths:
                 status:
                   type: string
                   description: ''
-                  example: shipped
+                  example: cancelled
                   enum:
                     - new
                     - unfulfilled
@@ -2875,11 +2978,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-21T22:34:43'
+                  example: '2026-07-21T23:06:47'
                 date_to:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-21T22:34:43'
+                  example: '2026-07-21T23:06:47'
                 value_min:
                   type: number
                   description: ''
@@ -3682,6 +3785,43 @@ paths:
         required: true
         schema:
           type: integer
+  /api/v1/products/cost-prices:
+    put:
+      summary: 'Set (or clear) cost prices on several products in one call.'
+      operationId: setorClearCostPricesOnSeveralProductsInOneCall
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                updates:
+                  type: array
+                  description: 'Must have at least 1 items. Must not have more than 500 items.'
+                  example:
+                    - []
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: ''
+                        example: 16
+                      cost_price:
+                        type: number
+                        description: 'Must be at least 0. Must not be greater than 999999.99.'
+                        example: 22
+                        nullable: true
+                    required:
+                      - id
+              required:
+                - updates
   /api/v1/rules:
     get:
       summary: 'List rules.'
@@ -3919,7 +4059,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: ship_by_deadline
+                  example: negative_review
                   enum:
                     - new_order
                     - high_value_order
@@ -3949,7 +4089,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: channel
+                            example: store
                             enum:
                               - channel
                               - store
@@ -3964,7 +4104,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: eq
+                            example: gt
                             enum:
                               - eq
                               - neq
@@ -3992,7 +4132,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: tag
+                            example: product
                             enum:
                               - channel
                               - store
@@ -4007,7 +4147,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: eq
+                            example: neq
                             enum:
                               - eq
                               - neq
@@ -4036,7 +4176,7 @@ paths:
                       type:
                         type: string
                         description: ''
-                        example: auto_tag
+                        example: notify_member
                         enum:
                           - push
                           - email
@@ -4056,7 +4196,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: chime
+                  example: alert
                   enum:
                     - default
                     - cha_ching
@@ -4080,11 +4220,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '22:34'
+                          example: '23:06'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '22:34'
+                          example: '23:06'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4103,7 +4243,7 @@ paths:
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '22:34'
+                      example: '23:06'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4248,7 +4388,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: refund_spike
+                  example: ship_by_deadline
                   enum:
                     - new_order
                     - high_value_order
@@ -4278,7 +4418,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: customer_country
+                            example: product
                             enum:
                               - channel
                               - store
@@ -4293,7 +4433,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: lte
+                            example: neq
                             enum:
                               - eq
                               - neq
@@ -4321,7 +4461,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: tag
+                            example: repeat_buyer
                             enum:
                               - channel
                               - store
@@ -4336,7 +4476,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: lt
+                            example: eq
                             enum:
                               - eq
                               - neq
@@ -4364,7 +4504,7 @@ paths:
                       type:
                         type: string
                         description: 'This field is required when <code>actions</code> is present.'
-                        example: notify_member
+                        example: sms
                         enum:
                           - push
                           - email
@@ -4382,7 +4522,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: alert
+                  example: default
                   enum:
                     - default
                     - cha_ching
@@ -4406,11 +4546,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '22:34'
+                          example: '23:06'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '22:34'
+                          example: '23:06'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4422,14 +4562,14 @@ paths:
                     digest_frequency:
                       type: string
                       description: ''
-                      example: weekly
+                      example: daily
                       enum:
                         - daily
                         - weekly
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '22:34'
+                      example: '23:06'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4453,7 +4593,7 @@ paths:
                 enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
     parameters:
       -
         in: path
@@ -4767,7 +4907,7 @@ paths:
                 email_enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
                 sms_enabled:
                   type: boolean
                   description: ''
@@ -4775,12 +4915,12 @@ paths:
                 quiet_hours_start:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '22:34'
+                  example: '23:06'
                   nullable: true
                 quiet_hours_end:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '22:34'
+                  example: '23:06'
                   nullable: true
                 quiet_hours_timezone:
                   type: string
@@ -4790,7 +4930,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: default
+                  example: alert
                   enum:
                     - default
                     - cha_ching
@@ -5174,7 +5314,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: viewer
+                  example: manager
                   enum:
                     - manager
                     - agent
@@ -5265,7 +5405,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: manager
+                  example: agent
                   enum:
                     - manager
                     - agent
@@ -5277,6 +5417,63 @@ paths:
                     - 16
                   items:
                     type: integer
+    delete:
+      summary: 'Remove a member from the team.'
+      operationId: removeAMemberFromTheTeam
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Team member removed.'
+                  data: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Team member removed.'
+                  data:
+                    type: string
+                    example: null
+                    nullable: true
+        422:
+          description: owner
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    member:
+                      - "The team owner can't be removed."
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      member:
+                        type: array
+                        example:
+                          - "The team owner can't be removed."
+                        items:
+                          type: string
+      tags:
+        - Team
     parameters:
       -
         in: path

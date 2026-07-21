@@ -48,7 +48,7 @@ This tab is a menu hub, not a single screen — each row below opens its own sma
 - Email field, role picker (`manager`/`agent`/`viewer` only — never offer `owner`), optional store-visibility multi-select (fetch `GET /connections` to list stores by name, default to "All stores" i.e. omit the field).
 - On submit → `POST /team/invite`. **Show the server's exact validation message on 422** — "already on your team" vs. "invite already pending" vs. "seat limit reached" are three different situations a generic "failed to invite" would flatten into one unhelpful state. The seat-limit message specifically should link to Screen 4 (upgrade).
 
-**Tap an active (non-owner) member** → `EditMemberSheet`: role picker + store-visibility multi-select, pre-filled from the member's current values. Submit → `PUT /team/{member}`. **There is no "remove member" button** — the only demotion available is switching their role to `viewer`; don't build a delete/remove control since nothing on the backend backs it (see API doc's "real backend gap" note — don't silently omit this from the UI without a reason, but don't fake a client-side-only "removal" either, since they'd still be able to authenticate).
+**Tap an active (non-owner) member** → `EditMemberSheet`: role picker + store-visibility multi-select, pre-filled from the member's current values, plus a distinct **"Remove from team"** action (danger-styled, separated from the role/visibility form, its own confirmation dialog — "Remove Sam from the team? They'll lose access immediately."). Submit the role/visibility form → `PUT /team/{member}`; tap Remove → `DELETE /team/{member}` (added 2026-07-22 — a real, working removal, not a demotion workaround). Both actions hidden for `agent`/`viewer` roles viewing this sheet, and neither control renders on the owner's own row (`settings-api-reference.md` — both endpoints 422 on the owner regardless, but don't let the UI offer an action guaranteed to fail).
 
 **Empty state (no team seats used beyond the owner):** "Invite your team — managers, agents, and viewers all included in your plan" with the Invite button prominent.
 
@@ -69,6 +69,8 @@ This tab is a menu hub, not a single screen — each row below opens its own sma
 **Restore purchases:** RevenueCat SDK's own restore call, same polling-after pattern.
 
 **SMS top-up:** a separate section/sheet listing `sms_topup_packs` from `GET /me` (name, credit amount, price) — tapping a pack triggers a RevenueCat purchase for that exact `key` as the product identifier, then the same poll-`/me`-for-balance-update pattern (watch `entitlements.sms_balance`). If `sms_topup_packs` is empty, hide this section rather than showing an empty list.
+
+**AI question top-up** (added 2026-07-22 — previously there was nothing purchasable here, only the SMS side existed): same pattern, a separate section/sheet listing `ai_topup_packs` from `GET /me` (name, question count, price) — tap a pack, RevenueCat purchase for that `key`, then poll and watch `entitlements.ai_questions_remaining` rise. A good place to surface this is a "Buy more questions" button shown once `ai_questions_remaining` gets low (e.g. under 10) or hits 0 — and per `ai-flow-screens.md`, also from the 422 the Ask AI screen gets when the quota is genuinely exhausted, so a merchant mid-question has a direct path to fix it rather than a dead end.
 
 **Manage subscription (cancel/downgrade):** deep link to the native App Store / Play Store subscription management screen — this app has no in-house cancel flow, per Plan §4.8's IAP strategy.
 

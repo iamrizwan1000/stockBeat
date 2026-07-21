@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Products\BulkUpdateCostPricesAction;
 use App\Actions\Products\UpdateCostPriceAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Products\BulkUpdateCostPricesRequest;
 use App\Http\Requests\Products\UpdateCostPriceRequest;
 use App\Http\Resources\ProductResource;
 use App\Http\Responses\ApiResponse;
@@ -11,6 +13,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @group Products
@@ -51,6 +54,26 @@ class ProductController extends Controller
         $product = $action->handle($product, $costPrice);
 
         return ApiResponse::success(['product' => new ProductResource($product)]);
+    }
+
+    /**
+     * Set (or clear) cost prices on several products in one call.
+     */
+    public function bulkUpdateCostPrices(BulkUpdateCostPricesRequest $request, BulkUpdateCostPricesAction $action): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $team = $user->currentTeam();
+
+        if ($team === null) {
+            throw ValidationException::withMessages([
+                'updates' => ['Complete profile setup first.'],
+            ]);
+        }
+
+        $products = $action->handle($team, $request->validated('updates'));
+
+        return ApiResponse::success(['products' => ProductResource::collection($products->values())]);
     }
 
     private function authorizeProductAccess(Request $request, Product $product): void

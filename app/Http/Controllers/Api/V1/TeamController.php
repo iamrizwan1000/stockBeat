@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Teams\InviteTeamMemberAction;
+use App\Actions\Teams\RemoveTeamMemberAction;
 use App\Actions\Teams\UpdateTeamMemberAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\InviteTeamMemberRequest;
@@ -118,5 +119,33 @@ class TeamController extends Controller
         $member = $action->handle($member, $request->validated());
 
         return ApiResponse::success(['member' => new TeamMemberResource($member->fresh('user'))]);
+    }
+
+    /**
+     * Remove a member from the team.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": "Team member removed.",
+     *   "data": null
+     * }
+     * @response 422 scenario="owner" {
+     *   "success": false,
+     *   "message": "The given data was invalid.",
+     *   "errors": { "member": ["The team owner can't be removed."] }
+     * }
+     */
+    public function destroy(Request $request, TeamMember $member, RemoveTeamMemberAction $action): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($member->team_id !== $user->currentTeam()?->id) {
+            abort(404);
+        }
+
+        $action->handle($member);
+
+        return ApiResponse::success(message: 'Team member removed.');
     }
 }

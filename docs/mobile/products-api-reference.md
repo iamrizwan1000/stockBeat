@@ -50,6 +50,29 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 
 **404** if the product doesn't belong to your team.
 
+## `PUT /products/cost-prices` — bulk update
+
+**Requires auth**, `owner`/`manager` role. Added 2026-07-22 to close the original one-at-a-time gap for sellers with a large catalog.
+
+```json
+{ "updates": [
+  { "id": 1, "cost_price": 22.50 },
+  { "id": 2, "cost_price": null }
+] }
+```
+
+| Field | Rules |
+|---|---|
+| `updates` | required, array, 1–500 items |
+| `updates.*.id` | required, integer |
+| `updates.*.cost_price` | nullable, numeric, min 0, max 999999.99 — same "null clears, doesn't zero" semantics as the single-item endpoint |
+
+**Atomic — all or nothing.** If *any* `id` in the batch doesn't belong to your team, the **entire call fails** with a 422 and **nothing is written**, not even the valid items. This is a deliberate design choice: it means you never have to reconcile "which of my 40 edits actually saved" — either the whole batch you sent applied, or none of it did, so a failure means resend the same batch after fixing whatever's wrong (almost certainly a stale/deleted product id from a local list that's gone out of sync — refetch `GET /products` and retry).
+
+**Success — 200:** `{products: [...]}` — the full updated set for every id in the batch, same shape as `GET /products`' items, in no particular guaranteed order (match by `id`, don't assume it echoes your input order).
+
+**A duplicate `id` within one batch is allowed, not an error** — the last occurrence for that id wins; avoid sending duplicates on purpose, but a client bug that accidentally does won't 422.
+
 ---
 
 ## Why this matters — connect it to the AI Assistant
@@ -64,5 +87,5 @@ Cost prices entered here are what makes `ai-api-reference.md`'s `get_profit_summ
 |---|---|
 | 200 | Success |
 | 401 | Missing/invalid/revoked bearer token |
-| 404 | Product doesn't belong to your team |
-| 422 | `cost_price` fails validation (negative, non-numeric, over the max) |
+| 404 | Product doesn't belong to your team (single-item endpoint only — the bulk endpoint reports the same situation as a 422, see above) |
+| 422 | `cost_price` fails validation (negative, non-numeric, over the max), or — bulk only — one or more `id`s in the batch don't belong to your team, or `updates` is empty/missing/over 500 items |

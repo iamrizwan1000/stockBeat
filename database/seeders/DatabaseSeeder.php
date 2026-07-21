@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(PlanSeeder::class);
         $this->call(SmsTopupPackSeeder::class);
+        $this->call(AiTopupPackSeeder::class);
         $this->call(ContentBlockSeeder::class);
     }
 }

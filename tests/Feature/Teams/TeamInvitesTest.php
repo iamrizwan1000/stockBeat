@@ -163,6 +163,76 @@ test('updating a member from a different team 404s', function () {
     test()->putJson("/api/v1/team/{$otherTeamMember->id}", ['role' => 'viewer'])->assertNotFound();
 });
 
+test('the owner can remove a member from the team', function () {
+    $owner = onboardedTeamOwner();
+    $member = TeamMember::factory()->create([
+        'team_id' => $owner->currentTeam()->id,
+        'role' => TeamMember::ROLE_VIEWER,
+    ]);
+
+    test()->deleteJson("/api/v1/team/{$member->id}")
+        ->assertOk()
+        ->assertJsonPath('message', 'Team member removed.');
+
+    expect(TeamMember::query()->find($member->id))->toBeNull();
+});
+
+test('the team owner can never be removed', function () {
+    $owner = onboardedTeamOwner();
+    $ownerMember = $owner->currentTeamMember();
+
+    test()->deleteJson("/api/v1/team/{$ownerMember->id}")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('member');
+
+    expect(TeamMember::query()->find($ownerMember->id))->not->toBeNull();
+});
+
+test('removing a member from a different team 404s', function () {
+    onboardedTeamOwner();
+    $otherTeamMember = TeamMember::factory()->create();
+
+    test()->deleteJson("/api/v1/team/{$otherTeamMember->id}")->assertNotFound();
+
+    expect(TeamMember::query()->find($otherTeamMember->id))->not->toBeNull();
+});
+
+test('an agent role cannot remove team members', function () {
+    $owner = onboardedTeamOwner();
+    $agentUser = User::factory()->create();
+    TeamMember::factory()->create([
+        'team_id' => $owner->currentTeam()->id,
+        'user_id' => $agentUser->id,
+        'role' => TeamMember::ROLE_AGENT,
+    ]);
+    $viewerMember = TeamMember::factory()->create([
+        'team_id' => $owner->currentTeam()->id,
+        'role' => TeamMember::ROLE_VIEWER,
+    ]);
+
+    Sanctum::actingAs($agentUser);
+
+    test()->deleteJson("/api/v1/team/{$viewerMember->id}")->assertForbidden();
+});
+
+test('removing a member does not affect their own account, only their access to this team', function () {
+    $owner = onboardedTeamOwner();
+    $removedUser = User::factory()->create();
+    $member = TeamMember::factory()->create([
+        'team_id' => $owner->currentTeam()->id,
+        'user_id' => $removedUser->id,
+        'role' => TeamMember::ROLE_AGENT,
+    ]);
+
+    test()->deleteJson("/api/v1/team/{$member->id}")->assertOk();
+
+    Sanctum::actingAs($removedUser->fresh());
+    test()->getJson('/api/v1/me')
+        ->assertOk()
+        ->assertJsonPath('data.needs_profile_setup', true)
+        ->assertJsonPath('data.team', null);
+});
+
 test('an agent role cannot invite members or create rules but can still read', function () {
     $owner = onboardedTeamOwner();
     $agentUser = User::factory()->create();

@@ -2,6 +2,8 @@
 
 namespace App\Actions\Billing;
 
+use App\Models\AiTopupPack;
+use App\Models\AiUsageLedger;
 use App\Models\Plan;
 use App\Models\SmsLedger;
 use App\Models\SmsTopupPack;
@@ -14,13 +16,15 @@ use Illuminate\Support\Carbon;
  * The RevenueCat webhook state machine (Plan §6.1). `app_user_id = user_id`
  * (§6.1's identity-linking design) resolves straight to our `User`, and its
  * `currentTeam()` owns the one `Subscription` row per team. Consumable
- * products (`sms_100`/`sms_500`) are handled separately from the renewing
- * subscription products since they affect `sms_ledger`, not `subscriptions`.
+ * products (`sms_100`/`sms_500`, `ai_50`/etc.) are handled separately from
+ * the renewing subscription products since they affect `sms_ledger`/
+ * `ai_usage_ledger`, not `subscriptions`.
  *
- * The credited SMS amount is looked up from `sms_topup_packs` by product id
- * (Plan §5/§8.7.3 — admin-editable so a pack's credit amount can be
- * corrected without an app release); a product id with no matching pack row
- * is simply not an SMS top-up. `SUBSCRIPTION_PLAN_PRODUCTS` stays an
+ * The credited SMS/AI-question amount is looked up from
+ * `sms_topup_packs`/`ai_topup_packs` by product id (Plan §5/§8.7.3 —
+ * admin-editable so a pack's credit amount can be corrected without an app
+ * release); a product id with no matching pack row in either table is
+ * simply not a top-up. `SUBSCRIPTION_PLAN_PRODUCTS` stays an
  * explicit whitelist, not a DB table — unlike `plans`/`plan_limits`
  * (business-tunable numbers, deliberately DB-driven per §5), these IDs are
  * store-controlled: adding a new one means creating it in App Store
@@ -69,11 +73,22 @@ class ProcessRevenueCatEventAction
         $productId = (string) ($event['product_id'] ?? '');
         $type = (string) ($event['type'] ?? '');
 
-        $topupPack = SmsTopupPack::query()->where('key', $productId)->first();
+        $smsTopupPack = SmsTopupPack::query()->where('key', $productId)->first();
 
-        if ($topupPack !== null) {
+        if ($smsTopupPack !== null) {
             if ($type === 'NON_RENEWING_PURCHASE') {
-                $this->creditSmsTopup($team, $topupPack, $event);
+                $this->creditSmsTopup($team, $smsTopupPack, $event);
+                $this->logSubscriptionEvent($team, $type, $event);
+            }
+
+            return;
+        }
+
+        $aiTopupPack = AiTopupPack::query()->where('key', $productId)->first();
+
+        if ($aiTopupPack !== null) {
+            if ($type === 'NON_RENEWING_PURCHASE') {
+                $this->creditAiTopup($team, $aiTopupPack, $event);
                 $this->logSubscriptionEvent($team, $type, $event);
             }
 
@@ -133,6 +148,31 @@ class ProcessRevenueCatEventAction
             'delta' => $delta,
             'reason' => SmsLedger::REASON_TOPUP_IAP,
             'balance_after' => $balanceAfter,
+            'meta' => ['product_id' => $pack->key, 'revenuecat_event' => $event],
+        ]);
+    }
+
+    /**
+     * `balance_after` follows the same convention `AskAssistantAction`'s
+     * quota debit and `GrantBonusAiCreditsAction`'s admin comp use: the
+     * running total of `topup_iap`-reason credit granted *this calendar
+     * month* (see `AiUsageLedger::bonusGrantedThisMonth`), not a lifetime
+     * wallet balance — a real IAP purchase and an admin comp are
+     * indistinguishable from the ledger's point of view, only `meta`
+     * differs.
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private function creditAiTopup(Team $team, AiTopupPack $pack, array $event): void
+    {
+        $delta = $pack->ai_questions;
+        $bonusBefore = AiUsageLedger::bonusGrantedThisMonth($team->id);
+
+        AiUsageLedger::query()->create([
+            'team_id' => $team->id,
+            'delta' => $delta,
+            'reason' => AiUsageLedger::REASON_TOPUP_IAP,
+            'balance_after' => $bonusBefore + $delta,
             'meta' => ['product_id' => $pack->key, 'revenuecat_event' => $event],
         ]);
     }

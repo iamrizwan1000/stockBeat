@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "c6ad86b5-ff6b-4fe9-9072-a64113cb3f58",
+        "_postman_id": "ad81b17a-cd51-436b-8f5f-4119371a9c0b",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -245,7 +245,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"7d\"}"
+                            "raw": "{\"range\":\"today\"}"
                         },
                         "description": "`comparison` and `goal` are only present at the `full` analytics level (Pro\/Premium)."
                     },
@@ -347,6 +347,52 @@
                             "code": 200,
                             "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"announcements\": [\n      { \"id\": 1, \"title\": \"New: order-spike alerts\", \"body\": \"Premium now includes order and refund spike alerts.\", \"dismissible\": true }\n    ]\n  }\n}",
                             "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Dismiss an announcement.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/announcements\/:announcement_id\/dismiss",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/announcements\/:announcement_id\/dismiss",
+                            "variable": [
+                                {
+                                    "id": "announcement_id",
+                                    "key": "announcement_id",
+                                    "value": 16,
+                                    "description": "The ID of the announcement."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Per-user \u2014 other users targeted by the same announcement are unaffected.\nIdempotent: dismissing twice is not an error."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Announcement dismissed.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"announcement\": [\"This announcement can't be dismissed.\"] }\n}",
+                            "name": "not dismissible"
                         }
                     ]
                 }
@@ -466,7 +512,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"amazon\"],\"timezone\":\"Antarctica\\\/Casey\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"amazon\"],\"timezone\":\"America\\\/Barbados\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -797,7 +843,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"platform\":\"android\",\"push_token\":\"b\"}"
+                            "raw": "{\"platform\":\"ios\",\"push_token\":\"b\"}"
                         },
                         "description": "Upserts the device's push token so the backend can deliver notifications to it."
                     },
@@ -1147,13 +1193,13 @@
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42 },\n    \"feature_flags\": { \"new_rules_ui\": true },\n    \"sms_topup_packs\": [ { \"key\": \"sms_100\", \"name\": \"100 SMS\", \"sms_credits\": 100, \"price_usd\": \"2.99\" } ],\n    \"content\": { \"paywall_pro_headline\": \"...\" },\n    \"needs_profile_setup\": false\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42, \"ai_questions_remaining\": 148 },\n    \"feature_flags\": { \"new_rules_ui\": true },\n    \"sms_topup_packs\": [ { \"key\": \"sms_100\", \"name\": \"100 SMS\", \"sms_credits\": 100, \"price_usd\": \"2.99\" } ],\n    \"ai_topup_packs\": [ { \"key\": \"ai_50\", \"name\": \"50 AI questions\", \"ai_questions\": 50, \"price_usd\": \"4.99\" } ],\n    \"content\": { \"paywall_pro_headline\": \"...\" },\n    \"needs_profile_setup\": false\n  }\n}",
                             "name": "profile setup complete"
                         },
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": { \"id\": 1, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\", \"business_name\": null, \"base_currency\": null, \"timezone\": null, \"sells_on\": null },\n    \"team\": null,\n    \"entitlements\": null,\n    \"feature_flags\": null,\n    \"sms_topup_packs\": [],\n    \"content\": {},\n    \"needs_profile_setup\": true\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": { \"id\": 1, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\", \"business_name\": null, \"base_currency\": null, \"timezone\": null, \"sells_on\": null },\n    \"team\": null,\n    \"entitlements\": null,\n    \"feature_flags\": null,\n    \"sms_topup_packs\": [],\n    \"ai_topup_packs\": [],\n    \"content\": {},\n    \"needs_profile_setup\": true\n  }\n}",
                             "name": "profile setup pending"
                         }
                     ]
@@ -1259,7 +1305,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"woo\",\"store\":16,\"status\":\"shipped\",\"date_from\":\"2026-07-21T22:34:43\",\"date_to\":\"2026-07-21T22:34:43\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
+                            "raw": "{\"channel\":\"ebay\",\"store\":16,\"status\":\"cancelled\",\"date_from\":\"2026-07-21T23:06:47\",\"date_to\":\"2026-07-21T23:06:47\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -1718,6 +1764,34 @@
                         "description": ""
                     },
                     "response": []
+                },
+                {
+                    "name": "Set (or clear) cost prices on several products in one call.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/products\/cost-prices",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/products\/cost-prices"
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"updates\":[{\"id\":16,\"cost_price\":22}]}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
                 }
             ]
         },
@@ -1779,7 +1853,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"ship_by_deadline\",\"actions\":[{\"type\":\"auto_tag\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"22:34\",\"end\":\"22:34\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"22:34\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"channel\",\"operator\":\"eq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"eq\",\"value\":\"architecto\"}]}}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"negative_review\",\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"23:06\",\"end\":\"23:06\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"23:06\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"store\",\"operator\":\"gt\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"product\",\"operator\":\"neq\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -1828,7 +1902,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"refund_spike\",\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"22:34\",\"end\":\"22:34\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"22:34\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"customer_country\",\"operator\":\"lte\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"lt\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"ship_by_deadline\",\"sound\":\"default\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"23:06\",\"end\":\"23:06\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"daily\",\"digest_time\":\"23:06\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"product\",\"operator\":\"neq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"repeat_buyer\",\"operator\":\"eq\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"sms\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -1981,7 +2055,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":true,\"email_enabled\":false,\"sms_enabled\":false,\"quiet_hours_start\":\"22:34\",\"quiet_hours_end\":\"22:34\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"default\"}"
+                            "raw": "{\"push_enabled\":true,\"email_enabled\":true,\"sms_enabled\":false,\"quiet_hours_start\":\"23:06\",\"quiet_hours_end\":\"23:06\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"alert\"}"
                         },
                         "description": ""
                     },
@@ -2162,7 +2236,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"viewer\",\"store_visibility\":[16]}"
+                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"manager\",\"store_visibility\":[16]}"
                         },
                         "description": "`store_visibility` optionally restricts the invited member to specific connection IDs."
                     },
@@ -2205,7 +2279,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"role\":\"manager\",\"store_visibility\":[16]}"
+                            "raw": "{\"role\":\"agent\",\"store_visibility\":[16]}"
                         },
                         "description": ""
                     },
@@ -2215,6 +2289,52 @@
                             "code": 200,
                             "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"member\": { \"id\": 2, \"role\": \"staff\", \"store_visibility\": [1], \"user\": { \"id\": 3, \"name\": \"Sam Lee\", \"email\": \"sam@example.com\" } }\n  }\n}",
                             "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Remove a member from the team.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/team\/:member_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/team\/:member_id",
+                            "variable": [
+                                {
+                                    "id": "member_id",
+                                    "key": "member_id",
+                                    "value": 3,
+                                    "description": "The ID of the member."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Team member removed.\",\n  \"data\": null\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"member\": [\"The team owner can't be removed.\"] }\n}",
+                            "name": "owner"
                         }
                     ]
                 }

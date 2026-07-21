@@ -83,7 +83,7 @@ endpoints:
         name: timezone
         description: ''
         required: false
-        example: Antarctica/Casey
+        example: America/Barbados
         type: string
         enumValues:
           - Africa/Abidjan
@@ -525,7 +525,7 @@ endpoints:
       phone: '+36'
       sells_on:
         - amazon
-      timezone: Antarctica/Casey
+      timezone: America/Barbados
       base_currency: iyv
     fileParameters: []
     responses:

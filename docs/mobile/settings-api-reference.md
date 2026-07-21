@@ -102,7 +102,19 @@ Roles: `owner` (immutable — see below), `manager` (everything an owner can do 
 
 **The owner's own row can never be updated this way** — `422` with `{"role": ["The team owner's role can't be changed."]}` if attempted. There is no ownership-transfer feature. **Don't render an edit control on the owner's own row at all** — attempting it is a guaranteed error, not a real action.
 
-**There is no member-removal endpoint.** A mobile "remove from team" action doesn't exist server-side — the closest available action is demoting to `viewer`. Suspending a member entirely (`suspended_at`, which makes every mobile API call 403 for them — see `TeamMemberSuspensionTest`) is admin-panel-only, not exposed to the team owner via this API. If the product wants seller-initiated removal, that's a real backend gap, not a mobile implementation gap — flag it rather than trying to fake it client-side.
+### `DELETE /team/{member}`
+
+**Requires auth**, `owner`/`manager` role. No body.
+
+```json
+{ "success": true, "message": "Team member removed.", "data": null }
+```
+
+A real, hard removal (added 2026-07-22, closing what was previously a gap) — this permanently deletes the membership row, not a soft-suspend. **The removed person's own account is completely untouched** — only their access to *this* team goes away. On their next `GET /me`, they'll see `team: null` and `needs_profile_setup: true`, the same shape a brand-new user sees; if they then call `POST /profile/setup` again, it spins them up a fresh owned team of their own (`SetupProfileAction`'s existing idempotent behavior) rather than erroring — a deliberate soft landing, not something to special-case client-side.
+
+**The owner can never be removed** — `422` with `{"member": ["The team owner can't be removed."]}` if attempted, same pattern as the update endpoint. **Don't render a remove control on the owner's own row.** **404** if the member doesn't belong to your team.
+
+**There is still no "resend invite" or "suspend" action** available to a team owner via this API — suspending (`suspended_at`, which 403s every mobile API call for that person — see `TeamMemberSuspensionTest`) remains admin-panel-only. Removal is the one real seller-initiated way to revoke someone's access.
 
 ### How someone actually joins a team
 
@@ -143,7 +155,7 @@ Compiles a real JSON export (profile, team, team members, store connections — 
 **All purchases happen through the RevenueCat SDK directly on-device — there is no `POST /purchase` or `POST /subscribe` endpoint in this API.** The backend only ever *observes* purchases after the fact via a server-to-server RevenueCat webhook (`hooks/revenuecat`, outside `/api/v1`, not callable by the mobile app — it's authenticated with a fixed shared secret RevenueCat sends, not a user token). The mobile-facing contract is:
 
 1. Configure the RevenueCat SDK with `appUserID` = this user's numeric `id` (from `GET /me`'s `user.id`) — this is exactly how the backend links a purchase back to a `Team` (`rc_app_user_id`/`app_user_id` matching, Plan §6.1).
-2. Drive the actual purchase UI (paywall, price display, restore purchases) entirely through the RevenueCat SDK's own offerings/packages API — this backend does not serve product prices or descriptions for subscription tiers (only for SMS top-ups, see below).
+2. Drive the actual purchase UI (paywall, price display, restore purchases) entirely through the RevenueCat SDK's own offerings/packages API — this backend does not serve product prices or descriptions for subscription tiers (only for SMS/AI top-ups, see below).
 3. After a purchase completes, **the entitlement change isn't instant on this API** — it lands whenever RevenueCat's webhook reaches the backend (real-world: seconds, not guaranteed). Re-fetch `GET /me` after a purchase (poll a few times over ~10–15s if needed, same pattern as the OAuth-connection polling workaround in `connections-api-reference.md`) rather than assuming the very next `/me` call already reflects the new plan.
 
 ### The product ID contract (must match exactly on both sides)
@@ -161,11 +173,13 @@ There is no Free product — Free is simply the absence of an active subscriptio
 ### `GET /me`'s billing-relevant fields (full shape in `auth-api-reference.md`)
 
 ```json
-"entitlements": { "plan": "pro", "limits": { "...": "..." }, "subscription_status": "active", "trial_ends_at": null, "sms_balance": 42 }
+"entitlements": { "plan": "pro", "limits": { "...": "..." }, "subscription_status": "active", "trial_ends_at": null, "sms_balance": 42, "ai_questions_remaining": 148 }
 ```
 `subscription_status`: `"trial"` | `"active"` | `"grace"` | `"expired"` | `null` (no subscription row yet — a brand-new Free account). `"grace"` means a renewal payment failed but access hasn't been cut yet — worth a soft in-app banner ("update your payment method") rather than treating it like `"expired"`. `trial_ends_at` is only non-null during an active 7-day trial (Plan §6.3).
 
-### SMS top-up packs (consumable IAP)
+`ai_questions_remaining` (added 2026-07-22, closing a previous gap — there used to be no way to know your quota standing short of hitting a 422): the Data Copilot's remaining question budget for **this calendar month**, already netting the plan's `ai_questions_monthly` against questions asked so far and any top-up credit purchased this month. `null` means unlimited (a plan with no monthly cap). This resets to the plan's base allotment on the 1st of each month — a purchased top-up only raises *that month's* cap, it doesn't roll over or bank for future months (same deliberate simplification `ai-api-reference.md`'s quota section describes). Use this instead of client-side counting for a "questions remaining" indicator in the AI Assistant UI (`ai-flow-screens.md`).
+
+### SMS & AI question top-up packs (consumable IAP)
 
 Unlike subscriptions, top-up pack pricing/catalog **is** served by this API (admin-editable, Plan §8.7.3) — but the purchase itself is still 100% through RevenueCat, same as above. `key` here is the exact RevenueCat product identifier to pass to the SDK's purchase call.
 
@@ -173,9 +187,16 @@ Unlike subscriptions, top-up pack pricing/catalog **is** served by this API (adm
 ```json
 [ { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" } ]
 ```
-Empty array is a real, valid state (no active packs configured) — hide the top-up section entirely rather than showing a blank list.
 
-**There is no SMS usage history/ledger endpoint** — `entitlements.sms_balance` (current balance only) is all that's available. Don't build a "usage history" screen against this API; it isn't there.
+`GET /me`'s `ai_topup_packs` (added 2026-07-22, closing what was previously a real gap — the Data Copilot's monthly quota had no purchasable top-up at all, only the SMS side did):
+```json
+[ { "key": "ai_50", "name": "50 AI questions", "ai_questions": 50, "price_usd": "4.99" } ]
+```
+Same purchase mechanics as SMS packs — pass `key` to the RevenueCat SDK's purchase call, then poll `GET /me` and watch `entitlements.ai_questions_remaining` rise once the webhook lands.
+
+Both catalogs: empty array is a real, valid state (no active packs configured) — hide the relevant top-up section entirely rather than showing a blank list.
+
+**There is no SMS or AI-question usage history/ledger endpoint** — `entitlements.sms_balance`/`ai_questions_remaining` (current standing only) is all that's available. Don't build a "usage history" screen against this API; it isn't there.
 
 ---
 
