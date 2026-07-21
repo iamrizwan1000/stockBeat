@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Models\Rule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule as ValidationRule;
 
 class UpdateNotificationPreferencesRequest extends FormRequest
 {
@@ -23,7 +25,7 @@ class UpdateNotificationPreferencesRequest extends FormRequest
             'quiet_hours_start' => ['sometimes', 'nullable', 'date_format:H:i'],
             'quiet_hours_end' => ['sometimes', 'nullable', 'date_format:H:i'],
             'quiet_hours_timezone' => ['sometimes', 'nullable', 'timezone'],
-            'sound' => ['sometimes', 'string', 'max:50'],
+            'sound' => ['sometimes', 'string', ValidationRule::in(Rule::sounds())],
         ];
     }
 }

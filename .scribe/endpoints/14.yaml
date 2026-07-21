@@ -60,7 +60,7 @@ endpoints:
         name: mode
         description: ''
         required: false
-        example: data
+        example: help
         type: string
         enumValues:
           - data
@@ -71,7 +71,7 @@ endpoints:
     cleanBodyParameters:
       question: b
       conversation_id: 16
-      mode: data
+      mode: help
     fileParameters: []
     responses:
       -

@@ -58,3 +58,12 @@ test('invalid quiet hours are rejected', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors('quiet_hours_start');
 });
+
+test('a sound outside the bundled catalog is rejected', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    test()->putJson('/api/v1/settings/notifications', ['sound' => 'airhorn'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('sound');
+});

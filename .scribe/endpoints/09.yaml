@@ -39,7 +39,7 @@ endpoints:
         name: channel
         description: ''
         required: false
-        example: ebay
+        example: woo
         type: string
         enumValues:
           - shopify
@@ -67,7 +67,7 @@ endpoints:
         name: status
         description: ''
         required: false
-        example: new
+        example: shipped
         type: string
         enumValues:
           - new
@@ -83,7 +83,7 @@ endpoints:
         name: date_from
         description: 'Must be a valid date.'
         required: false
-        example: '2026-07-21T22:22:31'
+        example: '2026-07-21T22:34:43'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -94,7 +94,7 @@ endpoints:
         name: date_to
         description: 'Must be a valid date.'
         required: false
-        example: '2026-07-21T22:22:31'
+        example: '2026-07-21T22:34:43'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -156,11 +156,11 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      channel: ebay
+      channel: woo
       store: 16
-      status: new
-      date_from: '2026-07-21T22:22:31'
-      date_to: '2026-07-21T22:22:31'
+      status: shipped
+      date_from: '2026-07-21T22:34:43'
+      date_to: '2026-07-21T22:34:43'
       value_min: 4326.41688
       value_max: 4326.41688
       tag: architecto

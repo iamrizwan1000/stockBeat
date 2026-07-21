@@ -31,8 +31,12 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  * set on both the iOS (`apns.payload.aps.sound`) and Android
  * (`android.notification.sound`) portions of the FCM payload so the same
  * key resolves to a bundled sound file on whichever platform the device
- * is. `null` (the default) leaves the payload untouched — the device/app's
- * own default notification sound plays, same as before this existed.
+ * is. When a caller doesn't pass one (most callers don't — a rule with no
+ * custom sound, an admin broadcast), this falls back to the recipient's own
+ * `NotificationPreference.sound` (Plan §4.8 "sound selection") so that
+ * setting actually does something instead of only ever being written and
+ * never read. Only when neither is set does the payload stay untouched and
+ * the device/app's own default notification sound plays.
  *
  * `$onNotificationCreated`, when given, is invoked with the freshly created
  * `Notification` row right after it's persisted — used by
@@ -87,6 +91,8 @@ class SendPushNotificationAction
             return 'no_devices';
         }
 
+        $effectiveSound = $sound ?? $preference?->sound;
+
         $sentAny = false;
 
         /** @var array<non-empty-string, string> $stringData */
@@ -109,10 +115,10 @@ class SendPushNotificationAction
                 ->withNotification(FirebaseNotification::create($title, $body))
                 ->withData($stringData);
 
-            if ($sound !== null && $sound !== '') {
+            if ($effectiveSound !== null && $effectiveSound !== '') {
                 $message = $message
-                    ->withApnsConfig(ApnsConfig::new()->withSound($sound))
-                    ->withAndroidConfig(AndroidConfig::new()->withSound($sound));
+                    ->withApnsConfig(ApnsConfig::new()->withSound($effectiveSound))
+                    ->withAndroidConfig(AndroidConfig::new()->withSound($effectiveSound));
             }
 
             try {

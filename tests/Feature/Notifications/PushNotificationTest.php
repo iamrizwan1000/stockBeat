@@ -78,6 +78,50 @@ test('push is muted when the user has push disabled, but still logged to the not
     expect(Notification::query()->where('user_id', $user->id)->count())->toBe(1);
 });
 
+test('a notification with no explicit sound falls back to the recipient\'s saved sound preference', function () {
+    $user = User::factory()->create();
+    Device::factory()->create(['user_id' => $user->id, 'push_token' => 'valid-token']);
+    NotificationPreference::factory()->create(['user_id' => $user->id, 'sound' => 'cha_ching']);
+
+    $messaging = Mockery::mock(Messaging::class);
+    $messaging->shouldReceive('send')
+        ->once()
+        ->with(Mockery::on(function ($message) {
+            $payload = $message->jsonSerialize();
+
+            return $payload['apns']['payload']['aps']['sound'] === 'cha_ching'
+                && $payload['android']['notification']['sound'] === 'cha_ching';
+        }))
+        ->andReturn([]);
+    app()->instance(Messaging::class, $messaging);
+
+    $status = app(SendPushNotificationAction::class)->handle($user, 'Title', 'Body');
+
+    expect($status)->toBe('sent');
+});
+
+test('an explicit rule sound wins over the recipient\'s saved sound preference', function () {
+    $user = User::factory()->create();
+    Device::factory()->create(['user_id' => $user->id, 'push_token' => 'valid-token']);
+    NotificationPreference::factory()->create(['user_id' => $user->id, 'sound' => 'cha_ching']);
+
+    $messaging = Mockery::mock(Messaging::class);
+    $messaging->shouldReceive('send')
+        ->once()
+        ->with(Mockery::on(function ($message) {
+            $payload = $message->jsonSerialize();
+
+            return $payload['apns']['payload']['aps']['sound'] === 'alert'
+                && $payload['android']['notification']['sound'] === 'alert';
+        }))
+        ->andReturn([]);
+    app()->instance(Messaging::class, $messaging);
+
+    $status = app(SendPushNotificationAction::class)->handle($user, 'Title', 'Body', sound: 'alert');
+
+    expect($status)->toBe('sent');
+});
+
 test('push is suppressed during the user\'s personal quiet hours', function () {
     $user = User::factory()->create();
     Device::factory()->create(['user_id' => $user->id, 'push_token' => 'valid-token']);

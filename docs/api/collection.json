@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "ac54121e-1435-4709-b550-9941e9faaf04",
+        "_postman_id": "c6ad86b5-ff6b-4fe9-9072-a64113cb3f58",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -41,7 +41,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"data\"}"
+                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"help\"}"
                         },
                         "description": ""
                     },
@@ -245,7 +245,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"30d\"}"
+                            "raw": "{\"range\":\"7d\"}"
                         },
                         "description": "`comparison` and `goal` are only present at the `full` analytics level (Pro\/Premium)."
                     },
@@ -299,7 +299,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"today\"}"
+                            "raw": "{\"range\":\"30d\"}"
                         },
                         "description": "Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary."
                     },
@@ -466,7 +466,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"etsy\"],\"timezone\":\"Asia\\\/Yekaterinburg\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"amazon\"],\"timezone\":\"Antarctica\\\/Casey\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -1259,7 +1259,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"ebay\",\"store\":16,\"status\":\"new\",\"date_from\":\"2026-07-21T22:22:31\",\"date_to\":\"2026-07-21T22:22:31\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
+                            "raw": "{\"channel\":\"woo\",\"store\":16,\"status\":\"shipped\",\"date_from\":\"2026-07-21T22:34:43\",\"date_to\":\"2026-07-21T22:34:43\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -1779,7 +1779,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"digest\",\"actions\":[{\"type\":\"sms\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"cha_ching\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"22:22\",\"end\":\"22:22\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"22:22\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"store\",\"operator\":\"gt\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"total\",\"operator\":\"lt\",\"value\":\"architecto\"}]}}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"ship_by_deadline\",\"actions\":[{\"type\":\"auto_tag\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"22:34\",\"end\":\"22:34\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"22:34\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"channel\",\"operator\":\"eq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"eq\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -1828,7 +1828,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"order_spike\",\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"22:22\",\"end\":\"22:22\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"daily\",\"digest_time\":\"22:22\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"total\",\"operator\":\"eq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"sku\",\"operator\":\"between\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"refund_spike\",\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"22:34\",\"end\":\"22:34\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"22:34\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"customer_country\",\"operator\":\"lte\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"lt\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -1981,7 +1981,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":false,\"email_enabled\":false,\"sms_enabled\":false,\"quiet_hours_start\":\"22:22\",\"quiet_hours_end\":\"22:22\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"n\"}"
+                            "raw": "{\"push_enabled\":true,\"email_enabled\":false,\"sms_enabled\":false,\"quiet_hours_start\":\"22:34\",\"quiet_hours_end\":\"22:34\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"default\"}"
                         },
                         "description": ""
                     },
@@ -2089,7 +2089,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"rating\":1}"
+                            "raw": "{\"rating\":0}"
                         },
                         "description": ""
                     },

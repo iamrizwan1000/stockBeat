@@ -157,7 +157,7 @@ endpoints:
         name: rating
         description: ''
         required: true
-        example: 1
+        example: 0
         type: integer
         enumValues:
           - 0
@@ -166,7 +166,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      rating: 1
+      rating: 0
     fileParameters: []
     responses:
       -

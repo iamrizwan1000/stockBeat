@@ -66,7 +66,7 @@ endpoints:
         description: ''
         required: false
         example:
-          - etsy
+          - amazon
         type: 'string[]'
         enumValues:
           - shopify
@@ -83,7 +83,7 @@ endpoints:
         name: timezone
         description: ''
         required: false
-        example: Asia/Yekaterinburg
+        example: Antarctica/Casey
         type: string
         enumValues:
           - Africa/Abidjan
@@ -524,8 +524,8 @@ endpoints:
       business_name: 'n'
       phone: '+36'
       sells_on:
-        - etsy
-      timezone: Asia/Yekaterinburg
+        - amazon
+      timezone: Antarctica/Casey
       base_currency: iyv
     fileParameters: []
     responses:

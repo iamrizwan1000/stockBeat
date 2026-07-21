@@ -86,7 +86,7 @@ endpoints:
         name: push_enabled
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -119,7 +119,7 @@ endpoints:
         name: quiet_hours_start
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '22:22'
+        example: '22:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -130,7 +130,7 @@ endpoints:
         name: quiet_hours_end
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '22:22'
+        example: '22:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -150,22 +150,26 @@ endpoints:
       sound:
         custom: []
         name: sound
-        description: 'Must not be greater than 50 characters.'
+        description: ''
         required: false
-        example: 'n'
+        example: default
         type: string
-        enumValues: []
+        enumValues:
+          - default
+          - cha_ching
+          - alert
+          - chime
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      push_enabled: false
+      push_enabled: true
       email_enabled: false
       sms_enabled: false
-      quiet_hours_start: '22:22'
-      quiet_hours_end: '22:22'
+      quiet_hours_start: '22:34'
+      quiet_hours_end: '22:34'
       quiet_hours_timezone: Asia/Yekaterinburg
-      sound: 'n'
+      sound: default
     fileParameters: []
     responses:
       -

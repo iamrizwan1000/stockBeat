@@ -50,7 +50,7 @@ endpoints:
         name: range
         description: ''
         required: false
-        example: 30d
+        example: 7d
         type: string
         enumValues:
           - today
@@ -60,7 +60,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      range: 30d
+      range: 7d
     fileParameters: []
     responses:
       -
@@ -163,7 +163,7 @@ endpoints:
         name: range
         description: ''
         required: false
-        example: today
+        example: 30d
         type: string
         enumValues:
           - today
@@ -173,7 +173,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      range: today
+      range: 30d
     fileParameters: []
     responses:
       -
