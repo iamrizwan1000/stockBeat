@@ -23,7 +23,18 @@ uses(RefreshDatabase::class);
  * config('services.tiktok_shop.*') is unset — the default test environment,
  * and (crucially) the environment this app actually runs in until a real
  * TikTok Shop Partner Center app exists.
+ *
+ * Explicitly nulled here rather than assumed from a blank .env — a real
+ * TikTok Shop app now exists for this project (Plan §15.2), so the ambient
+ * environment genuinely has these set; this file specifically tests the
+ * *unconfigured* code path regardless of that.
  */
+beforeEach(function () {
+    config([
+        'services.tiktok_shop.app_key' => null,
+        'services.tiktok_shop.app_secret' => null,
+    ]);
+});
 function tiktokOrderForUnreadyTests(): Order
 {
     $connection = StoreConnection::factory()->create([

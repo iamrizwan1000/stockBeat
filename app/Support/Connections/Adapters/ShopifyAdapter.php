@@ -4,6 +4,7 @@ namespace App\Support\Connections\Adapters;
 
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
+use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\InboxThread;
 use App\Models\Order;
@@ -54,6 +55,8 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
      */
     public function authorizationUrl(array $startCredentials, string $state): string
     {
+        $this->assertConfigured();
+
         $shopDomain = (string) ($startCredentials['shop_domain'] ?? '');
 
         return "https://{$shopDomain}/admin/oauth/authorize?".http_build_query([
@@ -69,6 +72,8 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
      */
     public function completeConnection(Team $team, string $name, array $startCredentials, string $nonce, Request $callback): StoreConnection
     {
+        $this->assertConfigured();
+
         if (! $this->hasValidQueryHmac($callback)) {
             throw ValidationException::withMessages(['shopify' => 'Invalid callback signature.']);
         }
@@ -458,5 +463,22 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         $expected = base64_encode(hash_hmac('sha256', $request->getContent(), (string) config('services.shopify.client_secret'), true));
 
         return hash_equals($expected, $signature);
+    }
+
+    /**
+     * Unlike `AmazonAdapter`/`TikTokAdapter`, this wasn't guarded until
+     * this pass — `authorizationUrl()` would silently build a URL with an
+     * empty `client_id` instead of failing cleanly when the Partner app
+     * credentials aren't configured (Plan §15.2). Same pattern as those
+     * two now.
+     */
+    private function assertConfigured(): void
+    {
+        if (
+            ! is_string(config('services.shopify.client_id')) || config('services.shopify.client_id') === ''
+            || ! is_string(config('services.shopify.client_secret')) || config('services.shopify.client_secret') === ''
+        ) {
+            throw AdapterNotReadyException::forPlatform(StoreConnection::PLATFORM_SHOPIFY);
+        }
     }
 }

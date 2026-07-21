@@ -41,6 +41,8 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
      */
     public function authorizationUrl(array $startCredentials, string $state): string
     {
+        $this->assertConfigured();
+
         $decoded = OAuthState::decode($state);
         $nonce = $decoded !== null ? $decoded->nonce : $state;
         $verifier = $this->deriveCodeVerifier($nonce);
@@ -62,6 +64,8 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
      */
     public function completeConnection(Team $team, string $name, array $startCredentials, string $nonce, Request $callback): StoreConnection
     {
+        $this->assertConfigured();
+
         $code = (string) $callback->query('code', '');
 
         if ($code === '') {
@@ -327,5 +331,20 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
         return Http::withHeaders(['x-api-key' => config('services.etsy.keystring')])
             ->withToken((string) ($credentials['access_token'] ?? ''))
             ->acceptJson();
+    }
+
+    /**
+     * Unlike `AmazonAdapter`/`TikTokAdapter`, this wasn't guarded until
+     * this pass — `authorizationUrl()` would silently build a URL with an
+     * empty `client_id` instead of failing cleanly when the Developer app
+     * credentials aren't configured (Plan §15.2). Same pattern as those
+     * two now. Only `keystring` is required here — Etsy's OAuth+PKCE flow
+     * doesn't use a client secret.
+     */
+    private function assertConfigured(): void
+    {
+        if (! is_string(config('services.etsy.keystring')) || config('services.etsy.keystring') === '') {
+            throw AdapterNotReadyException::forPlatform(StoreConnection::PLATFORM_ETSY);
+        }
     }
 }

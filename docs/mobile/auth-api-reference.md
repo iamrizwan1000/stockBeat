@@ -113,7 +113,7 @@ For a genuinely brand-new user, `user` fields other than `id`/`email` will be em
 | `name` | required, string, max 255 |
 | `business_name` | optional, string, max 255 |
 | `phone` | optional, must match `^\+[1-9]\d{1,14}$` (E.164) |
-| `sells_on` | required, array, min 1 item; each item must be one of `shopify` `woo` `ebay` `etsy` `amazon` |
+| `sells_on` | required, array, min 1 item; each item must be one of `shopify` `woo` `ebay` `etsy` `amazon` `tiktok` |
 | `timezone` | optional, must be a valid IANA timezone identifier |
 | `base_currency` | optional, exactly 3 characters |
 
@@ -142,7 +142,7 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
 
 ## `GET /me`
 
-**Requires auth.** The client's one call to get full app state after login/launch — call this after every OTP verify (existing users) and after every profile setup, and again on every cold app start if a token is stored.
+**Requires auth.** The client's one call to get full app state after login/launch — call this after every OTP verify (existing users) and after every profile setup, and again on every cold app start if a token is stored. This is the **only** endpoint that returns `feature_flags`, `sms_topup_packs`, and `content` — nothing else exposes them, so don't skip re-fetching it just because you already have `user`/`team` cached locally.
 
 **Success — 200, profile setup already complete:**
 ```json
@@ -152,7 +152,35 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
   "data": {
     "user": { "id": 1, "name": "Jamie Rivera", "email": "jamie@example.com", "business_name": "Rivera Vintage Co", "base_currency": "AUD", "timezone": "Australia/Sydney", "sells_on": ["woo"] },
     "team": { "id": 1, "name": "Rivera Vintage Co", "role": "owner" },
-    "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42, "...": "other plan_limits keys" },
+    "entitlements": {
+      "plan": "pro",
+      "subscription_status": "active",
+      "trial_ends_at": null,
+      "limits": {
+        "max_stores": 10,
+        "max_rules": null,
+        "sms_monthly": 100,
+        "email_monthly": 1000,
+        "history_days": 365,
+        "team_seats": 3,
+        "trial_days": null,
+        "inbox_enabled": true,
+        "analytics_level": "full",
+        "widgets_enabled": true,
+        "advanced_triggers_enabled": false,
+        "ai_enabled": true,
+        "ai_questions_monthly": 150,
+        "ai_rule_builder_enabled": true,
+        "ai_proactive_insights_enabled": false
+      },
+      "sms_balance": 42
+    },
+    "feature_flags": { "new_rules_ui": true },
+    "sms_topup_packs": [
+      { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" },
+      { "key": "sms_500", "name": "500 SMS", "sms_credits": 500, "price_usd": "9.99" }
+    ],
+    "content": { "paywall_pro_headline": "..." },
     "needs_profile_setup": false
   }
 }
@@ -167,6 +195,9 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
     "user": { "id": 1, "name": "", "email": "jamie@example.com", "business_name": null, "base_currency": null, "timezone": null, "sells_on": null },
     "team": null,
     "entitlements": null,
+    "feature_flags": null,
+    "sms_topup_packs": [],
+    "content": {},
     "needs_profile_setup": true
   }
 }
@@ -175,6 +206,27 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
 **Routing rule:** always branch navigation on `needs_profile_setup`, never on whether `team`/`entitlements` are present (they're just null together when setup is pending — same signal, but `needs_profile_setup` is the explicit one to check).
 
 `role` inside `team` is one of `owner` `manager` `agent` `viewer` — determines which write actions the UI should allow (see the Team/roles spec, not part of auth).
+
+**`entitlements.limits` — read every plan/feature gate from here, never hardcode a plan's numbers client-side** (they're admin-editable server-side and change without an app release):
+| Key | Type | Meaning |
+|---|---|---|
+| `max_stores` | int\|null | Connected-store cap. `null` = unlimited. |
+| `max_rules` | int\|null | Custom rule cap. `null` = unlimited. |
+| `sms_monthly` | int | SMS alerts included per month. |
+| `email_monthly` | int | Email alerts included per month. |
+| `history_days` | int\|null | How far back the order feed goes. `null` = unlimited. |
+| `team_seats` | int | Max team members. |
+| `trial_days` | int\|null | Only meaningful on the Premium plan row server-side; irrelevant once `subscription_status` isn't `trial`. |
+| `inbox_enabled` | bool | Show/hide the Inbox tab. |
+| `analytics_level` | `"today"` \| `"7d"` \| `"full"` | Which `range` values `GET /analytics/summary` will accept — calling with a disallowed range 422s. |
+| `widgets_enabled` | bool | Home-screen widget entitlement. |
+| `advanced_triggers_enabled` | bool | Gates `order_spike`/`refund_spike` in the rule-trigger picker. |
+| `ai_enabled` | bool | Gates the **Data Copilot** — if `false`, still show App Help (it's ungated on every plan, see the AI Assistant spec), but hide/lock the "ask about your data" surface. |
+| `ai_questions_monthly` | int\|null | Data Copilot's monthly question cap. `null` = unlimited. |
+| `ai_rule_builder_enabled` | bool | Gates the natural-language rule builder entry point. |
+| `ai_proactive_insights_enabled` | bool | Whether unprompted AI insight notifications are possible for this team (nothing to build differently client-side — this only affects whether the *server* ever sends one). |
+
+`entitlements.sms_balance` is **not** in `limits` — it's a sibling key, the team's *current* SMS credit balance (already spent this cycle), distinct from `limits.sms_monthly` (the *allotment*).
 
 **Errors:** `401` if the token is invalid/revoked — clear local token and return to `WelcomeScreen`.
 

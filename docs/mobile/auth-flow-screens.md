@@ -73,7 +73,7 @@ Pair this with `auth-api-reference.md` for exact request/response shapes.
 | `name` | text | ✅ | Max 255 chars |
 | `business_name` | text | optional | Max 255 chars |
 | `phone` | phone input w/ country code | optional | Must produce **E.164 format** (`+14155552671`) — use a library that outputs this directly, the server regex is strict (`^\+[1-9]\d{1,14}$`) |
-| `sells_on` | multi-select chips | ✅, min 1 | Exactly these five values — **note the value is `woo`, not `woocommerce`**: `shopify` `woo` `ebay` `etsy` `amazon`. Display labels can say "Shopify," "WooCommerce," etc. — just send the raw key. |
+| `sells_on` | multi-select chips | ✅, min 1 | Exactly these six values — **note the value is `woo`, not `woocommerce`**: `shopify` `woo` `ebay` `etsy` `amazon` `tiktok`. Display labels can say "Shopify," "WooCommerce," "TikTok Shop," etc. — just send the raw key. |
 | `timezone` | searchable picker | optional | Must be a valid IANA identifier (e.g. `Australia/Sydney`). Auto-detect from the device (`Intl.DateTimeFormat().resolvedOptions().timeZone` on RN/Hermes) and pre-fill, but let the user change it. |
 | `base_currency` | currency picker | optional | Exactly 3 letters (e.g. `USD`, `AUD`). Auto-detect from device locale, pre-fill, editable. |
 

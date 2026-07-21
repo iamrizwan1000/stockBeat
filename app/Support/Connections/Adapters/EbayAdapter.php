@@ -4,6 +4,7 @@ namespace App\Support\Connections\Adapters;
 
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
+use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\StoreConnection;
@@ -66,6 +67,8 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
      */
     public function authorizationUrl(array $startCredentials, string $state): string
     {
+        $this->assertConfigured();
+
         $authHost = $this->isSandbox() ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
 
         return "https://{$authHost}/oauth2/authorize?".http_build_query([
@@ -85,6 +88,8 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
      */
     public function completeConnection(Team $team, string $name, array $startCredentials, string $nonce, Request $callback): StoreConnection
     {
+        $this->assertConfigured();
+
         $code = (string) $callback->query('code', '');
 
         if ($code === '') {
@@ -670,5 +675,23 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
         libxml_use_internal_errors($previous);
 
         return $xml !== false ? $xml : null;
+    }
+
+    /**
+     * Unlike `AmazonAdapter`/`TikTokAdapter`, this wasn't guarded until
+     * this pass — `authorizationUrl()` would silently build a URL with an
+     * empty `client_id`/`redirect_uri` instead of failing cleanly when the
+     * Developer Portal app credentials aren't configured (Plan §15.2).
+     * Same pattern as those two now.
+     */
+    private function assertConfigured(): void
+    {
+        if (
+            ! is_string(config('services.ebay.app_id')) || config('services.ebay.app_id') === ''
+            || ! is_string(config('services.ebay.cert_id')) || config('services.ebay.cert_id') === ''
+            || ! is_string(config('services.ebay.ru_name')) || config('services.ebay.ru_name') === ''
+        ) {
+            throw AdapterNotReadyException::forPlatform(StoreConnection::PLATFORM_EBAY);
+        }
     }
 }
