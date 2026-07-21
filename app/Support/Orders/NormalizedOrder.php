@@ -41,5 +41,13 @@ final readonly class NormalizedOrder
          * platform.
          */
         public ?string $buyerUsername = null,
+        /**
+         * Best-effort, per-platform (Plan §4.12 Phase B) — populated only
+         * where the source API actually exposes it (WooCommerce's
+         * `discount_total`/`total_tax` today). Left `null` rather than
+         * fabricated for every platform that doesn't expose it.
+         */
+        public ?float $discountAmount = null,
+        public ?float $tax = null,
     ) {}
 }

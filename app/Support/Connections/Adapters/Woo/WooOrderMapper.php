@@ -39,6 +39,8 @@ class WooOrderMapper
             paymentStatus: $paymentStatus,
             currency: (string) ($raw['currency'] ?? 'USD'),
             total: (float) ($raw['total'] ?? 0),
+            discountAmount: isset($raw['discount_total']) ? (float) $raw['discount_total'] : null,
+            tax: isset($raw['total_tax']) ? (float) $raw['total_tax'] : null,
             customerName: $customerName !== '' ? $customerName : null,
             customerEmail: $billing['email'] ?? null,
             shippingAddress: [

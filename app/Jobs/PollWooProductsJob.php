@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Actions\Rules\CheckLowStockAction;
 use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\Product;
+use App\Models\ProductStockSnapshot;
 use App\Models\StoreConnection;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -71,6 +72,14 @@ class PollWooProductsJob implements ShouldQueue
                         'stock_quantity' => $managesStock ? $raw['stock_quantity'] : null,
                     ],
                 );
+
+                if ($product->stock_quantity !== null) {
+                    ProductStockSnapshot::query()->create([
+                        'product_id' => $product->id,
+                        'stock_quantity' => $product->stock_quantity,
+                        'recorded_at' => now(),
+                    ]);
+                }
 
                 $checkLowStock->handle($product);
             }

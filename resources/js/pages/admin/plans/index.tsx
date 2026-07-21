@@ -55,7 +55,14 @@ type ContentBlock = {
     active: boolean;
 };
 
-const BOOLEAN_KEYS = ['inbox_enabled', 'widgets_enabled', 'advanced_triggers_enabled'];
+const BOOLEAN_KEYS = [
+    'inbox_enabled',
+    'widgets_enabled',
+    'advanced_triggers_enabled',
+    'ai_enabled',
+    'ai_rule_builder_enabled',
+    'ai_proactive_insights_enabled',
+];
 const ENUM_KEYS: Record<string, Array<{ label: string; value: string }>> = {
     analytics_level: [
         { label: 'Today only', value: 'today' },
@@ -76,6 +83,10 @@ const LABELS: Record<string, string> = {
     analytics_level: 'Analytics level',
     widgets_enabled: 'Home-screen widgets',
     advanced_triggers_enabled: 'Advanced rule triggers (order/refund spike)',
+    ai_enabled: 'AI Data Copilot',
+    ai_questions_monthly: 'AI questions / month',
+    ai_rule_builder_enabled: 'AI natural-language rule builder',
+    ai_proactive_insights_enabled: 'Proactive AI Insights',
 };
 
 function LimitRow({ limit }: { limit: PlanLimit }) {

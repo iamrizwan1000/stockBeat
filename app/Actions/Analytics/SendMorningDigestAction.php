@@ -2,6 +2,8 @@
 
 namespace App\Actions\Analytics;
 
+use App\Actions\Ai\NarrateDigestAction;
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Notifications\SendPushNotificationAction;
 use App\Models\DailyStat;
 use App\Models\Notification;
@@ -17,11 +19,20 @@ use Illuminate\Support\Facades\DB;
  * to configure anything and always goes to the team owner. Reuses
  * `SendPushNotificationAction` so the owner's own notification
  * preferences/quiet hours (§4.8) still apply.
+ *
+ * AI-narrated digest (§4.12): on plans with `ai_enabled` (Starter+ — Free
+ * keeps the plain template, since narrating every Free team's digest daily
+ * would cost real LLM money with no revenue behind it), `NarrateDigestAction`
+ * rewrites the same real numbers into a natural sentence. Falls back to the
+ * template body on any narration failure — a digest must never fail to send
+ * just because the AI call did.
  */
 class SendMorningDigestAction
 {
     public function __construct(
         private readonly SendPushNotificationAction $sendPush,
+        private readonly NarrateDigestAction $narrateDigest,
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
     ) {}
 
     public function handle(Team $team, CarbonInterface $forDate): string
@@ -56,6 +67,16 @@ class SendMorningDigestAction
 
         if ($bestSeller !== null) {
             $body .= " Best seller: {$bestSeller}.";
+        }
+
+        $limits = $this->resolveEntitlements->handle($team)['limits'];
+
+        if (! empty($limits['ai_enabled'])) {
+            $narrated = $this->narrateDigest->handle($ordersCount, $revenue, $bestSeller);
+
+            if ($narrated !== null && $narrated !== '') {
+                $body = $narrated;
+            }
         }
 
         return $this->sendPush->handle(

@@ -3,6 +3,7 @@
 use App\Actions\Rules\CheckLowStockAction;
 use App\Jobs\PollWooProductsJob;
 use App\Models\Product;
+use App\Models\ProductStockSnapshot;
 use App\Models\Rule;
 use App\Models\RuleExecution;
 use App\Models\StoreConnection;
@@ -48,6 +49,12 @@ test('the poller upserts products and clears stock_quantity when stock is unmana
     expect($widget->sku)->toBe('SKU-1');
     expect($gadget->stock_quantity)->toBeNull();
     expect($gadget->sku)->toBeNull();
+
+    // Phase B (Plan §4.12): a snapshot is recorded for managed-stock products
+    // only — an unmanaged product has no meaningful stock_quantity to snapshot.
+    expect(ProductStockSnapshot::query()->where('product_id', $widget->id)->count())->toBe(1);
+    expect(ProductStockSnapshot::query()->where('product_id', $widget->id)->value('stock_quantity'))->toBe(2);
+    expect(ProductStockSnapshot::query()->where('product_id', $gadget->id)->count())->toBe(0);
 });
 
 test('the poller triggers a low_stock rule end to end when a product is at or below threshold', function () {

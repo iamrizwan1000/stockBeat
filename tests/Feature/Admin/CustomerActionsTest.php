@@ -2,6 +2,7 @@
 
 use App\Models\AdminAuditLog;
 use App\Models\AdminUser;
+use App\Models\AiUsageLedger;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
 use App\Models\Team;
@@ -71,6 +72,19 @@ test('granting bonus sms credits increases the ledger balance', function () {
 
     $latest = SmsLedger::query()->where('team_id', $team->id)->latest('id')->first();
     expect($latest->balance_after)->toBe(150);
+});
+
+test('granting bonus AI question credits raises the current month\'s effective quota', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/customers/{$user->id}/grant-ai-credits", ['credits' => 20])
+        ->assertRedirect();
+
+    expect(AiUsageLedger::bonusGrantedThisMonth($team->id))->toBe(20);
+    expect(AiUsageLedger::effectiveMonthlyLimit($team->id, 30))->toBe(50);
+    expect(AdminAuditLog::query()->where('action', 'customer.grant_bonus_ai_credits')->where('target_id', $team->id)->exists())->toBeTrue();
 });
 
 test('force logout revokes all sanctum tokens', function () {

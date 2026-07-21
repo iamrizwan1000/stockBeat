@@ -18,6 +18,7 @@ import {
     HeartIcon,
     HomeIcon,
     LockIcon,
+    MagicIcon,
     MegaphoneIcon,
     NoteIcon,
     NotificationIcon,
@@ -48,6 +49,12 @@ const NAV_ITEMS = [
         label: 'Feature Flags',
         url: '/admin/feature-flags',
         icon: FlagIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'AI Assistant',
+        url: '/admin/ai-assistant',
+        icon: MagicIcon,
         exactMatch: false,
     },
     {

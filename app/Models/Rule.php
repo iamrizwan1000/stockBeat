@@ -55,6 +55,15 @@ class Rule extends Model
 
     public const TRIGGER_DIGEST = 'digest';
 
+    /**
+     * Proactive AI Insights (Plan §4.12, Premium — gated by
+     * `plan_limits.ai_proactive_insights_enabled`, a separate flag from
+     * `advancedTriggers()` below). Order-less like `digest`/`low_stock` —
+     * fired by `DetectAiInsightsAction` via the scheduled `ai:detect-insights`
+     * command, never by `RuleEvaluationJob`.
+     */
+    public const TRIGGER_AI_INSIGHT = 'ai_insight';
+
     public const SOUND_DEFAULT = 'default';
 
     public const SOUND_CHA_CHING = 'cha_ching';
@@ -103,6 +112,7 @@ class Rule extends Model
             self::TRIGGER_ORDER_SPIKE,
             self::TRIGGER_REFUND_SPIKE,
             self::TRIGGER_DIGEST,
+            self::TRIGGER_AI_INSIGHT,
         ];
     }
 

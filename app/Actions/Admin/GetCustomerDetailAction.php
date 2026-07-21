@@ -3,6 +3,7 @@
 namespace App\Actions\Admin;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Models\AiUsageLedger;
 use App\Models\Device;
 use App\Models\Notification;
 use App\Models\SmsLedger;
@@ -96,6 +97,23 @@ class GetCustomerDetailAction
                     'balance_after' => $entry->balance_after,
                     'created_at' => $entry->created_at,
                 ])->all(),
+            'ai_usage' => $team === null ? null : [
+                'questions_used_this_month' => AiUsageLedger::questionsUsedThisMonth($team->id),
+                'monthly_limit' => AiUsageLedger::effectiveMonthlyLimit($team->id, $this->resolveEntitlements->handle($team)['limits']['ai_questions_monthly'] ?? null),
+                'bonus_granted_this_month' => AiUsageLedger::bonusGrantedThisMonth($team->id),
+                'ledger' => AiUsageLedger::query()
+                    ->where('team_id', $team->id)
+                    ->latest('id')
+                    ->limit(20)
+                    ->get()
+                    ->map(fn (AiUsageLedger $entry) => [
+                        'id' => $entry->id,
+                        'delta' => $entry->delta,
+                        'reason' => $entry->reason,
+                        'balance_after' => $entry->balance_after,
+                        'created_at' => $entry->created_at,
+                    ])->all(),
+            ],
             'notification_volume' => [
                 'push' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_PUSH)->count(),
                 'email' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_EMAIL)->count(),

@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\Ai\AiProviderException;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Http\Middleware\EnsureAdminCanWrite;
 use App\Http\Middleware\EnsureAdminHasTwoFactorEnabled;
@@ -99,6 +100,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (AdapterNotReadyException $e, Request $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error($e->getMessage(), status: 422);
+            }
+        });
+
+        // Plan §4.12: a provider outage/bad-key/malformed-response never
+        // debits the team's question quota (AskAssistantAction only debits
+        // after a successful answer) — this just surfaces it as a real,
+        // honest failure rather than a 500.
+        $exceptions->render(function (AiProviderException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error($e->getMessage(), status: 502);
             }
         });
     })->create();

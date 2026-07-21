@@ -12,6 +12,8 @@ function sampleWooOrderPayload(array $overrides = []): array
         'currency' => 'USD',
         'date_created_gmt' => '2026-07-16T10:00:00',
         'total' => '59.98',
+        'discount_total' => '5.00',
+        'total_tax' => '4.50',
         'billing' => [
             'first_name' => 'Jane',
             'last_name' => 'Buyer',
@@ -56,6 +58,8 @@ test('maps a real woo order payload accurately', function () {
     expect($order->paymentStatus)->toBe(Order::PAYMENT_PAID);
     expect($order->currency)->toBe('USD');
     expect($order->total)->toBe(59.98);
+    expect($order->discountAmount)->toBe(5.00);
+    expect($order->tax)->toBe(4.50);
     expect($order->customerName)->toBe('Jane Buyer');
     expect($order->customerEmail)->toBe('jane@example.com');
     expect($order->shippingAddress['country'])->toBe('AU');
@@ -87,3 +91,13 @@ test('maps each woo status to the correct internal vocabulary', function (string
     'failed' => ['failed', Order::STATUS_NEW, Order::FULFILLMENT_UNFULFILLED, Order::PAYMENT_FAILED],
     'unknown' => ['some-custom-status', Order::STATUS_NEW, Order::FULFILLMENT_UNFULFILLED, Order::PAYMENT_PENDING],
 ]);
+
+test('discount and tax stay null (never fabricated) when Woo does not send them', function () {
+    $payload = sampleWooOrderPayload();
+    unset($payload['discount_total'], $payload['total_tax']);
+
+    $order = app(WooOrderMapper::class)->map($payload);
+
+    expect($order->discountAmount)->toBeNull();
+    expect($order->tax)->toBeNull();
+});

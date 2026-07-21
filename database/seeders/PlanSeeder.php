@@ -37,6 +37,10 @@ class PlanSeeder extends Seeder
             PlanLimit::ANALYTICS_LEVEL => 'today',
             PlanLimit::WIDGETS_ENABLED => false,
             PlanLimit::ADVANCED_TRIGGERS_ENABLED => false,
+            PlanLimit::AI_ENABLED => false,
+            PlanLimit::AI_QUESTIONS_MONTHLY => 0,
+            PlanLimit::AI_RULE_BUILDER_ENABLED => false,
+            PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => false,
         ]);
 
         $starter = Plan::query()->updateOrCreate(
@@ -55,6 +59,10 @@ class PlanSeeder extends Seeder
             PlanLimit::ANALYTICS_LEVEL => '7d',
             PlanLimit::WIDGETS_ENABLED => false,
             PlanLimit::ADVANCED_TRIGGERS_ENABLED => false,
+            PlanLimit::AI_ENABLED => true,
+            PlanLimit::AI_QUESTIONS_MONTHLY => 30,
+            PlanLimit::AI_RULE_BUILDER_ENABLED => false,
+            PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => false,
         ]);
 
         $pro = Plan::query()->updateOrCreate(
@@ -73,6 +81,10 @@ class PlanSeeder extends Seeder
             PlanLimit::ANALYTICS_LEVEL => 'full',
             PlanLimit::WIDGETS_ENABLED => true,
             PlanLimit::ADVANCED_TRIGGERS_ENABLED => false,
+            PlanLimit::AI_ENABLED => true,
+            PlanLimit::AI_QUESTIONS_MONTHLY => 150,
+            PlanLimit::AI_RULE_BUILDER_ENABLED => true,
+            PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => false,
         ]);
 
         $premium = Plan::query()->updateOrCreate(
@@ -92,6 +104,10 @@ class PlanSeeder extends Seeder
             PlanLimit::ANALYTICS_LEVEL => 'full',
             PlanLimit::WIDGETS_ENABLED => true,
             PlanLimit::ADVANCED_TRIGGERS_ENABLED => true,
+            PlanLimit::AI_ENABLED => true,
+            PlanLimit::AI_QUESTIONS_MONTHLY => 500,
+            PlanLimit::AI_RULE_BUILDER_ENABLED => true,
+            PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => true,
         ]);
     }
 

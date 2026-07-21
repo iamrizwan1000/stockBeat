@@ -57,6 +57,18 @@ type CustomerDetail = {
         balance_after: number;
         created_at: string | null;
     }>;
+    ai_usage: {
+        questions_used_this_month: number;
+        monthly_limit: number | null;
+        bonus_granted_this_month: number;
+        ledger: Array<{
+            id: number;
+            delta: number;
+            reason: string;
+            balance_after: number;
+            created_at: string | null;
+        }>;
+    } | null;
     notification_volume: { push: number; email: number; sms: number };
     funnel_position: string;
     subscription_timeline: Array<{
@@ -96,6 +108,7 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
     const [trialDays, setTrialDays] = useState('7');
     const [proDays, setProDays] = useState('30');
     const [smsCredits, setSmsCredits] = useState('100');
+    const [aiCredits, setAiCredits] = useState('20');
 
     const post = (url: string, data: Record<string, string> = {}) => router.post(url, data);
 
@@ -191,6 +204,27 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                                         }
                                     >
                                         Grant bonus SMS credits
+                                    </Button>
+                                </InlineStack>
+
+                                <InlineStack gap="300" blockAlign="end">
+                                    <div style={{ width: '120px' }}>
+                                        <TextField
+                                            label="Credits"
+                                            type="number"
+                                            value={aiCredits}
+                                            onChange={setAiCredits}
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={() =>
+                                            post(`/admin/customers/${customer.user.id}/grant-ai-credits`, {
+                                                credits: aiCredits,
+                                            })
+                                        }
+                                    >
+                                        Grant bonus AI question credits
                                     </Button>
                                 </InlineStack>
 
@@ -386,6 +420,43 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                             ) : (
                                 <Text as="p" tone="subdued">
                                     No SMS ledger activity.
+                                </Text>
+                            )}
+                        </Card>
+                    </Section>
+
+                    <Section title="AI Assistant usage">
+                        <Card>
+                            {customer.ai_usage ? (
+                                <BlockStack gap="200">
+                                    <Text as="p">
+                                        {customer.ai_usage.questions_used_this_month} of{' '}
+                                        {customer.ai_usage.monthly_limit ?? '∞'} questions
+                                        used this month
+                                        {customer.ai_usage.bonus_granted_this_month > 0
+                                            ? ` (includes ${customer.ai_usage.bonus_granted_this_month} bonus credits granted this month)`
+                                            : ''}
+                                    </Text>
+                                    {customer.ai_usage.ledger.length > 0 ? (
+                                        <DataTable
+                                            columnContentTypes={['text', 'numeric', 'numeric', 'text']}
+                                            headings={['Reason', 'Delta', 'Balance after', 'Date']}
+                                            rows={customer.ai_usage.ledger.map((entry) => [
+                                                entry.reason,
+                                                String(entry.delta),
+                                                String(entry.balance_after),
+                                                formatDate(entry.created_at),
+                                            ])}
+                                        />
+                                    ) : (
+                                        <Text as="p" tone="subdued">
+                                            No AI Assistant questions asked yet.
+                                        </Text>
+                                    )}
+                                </BlockStack>
+                            ) : (
+                                <Text as="p" tone="subdued">
+                                    No team.
                                 </Text>
                             )}
                         </Card>

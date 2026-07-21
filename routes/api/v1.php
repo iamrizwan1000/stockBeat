@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ReplyTemplateController;
 use App\Http\Controllers\Api\V1\RuleController;
 use App\Http\Controllers\Api\V1\SettingsController;
@@ -107,6 +109,16 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
 
     Route::get('analytics/summary', [AnalyticsController::class, 'summary'])->name('analytics.summary');
     Route::get('analytics/products', [AnalyticsController::class, 'products'])->name('analytics.products');
+
+    Route::get('products', [ProductController::class, 'index'])->name('products.index');
+    Route::put('products/{product}/cost-price', [ProductController::class, 'updateCostPrice'])
+        ->middleware('team.role:owner,manager')
+        ->name('products.cost-price.update');
+
+    Route::post('assistant/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
+    Route::get('assistant/conversations', [AssistantController::class, 'index'])->name('assistant.conversations.index');
+    Route::get('assistant/conversations/{conversation}', [AssistantController::class, 'show'])->name('assistant.conversations.show');
+    Route::post('assistant/rule-draft', [AssistantController::class, 'ruleDraft'])->name('assistant.rule-draft');
 
     Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
 

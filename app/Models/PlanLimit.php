@@ -55,6 +55,19 @@ class PlanLimit extends Model
     public const ADVANCED_TRIGGERS_ENABLED = 'advanced_triggers_enabled';
 
     /**
+     * AI Assistant gates (Plan §4.12/§5). `AI_QUESTIONS_MONTHLY` of `null`
+     * means unlimited; `0` (Free) means the Data Copilot is fully locked —
+     * App Help still works regardless, since it isn't gated by this limit.
+     */
+    public const AI_ENABLED = 'ai_enabled';
+
+    public const AI_QUESTIONS_MONTHLY = 'ai_questions_monthly';
+
+    public const AI_RULE_BUILDER_ENABLED = 'ai_rule_builder_enabled';
+
+    public const AI_PROACTIVE_INSIGHTS_ENABLED = 'ai_proactive_insights_enabled';
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

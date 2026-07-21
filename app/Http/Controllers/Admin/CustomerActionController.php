@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Admin\ExtendTrialAction;
 use App\Actions\Admin\ForceLogoutAction;
+use App\Actions\Admin\GrantBonusAiCreditsAction;
 use App\Actions\Admin\GrantBonusSmsCreditsAction;
 use App\Actions\Admin\GrantComplimentaryProAction;
 use App\Actions\Admin\SuspendAccountAction;
 use App\Actions\Admin\UnsuspendAccountAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GrantAiCreditsRequest;
 use App\Http\Requests\Admin\GrantDaysRequest;
 use App\Http\Requests\Admin\GrantSmsCreditsRequest;
 use App\Models\AdminUser;
@@ -44,6 +46,15 @@ class CustomerActionController extends Controller
         $action->handle($this->admin($request), $team, (int) $request->input('credits'));
 
         return back()->with('status', 'SMS credits granted.');
+    }
+
+    public function grantAiCredits(GrantAiCreditsRequest $request, User $user, GrantBonusAiCreditsAction $action): RedirectResponse
+    {
+        $team = $this->requireTeam($user);
+
+        $action->handle($this->admin($request), $team, (int) $request->input('credits'));
+
+        return back()->with('status', 'AI question credits granted.');
     }
 
     public function forceLogout(Request $request, User $user, ForceLogoutAction $action): RedirectResponse

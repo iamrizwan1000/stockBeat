@@ -34,6 +34,16 @@ class UpdateRuleAction
             }
         }
 
+        if (isset($data['trigger']) && $data['trigger'] === Rule::TRIGGER_AI_INSIGHT) {
+            $limits = $this->resolveEntitlements->handle($rule->team)['limits'];
+
+            if (empty($limits['ai_proactive_insights_enabled'])) {
+                throw ValidationException::withMessages([
+                    'trigger' => 'Proactive AI Insights requires the Premium plan.',
+                ]);
+            }
+        }
+
         $rule->fill(array_intersect_key($data, array_flip([
             'name', 'trigger', 'conditions', 'actions', 'sound', 'controls', 'enabled',
         ])));

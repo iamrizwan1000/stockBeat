@@ -22,6 +22,8 @@ use Illuminate\Support\Carbon;
  * @property string $payment_status
  * @property string $currency
  * @property float $total
+ * @property float|null $discount_amount
+ * @property float|null $tax
  * @property float|null $total_base_currency
  * @property string|null $customer_name
  * @property string|null $customer_email
@@ -42,6 +44,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'team_id', 'connection_id', 'platform', 'external_id', 'order_number',
     'status', 'fulfillment_status', 'payment_status', 'currency', 'total',
+    'discount_amount', 'tax',
     'total_base_currency', 'customer_name', 'customer_email', 'buyer_username', 'shipping_address',
     'placed_at', 'ship_by_at', 'tracking_number', 'carrier', 'check_at', 'tags',
     'raw', 'is_test', 'snoozed_until',
@@ -94,6 +97,8 @@ class Order extends Model
             'check_at' => 'datetime',
             'snoozed_until' => 'datetime',
             'total' => 'float',
+            'discount_amount' => 'float',
+            'tax' => 'float',
             'total_base_currency' => 'float',
         ];
     }

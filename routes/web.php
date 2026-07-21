@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AiProviderController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CannedReplyController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SegmentController;
 use App\Http\Controllers\Admin\SmsTopupPackController;
 use App\Http\Controllers\Admin\SupportInboxController;
+use App\Models\AiProviderSetting;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -34,6 +36,8 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
     Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
     Route::get('feature-flags', [FeatureFlagController::class, 'index'])->name('feature-flags.index');
+
+    Route::get('ai-assistant', [AiProviderController::class, 'index'])->name('ai-assistant.index');
 
     Route::get('promotions', [PromoCampaignController::class, 'index'])->name('promotions.index');
     Route::get('promotions/{promoCampaign}', [PromoCampaignController::class, 'show'])->name('promotions.show');
@@ -65,6 +69,7 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
         Route::post('customers/{user}/extend-trial', [CustomerActionController::class, 'extendTrial'])->name('customers.extend-trial');
         Route::post('customers/{user}/grant-pro', [CustomerActionController::class, 'grantPro'])->name('customers.grant-pro');
         Route::post('customers/{user}/grant-sms-credits', [CustomerActionController::class, 'grantSmsCredits'])->name('customers.grant-sms-credits');
+        Route::post('customers/{user}/grant-ai-credits', [CustomerActionController::class, 'grantAiCredits'])->name('customers.grant-ai-credits');
         Route::post('customers/{user}/force-logout', [CustomerActionController::class, 'forceLogout'])->name('customers.force-logout');
         Route::post('customers/{user}/suspend', [CustomerActionController::class, 'suspend'])->name('customers.suspend');
         Route::post('customers/{user}/unsuspend', [CustomerActionController::class, 'unsuspend'])->name('customers.unsuspend');
@@ -81,6 +86,10 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
         Route::post('feature-flags', [FeatureFlagController::class, 'store'])->name('feature-flags.store');
         Route::put('feature-flags/{featureFlag}', [FeatureFlagController::class, 'update'])->name('feature-flags.update');
         Route::delete('feature-flags/{featureFlag}', [FeatureFlagController::class, 'destroy'])->name('feature-flags.destroy');
+
+        Route::put('ai-assistant/{provider}', [AiProviderController::class, 'update'])
+            ->whereIn('provider', AiProviderSetting::providers())
+            ->name('ai-assistant.update');
 
         Route::post('promotions', [PromoCampaignController::class, 'store'])->name('promotions.store');
         Route::put('promotions/{promoCampaign}', [PromoCampaignController::class, 'update'])->name('promotions.update');

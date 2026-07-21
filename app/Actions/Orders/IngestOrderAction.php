@@ -51,6 +51,8 @@ class IngestOrderAction
                     'payment_status' => $normalized->paymentStatus,
                     'currency' => $normalized->currency,
                     'total' => $normalized->total,
+                    'discount_amount' => $normalized->discountAmount,
+                    'tax' => $normalized->tax,
                     'total_base_currency' => $this->resolveBaseCurrencyTotal($connection, $normalized),
                     'customer_name' => $normalized->customerName,
                     'customer_email' => $normalized->customerEmail,

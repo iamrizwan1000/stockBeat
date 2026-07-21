@@ -8,10 +8,18 @@ use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // SendMorningDigestAction now checks plan_limits.ai_enabled for AI-narrated
+    // digests (Plan §4.12) via ResolveEntitlementsAction, which requires plans
+    // to exist.
+    $this->seed(PlanSeeder::class);
+});
 
 function teamWithOwnerForDigest(): array
 {

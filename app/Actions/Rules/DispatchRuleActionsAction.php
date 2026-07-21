@@ -84,6 +84,7 @@ class DispatchRuleActionsAction
             Rule::TRIGGER_DIGEST => $this->digestBody($rule),
             Rule::TRIGGER_LOW_STOCK => $this->lowStockBody($context),
             Rule::TRIGGER_NEGATIVE_REVIEW => $this->negativeReviewBody($context),
+            Rule::TRIGGER_AI_INSIGHT => (string) ($context['insight'] ?? 'Your AI Assistant found something worth a look.'),
             default => 'Rule triggered.',
         };
     }

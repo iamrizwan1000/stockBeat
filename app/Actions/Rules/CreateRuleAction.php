@@ -44,6 +44,12 @@ class CreateRuleAction
             ]);
         }
 
+        if ($data['trigger'] === Rule::TRIGGER_AI_INSIGHT && empty($limits['ai_proactive_insights_enabled'])) {
+            throw ValidationException::withMessages([
+                'trigger' => 'Proactive AI Insights requires the Premium plan.',
+            ]);
+        }
+
         return Rule::query()->create([
             'team_id' => $team->id,
             'name' => $data['name'],

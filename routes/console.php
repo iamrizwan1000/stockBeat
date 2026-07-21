@@ -67,6 +67,9 @@ Schedule::command('orders:check-deadlines')->hourly();
 // Custom Pro digest-trigger rules (Plan §4.4) — per-rule daily/weekly cadence.
 Schedule::command('rules:send-digests')->hourly();
 
+// Proactive AI Insights (Plan §4.12, Premium) — ai_insight rule trigger.
+Schedule::command('ai:detect-insights')->hourly();
+
 // low_stock / negative_review triggers (Plan §4.4) — poll-only for now.
 Schedule::command('products:poll-woo')->everyThirtyMinutes();
 Schedule::command('reviews:poll-woo')->hourly();
