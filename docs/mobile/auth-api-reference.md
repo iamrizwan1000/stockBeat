@@ -12,6 +12,28 @@ Authenticated endpoints require `Authorization: Bearer {token}`. A missing/inval
 
 ---
 
+## `GET /config`
+
+**Unauthenticated** — call this before anything else, on every cold start, before even checking for a stored token. See `auth-flow-screens.md`'s "Screen 0" for the full launch-gate logic.
+
+```json
+{ "success": true, "message": null, "data": {
+  "min_version": "1.2.0",
+  "maintenance_mode": false,
+  "maintenance_banner": null
+} }
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `min_version` | string\|null | Force-update floor — if the running app is below this (semver), block with an update screen. `null` = no floor enforced. |
+| `maintenance_mode` | bool | `true` = block the whole app with a maintenance screen, using `maintenance_banner` as the message if present |
+| `maintenance_banner` | string\|null | Maintenance message text, only meaningful when `maintenance_mode` is `true` |
+
+Admin-editable (Plan §8.7.7) — these values can change without an app release, so don't cache them across app sessions as if they were static. Not related to `entitlements`/plan gating (`GET /me`) — this is "is the app itself usable right now," not billing.
+
+---
+
 ## `POST /auth/otp/request`
 
 Unauthenticated. Sends a 6-digit code by email.
@@ -116,6 +138,8 @@ For a genuinely brand-new user, `user` fields other than `id`/`email` will be em
 | `sells_on` | required, array, min 1 item; each item must be one of `shopify` `woo` `ebay` `etsy` `amazon` `tiktok` |
 | `timezone` | optional, must be a valid IANA timezone identifier |
 | `base_currency` | optional, exactly 3 characters |
+
+**Building the pickers for `timezone` and `base_currency`:** neither has a catalog endpoint on this API — there isn't a `GET /timezones` or `GET /currencies`. Both are validated server-side against standard external lists (`timezone` against PHP's full IANA `DateTimeZone` identifier list — 400+ zones; `base_currency` only checked for length, not against a real ISO 4217 list, so don't rely on the server to catch a bogus-but-3-character code). Use your platform's own built-in timezone list (iOS/Android both ship one) and a bundled ISO 4217 currency list client-side — don't hardcode a short list of "common" zones/currencies, since a real IANA identifier the server accepts (e.g. `"Pacific/Kiritimati"`) could be missing from a hand-picked short list and 422 for no visible reason to the merchant. Default `timezone` to the device's own current timezone rather than leaving the picker unset.
 
 **Success — 200:**
 ```json

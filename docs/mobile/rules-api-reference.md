@@ -48,19 +48,19 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 
 Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 
-**`field`** — exactly these 10 values:
-| Field | Compares against |
-|---|---|
-| `channel` | Platform (`shopify`/`woo`/`ebay`/`etsy`/`amazon`/`tiktok`) |
-| `store` | A specific `connection_id` (integer) |
-| `total` | Order total, numeric |
-| `sku` | Substring match against any line item's SKU (case-insensitive) |
-| `product` | Substring match against any line item's title (case-insensitive) |
-| `quantity` | Total item quantity across the order, numeric |
-| `customer_country` | Shipping address country |
-| `repeat_buyer` | `true`/`false` — has this customer email ordered before |
-| `shipping_method` | Shipping method string from the order's shipping address |
-| `tag` | Exact match against one of the order's tags |
+**`field`** — exactly these 10 values, and what UI control each one implies:
+| Field | Compares against | Value input |
+|---|---|---|
+| `channel` | Platform (`shopify`/`woo`/`ebay`/`etsy`/`amazon`/`tiktok`) | Fixed dropdown — same 6 values used everywhere else in this API, never free text |
+| `store` | A specific `connection_id` (integer) | Dropdown sourced from `GET /connections` (`connections-api-reference.md`) — show each connection's display `name`, submit its `id`. Never a free-text integer field. |
+| `total` | Order total, numeric | Numeric input |
+| `sku` | Substring match against any line item's SKU (case-insensitive) | Free text — there's no "list of SKUs used" endpoint to build a picker from |
+| `product` | Substring match against any line item's title (case-insensitive) | Free text, same reason |
+| `quantity` | Total item quantity across the order, numeric | Numeric input |
+| `customer_country` | Order's `shipping_address.country` (`orders-api-reference.md`'s order resource) | **Not a fixed enum** — this is whatever raw value the platform sent (for WooCommerce, the only real adapter today, it's an ISO 3166-1 alpha-2 code like `"AU"`). Build a standard country picker client-side (bundled ISO list, value = alpha-2 code) rather than trying to derive valid values from the API — there's no "list of countries seen" endpoint, and a future non-Woo platform isn't guaranteed to send alpha-2 codes at all. |
+| `repeat_buyer` | `true`/`false` — has this customer email ordered before | Boolean toggle, not free text |
+| `shipping_method` | Shipping method string from the order's shipping address | **Free text, genuinely unstructured** — this is raw, platform-specific text (e.g. "USPS Priority", "Standard Shipping") with no fixed catalog and no "list of methods seen" endpoint. Don't build a dropdown you can't actually populate correctly; a plain text input (with a note that it must match exactly) is the honest choice here. |
+| `tag` | Exact match against one of the order's tags | Free text, or reuse whatever tag-entry UI `orders-feed-screens.md`'s tag editor already has, since these are the same order tags |
 
 **`operator`** — exactly these 8 values, **word-based, not symbols**:
 | Operator | Meaning | Value shape |

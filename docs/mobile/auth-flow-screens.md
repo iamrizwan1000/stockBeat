@@ -6,6 +6,25 @@ Pair this with `auth-api-reference.md` for exact request/response shapes.
 
 ---
 
+## Screen 0 — app launch gate (before any UI, including before checking if a token is stored)
+
+**On every cold start**, before rendering `WelcomeScreen`, a stored-token check, or anything else: call `GET /config` (`auth-api-reference.md` — **unauthenticated, no bearer token needed or sent**, this must be checkable before the user has ever signed in).
+
+```json
+{ "success": true, "message": null, "data": {
+  "min_version": "1.2.0",
+  "maintenance_mode": false,
+  "maintenance_banner": null
+} }
+```
+
+- **`min_version`** — if the running app's version is below this (semver compare), show a full-screen, non-dismissible "Update required" screen with a link to the store listing. Don't let the user navigate past it, even with a valid stored token — a killed-version client shouldn't be able to hit the rest of the API expecting old behavior. `null` means no enforced minimum, skip this check.
+- **`maintenance_mode`** — if `true`, show a full-screen "We'll be right back" state (using `maintenance_banner` as the message if present, a generic fallback if `null`) instead of proceeding to login/the main app shell. Don't cache this as "safe" for more than the current app session — re-check on every cold start, and consider a periodic re-check (e.g. on app foreground) if a maintenance window could start while the app is already open.
+- Neither field has any relation to `entitlements`/plan gating — this is infra-level (is the app itself usable right now), not billing-level. Once both checks pass, proceed to the normal launch flow: check for a stored token → `GET /me` if present (`auth-api-reference.md`) → `WelcomeScreen` if not.
+- **If this call fails entirely** (network error, 5xx): don't hard-block the app on it — fail open and proceed to the normal launch flow. A config-check outage shouldn't be able to lock every user out of an otherwise-working app.
+
+---
+
 ## Screen 1 — `WelcomeScreen`
 
 **Purpose:** collect an email address. This single screen handles both login and signup — the user never picks which one.
