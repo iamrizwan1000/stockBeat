@@ -1,28 +1,151 @@
-name: Orders
+name: Connections
 description: |-
 
-  The unified order feed across all connected channels, plus quick actions
-  (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+  Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
+  Only WooCommerce is fully live end-to-end today — the others accept a connection
+  record but adapter operations are not yet available.
 endpoints:
   -
     custom: []
     httpMethods:
-      - GET
-    uri: api/v1/orders
+      - POST
+    uri: 'api/v1/connections/{platform}/start'
     metadata:
       custom: []
-      groupName: Orders
+      groupName: Connections
       groupDescription: |-
 
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
       subgroup: ''
       subgroupDescription: ''
-      title: 'List orders.'
+      title: 'Start connecting a store.'
       description: |-
-        Cursor-paginated, filterable by channel/store/status/date/value/tag, with global search
-        across order number, customer name/email, and item SKU/title. `history_days` is plan-gated
-        server-side; test orders are excluded unless the team is viewing in test mode.
+        `credentials` shape depends on `platform`: WooCommerce expects `{store_url, consumer_key,
+        consumer_secret}` (key-intake, connects immediately). Shopify expects `{shop_domain}`.
+        eBay/Etsy expect no credentials at all. Amazon is still pending adapter approval.
+        OAuth platforms (Shopify/eBay/Etsy) don't connect immediately — this returns an
+        `authorization_url` to open in an in-app browser; the connection itself is created once
+        the merchant approves and the platform redirects back to our callback.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      platform:
+        custom: []
+        name: platform
+        description: 'One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`, `tiktok`.'
+        required: true
+        example: woo
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      platform: woo
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: 'Must not be greater than 255 characters.'
+        required: true
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      credentials:
+        custom: []
+        name: credentials
+        description: ''
+        required: false
+        example: null
+        type: object
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      name: b
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "authorization_url": "https://my-shop.myshopify.com/admin/oauth/authorize?client_id=..."
+            }
+          }
+        headers: []
+        description: 'shopify/ebay/etsy — OAuth redirect'
+      -
+        custom: []
+        status: 201
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connection": {
+                "id": 1,
+                "platform": "woo",
+                "name": "Rivera Vintage Co",
+                "status": "active",
+                "last_sync_at": null,
+                "webhook_status": "registered"
+              }
+            }
+          }
+        headers: []
+        description: 'woo — connects immediately'
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "Complete profile setup before connecting a store.",
+            "errors": null
+          }
+        headers: []
+        description: 'profile setup incomplete'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/connections
+    metadata:
+      custom: []
+      groupName: Connections
+      groupDescription: |-
+
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'List connections.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -33,138 +156,8 @@ endpoints:
     cleanUrlParameters: []
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters:
-      channel:
-        custom: []
-        name: channel
-        description: ''
-        required: false
-        example: woo
-        type: string
-        enumValues:
-          - shopify
-          - woo
-          - ebay
-          - etsy
-          - amazon
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      store:
-        custom: []
-        name: store
-        description: ''
-        required: false
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      status:
-        custom: []
-        name: status
-        description: ''
-        required: false
-        example: cancelled
-        type: string
-        enumValues:
-          - new
-          - unfulfilled
-          - shipped
-          - refunded
-          - cancelled
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      date_from:
-        custom: []
-        name: date_from
-        description: 'Must be a valid date.'
-        required: false
-        example: '2026-07-16T18:25:25'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      date_to:
-        custom: []
-        name: date_to
-        description: 'Must be a valid date.'
-        required: false
-        example: '2026-07-16T18:25:25'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      value_min:
-        custom: []
-        name: value_min
-        description: ''
-        required: false
-        example: 4326.41688
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      value_max:
-        custom: []
-        name: value_max
-        description: ''
-        required: false
-        example: 4326.41688
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      tag:
-        custom: []
-        name: tag
-        description: ''
-        required: false
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      q:
-        custom: []
-        name: q
-        description: ''
-        required: false
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      include_snoozed:
-        custom: []
-        name: include_snoozed
-        description: ''
-        required: false
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      channel: woo
-      store: 16
-      status: cancelled
-      date_from: '2026-07-16T18:25:25'
-      date_to: '2026-07-16T18:25:25'
-      value_min: 4326.41688
-      value_max: 4326.41688
-      tag: architecto
-      q: architecto
-      include_snoozed: false
+    bodyParameters: []
+    cleanBodyParameters: []
     fileParameters: []
     responses:
       -
@@ -175,31 +168,16 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "orders": [
+              "connections": [
                 {
                   "id": 1,
                   "platform": "woo",
-                  "connection_id": 1,
-                  "order_number": "#1042",
-                  "status": "unfulfilled",
-                  "fulfillment_status": "unfulfilled",
-                  "payment_status": "paid",
-                  "currency": "AUD",
-                  "total": "84.00",
-                  "total_base_currency": "84.00",
-                  "customer_name": "Alex Chen",
-                  "customer_email": "alex@example.com",
-                  "shipping_address": { "line1": "1 Example St", "city": "Sydney", "postcode": "2000", "country": "AU" },
-                  "placed_at": "2026-07-16T00:30:00.000000Z",
-                  "ship_by_at": "2026-07-18T00:30:00.000000Z",
-                  "ship_by_hours_remaining": 46.5,
-                  "is_ship_by_urgent": false,
-                  "tags": ["gift"],
-                  "is_test": false,
-                  "snoozed_until": null
+                  "name": "Rivera Vintage Co",
+                  "status": "active",
+                  "last_sync_at": "2026-07-16T01:45:00.000000Z",
+                  "webhook_status": "registered"
                 }
-              ],
-              "next_cursor": "eyJpZCI6MSwiX3BvaW50c1RvTmV4dEl0ZW1zIjp0cnVlfQ"
+              ]
             }
           }
         headers: []
@@ -216,20 +194,108 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/orders/{id}'
+    uri: 'api/v1/connections/{connection_id}/health'
     metadata:
       custom: []
-      groupName: Orders
+      groupName: Connections
       groupDescription: |-
 
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get an order.'
+      title: 'Get connection health.'
       description: |-
-        Includes items and notes. 404s if the order isn't in the caller's team, or outside the
-        caller's `store_visibility` restriction.
+        Plain-language status for the connection-health screen — never raw error codes.
+        `fix_action` is a key the client maps to a concrete flow (e.g. `reauth`), not a URL.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      connection_id:
+        custom: []
+        name: connection_id
+        description: 'The ID of the connection.'
+        required: true
+        example: 3
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      connection_id: 3
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connection_id": 1,
+              "status": "active",
+              "webhook_status": "registered",
+              "last_sync_at": "2026-07-16T01:45:00+00:00",
+              "message": "Rivera Vintage Co is connected and syncing normally.",
+              "fix_action": null
+            }
+          }
+        headers: []
+        description: healthy
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "connection_id": 1,
+              "status": "needs_reauth",
+              "webhook_status": "registered",
+              "last_sync_at": "2026-07-15T20:00:00+00:00",
+              "message": "Your connection to Rivera Vintage Co needs to be reconnected.",
+              "fix_action": "reauth"
+            }
+          }
+        headers: []
+        description: 'needs reauth'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/v1/connections/{id}'
+    metadata:
+      custom: []
+      groupName: Connections
+      groupDescription: |-
+
+        Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
+        Only WooCommerce is fully live end-to-end today — the others accept a connection
+        record but adapter operations are not yet available.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Disconnect a store.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -240,16 +306,16 @@ endpoints:
       id:
         custom: []
         name: id
-        description: 'The ID of the order.'
+        description: 'The ID of the connection.'
         required: true
-        example: 16
+        example: 3
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 16
+      id: 3
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -262,569 +328,11 @@ endpoints:
         content: |-
           {
             "success": true,
-            "message": null,
-            "data": {
-              "order": {
-                "id": 1,
-                "platform": "woo",
-                "connection_id": 1,
-                "order_number": "#1042",
-                "status": "unfulfilled",
-                "fulfillment_status": "unfulfilled",
-                "payment_status": "paid",
-                "currency": "AUD",
-                "total": "84.00",
-                "total_base_currency": "84.00",
-                "customer_name": "Alex Chen",
-                "customer_email": "alex@example.com",
-                "shipping_address": { "line1": "1 Example St", "city": "Sydney", "postcode": "2000", "country": "AU" },
-                "placed_at": "2026-07-16T00:30:00.000000Z",
-                "ship_by_at": "2026-07-18T00:30:00.000000Z",
-                "ship_by_hours_remaining": 46.5,
-                "is_ship_by_urgent": false,
-                "tags": ["gift"],
-                "is_test": false,
-                "snoozed_until": null,
-                "items": [
-                  { "id": 1, "sku": "VNT-014", "title": "Vintage Denim Jacket", "image_url": "https://example.com/img/vnt-014.jpg", "qty": 1, "price": "84.00" }
-                ],
-                "notes": []
-              }
-            }
+            "message": "Store disconnected.",
+            "data": null
           }
         headers: []
         description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/v1/orders/{order_id}/notes'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Add a note to an order.'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      body:
-        custom: []
-        name: body
-        description: 'Must not be greater than 2000 characters.'
-        required: true
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      body: b
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 201
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "note": { "id": 1, "body": "Customer asked to hold for pickup.", "user_id": 1, "created_at": "2026-07-16T02:00:00.000000Z" }
-            }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/v1/orders/{order_id}/tags'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: "Replace an order's tags."
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      tags:
-        custom: []
-        name: tags
-        description: 'Must not be greater than 50 characters.'
-        required: false
-        example:
-          - b
-        type: 'string[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      tags:
-        - b
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": { "order": { "id": 1, "order_number": "#1042", "tags": ["gift", "priority"] } }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/v1/orders/{order_id}/snooze'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Snooze or unsnooze an order.'
-      description: 'Pass `until` as an ISO-8601 datetime to snooze, or omit/null it to clear the snooze.'
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      until:
-        custom: []
-        name: until
-        description: 'Must be a valid date. Must be a date after <code>now</code>.'
-        required: false
-        example: '2052-08-09'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      until: '2052-08-09'
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": { "order": { "id": 1, "order_number": "#1042", "snoozed_until": "2026-07-18T00:00:00.000000Z" } }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/v1/orders/{order_id}/fulfill'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Fulfill an order with tracking info.'
-      description: |-
-        Calls through to the real channel adapter where available (WooCommerce today); capability-checked
-        server-side, so this 422s with a plain-language message on platforms/actions that aren't supported yet.
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      tracking_number:
-        custom: []
-        name: tracking_number
-        description: 'Must not be greater than 100 characters.'
-        required: true
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      carrier:
-        custom: []
-        name: carrier
-        description: 'Must not be greater than 100 characters.'
-        required: false
-        example: 'n'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      tracking_number: b
-      carrier: 'n'
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": "Order marked as fulfilled.",
-            "data": { "order": { "id": 1, "order_number": "#1042", "status": "shipped", "fulfillment_status": "fulfilled" } }
-          }
-        headers: []
-        description: success
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": false,
-            "message": "Fulfillment isn't supported for this platform yet.",
-            "errors": null
-          }
-        headers: []
-        description: 'capability not supported'
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/v1/orders/{order_id}/refund'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Refund an order.'
-      description: |-
-        `amount` defaults to a full refund when omitted. Calls through to the real channel adapter
-        where available (WooCommerce today).
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      amount:
-        custom: []
-        name: amount
-        description: 'Must be at least 0.01.'
-        required: false
-        example: 27
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      reason:
-        custom: []
-        name: reason
-        description: 'Must not be greater than 500 characters.'
-        required: false
-        example: 'n'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      amount: 27
-      reason: 'n'
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": "Order refunded.",
-            "data": { "order": { "id": 1, "order_number": "#1042", "status": "refunded", "payment_status": "refunded" } }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/v1/orders/{order_id}/cancel'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Cancel an order.'
-      description: 'Calls through to the real channel adapter where available (WooCommerce today).'
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      reason:
-        custom: []
-        name: reason
-        description: 'Must not be greater than 500 characters.'
-        required: false
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      reason: b
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": "Order cancelled.",
-            "data": { "order": { "id": 1, "order_number": "#1042", "status": "cancelled" } }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/v1/orders/{order_id}/packing-slip'
-    metadata:
-      custom: []
-      groupName: Orders
-      groupDescription: |-
-
-        The unified order feed across all connected channels, plus quick actions
-        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Get a packing slip PDF.'
-      description: 'Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.'
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      order_id:
-        custom: []
-        name: order_id
-        description: 'The ID of the order.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      order_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
     responseFields: []
     auth:
       - headers

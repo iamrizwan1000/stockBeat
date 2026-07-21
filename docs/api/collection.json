@@ -10,11 +10,138 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "1e8abf28-1e95-4d61-95e7-55276cdb467f",
+        "_postman_id": "ac54121e-1435-4709-b550-9941e9faaf04",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
     "item": [
+        {
+            "name": "AI Assistant",
+            "description": "\nData Copilot + natural-language Rule Builder (Plan \u00a74.12). Every answer\nis grounded in real tool-call results over the team's own data\n(`AssistantToolRegistry`) \u2014 never a raw guess.",
+            "item": [
+                {
+                    "name": "Ask the assistant a question.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/assistant\/ask",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/assistant\/ask"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"data\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset.\",\n  \"errors\": { \"question\": [\"You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset.\"] }\n}",
+                            "name": "quota exhausted"
+                        }
+                    ]
+                },
+                {
+                    "name": "List this team's AI Assistant conversations, most recent first.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/assistant\/conversations",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/assistant\/conversations"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show one conversation's full message history.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/assistant\/conversations\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/assistant\/conversations\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the conversation."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Generate a structured rule draft from a plain-English prompt (Pro+).",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/assistant\/rule-draft",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/assistant\/rule-draft"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"prompt\":\"b\"}"
+                        },
+                        "description": "Never persists \u2014 the client must POST the returned draft to\n`POST \/rules` after the seller confirms it."
+                    },
+                    "response": []
+                }
+            ]
+        },
         {
             "name": "Account",
             "description": "\nGDPR-related self-service actions.",
@@ -172,7 +299,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"7d\"}"
+                            "raw": "{\"range\":\"today\"}"
                         },
                         "description": "Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary."
                     },
@@ -339,7 +466,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"woo\"],\"timezone\":\"Pacific\\\/Kiritimati\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"etsy\"],\"timezone\":\"Asia\\\/Yekaterinburg\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -425,8 +552,49 @@
             ]
         },
         {
+            "name": "Config",
+            "description": "\nRemote app config (Plan \u00a710\/\u00a717.7) \u2014 deliberately unauthenticated so a\nkilled app version or a maintenance banner can be checked before the\nuser has signed in.",
+            "item": [
+                {
+                    "name": "Get remote config.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/config",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/config"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"min_version\": \"1.2.0\",\n    \"maintenance_mode\": false,\n    \"maintenance_banner\": null\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "Connections",
-            "description": "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).\nOnly WooCommerce is fully live end-to-end today \u2014 the others accept a connection\nrecord but adapter operations are not yet available.",
+            "description": "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).\nOnly WooCommerce is fully live end-to-end today \u2014 the others accept a connection\nrecord but adapter operations are not yet available.",
             "item": [
                 {
                     "name": "Start connecting a store.",
@@ -441,7 +609,7 @@
                                     "id": "platform",
                                     "key": "platform",
                                     "value": "woo",
-                                    "description": "One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`."
+                                    "description": "One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`, `tiktok`."
                                 }
                             ]
                         },
@@ -460,14 +628,20 @@
                             "mode": "raw",
                             "raw": "{\"name\":\"b\"}"
                         },
-                        "description": "`credentials` shape depends on `platform` \u2014 WooCommerce expects `{store_url, consumer_key,\nconsumer_secret}` (key-intake); OAuth-based platforms (Shopify\/eBay\/Etsy\/Amazon) are\npending adapter approval and will return an OAuth URL once available."
+                        "description": "`credentials` shape depends on `platform`: WooCommerce expects `{store_url, consumer_key,\nconsumer_secret}` (key-intake, connects immediately). Shopify expects `{shop_domain}`.\neBay\/Etsy expect no credentials at all. Amazon is still pending adapter approval.\nOAuth platforms (Shopify\/eBay\/Etsy) don't connect immediately \u2014 this returns an\n`authorization_url` to open in an in-app browser; the connection itself is created once\nthe merchant approves and the platform redirects back to our callback."
                     },
                     "response": [
                         {
                             "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"authorization_url\": \"https:\/\/my-shop.myshopify.com\/admin\/oauth\/authorize?client_id=...\"\n  }\n}",
+                            "name": "shopify\/ebay\/etsy \u2014 OAuth redirect"
+                        },
+                        {
+                            "header": [],
                             "code": 201,
                             "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"connection\": {\n      \"id\": 1,\n      \"platform\": \"woo\",\n      \"name\": \"Rivera Vintage Co\",\n      \"status\": \"active\",\n      \"last_sync_at\": null,\n      \"webhook_status\": \"registered\"\n    }\n  }\n}",
-                            "name": "success"
+                            "name": "woo \u2014 connects immediately"
                         },
                         {
                             "header": [],
@@ -521,7 +695,7 @@
                                 {
                                     "id": "connection_id",
                                     "key": "connection_id",
-                                    "value": 16,
+                                    "value": 3,
                                     "description": "The ID of the connection."
                                 }
                             ]
@@ -567,7 +741,7 @@
                                 {
                                     "id": "id",
                                     "key": "id",
-                                    "value": 16,
+                                    "value": 3,
                                     "description": "The ID of the connection."
                                 }
                             ]
@@ -639,6 +813,310 @@
             ]
         },
         {
+            "name": "Inbox",
+            "description": "\nUnified customer inbox (Plan \u00a74.5). `sendMessage` (in `SendInboxMessageAction`)\nroutes per-thread by channel: Shopify\/Woo via order-linked email, eBay via\nreal Trading API member messages, Etsy the same way but gated behind its\nown conversations-API approval, Amazon out of scope until that adapter's\nbuilt.",
+            "item": [
+                {
+                    "name": "List threads.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/threads",
+                            "query": [
+                                {
+                                    "key": "assigned_to",
+                                    "value": "3",
+                                    "description": "Filter to threads assigned to this user id.",
+                                    "disabled": false
+                                }
+                            ],
+                            "raw": "{{baseUrl}}\/api\/v1\/threads?assigned_to=3"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"threads\": [\n      { \"id\": 1, \"channel\": \"woo\", \"customer_name\": \"Alex Chen\", \"customer_email\": \"alex@example.com\", \"order_id\": 1, \"order_number\": \"#1042\", \"assigned_to\": null, \"last_message_at\": \"2026-07-17T01:00:00.000000Z\" }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "List a thread's messages.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/threads\/:thread_id\/messages",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/threads\/:thread_id\/messages",
+                            "variable": [
+                                {
+                                    "id": "thread_id",
+                                    "key": "thread_id",
+                                    "value": 16,
+                                    "description": "The ID of the thread."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"messages\": [\n      { \"id\": 1, \"direction\": \"in\", \"body\": \"Where's my order?\", \"status\": \"delivered\", \"created_at\": \"2026-07-17T01:00:00.000000Z\" }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Send a message.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/threads\/:thread_id\/messages",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/threads\/:thread_id\/messages",
+                            "variable": [
+                                {
+                                    "id": "thread_id",
+                                    "key": "thread_id",
+                                    "value": 16,
+                                    "description": "The ID of the thread."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\",\"reply_template_id\":16}"
+                        },
+                        "description": "Pass either `body` (free text) or `reply_template_id` (a saved template, rendered\nserver-side with the thread's `{customer_name}`\/`{order_number}`\/`{tracking}`)."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"message\": { \"id\": 2, \"direction\": \"out\", \"body\": \"It shipped yesterday!\", \"status\": \"sent\", \"created_at\": \"2026-07-17T01:05:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Assign (or unassign) a thread to a team member.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/threads\/:thread_id\/assign",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/threads\/:thread_id\/assign",
+                            "variable": [
+                                {
+                                    "id": "thread_id",
+                                    "key": "thread_id",
+                                    "value": 16,
+                                    "description": "The ID of the thread."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"thread\": { \"id\": 1, \"channel\": \"woo\", \"customer_name\": \"Alex Chen\", \"customer_email\": \"alex@example.com\", \"order_id\": 1, \"order_number\": \"#1042\", \"assigned_to\": 3, \"last_message_at\": \"2026-07-17T01:00:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "List saved reply templates.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/reply-templates",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/reply-templates"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"templates\": [\n      { \"id\": 1, \"name\": \"Shipped\", \"body_with_variables\": \"Hi {customer_name}, order {order_number} shipped! Tracking: {tracking}\" }\n    ]\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Create a reply template.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/reply-templates",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/reply-templates"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"body_with_variables\":\"n\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"template\": { \"id\": 2, \"name\": \"Delay\", \"body_with_variables\": \"Hi {customer_name}, order {order_number} is running a little late.\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "PUT api\/v1\/reply-templates\/{replyTemplate_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/reply-templates\/:replyTemplate_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/reply-templates\/:replyTemplate_id",
+                            "variable": [
+                                {
+                                    "id": "replyTemplate_id",
+                                    "key": "replyTemplate_id",
+                                    "value": 16,
+                                    "description": "The ID of the replyTemplate."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"body_with_variables\":\"n\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/v1\/reply-templates\/{replyTemplate_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/reply-templates\/:replyTemplate_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/reply-templates\/:replyTemplate_id",
+                            "variable": [
+                                {
+                                    "id": "replyTemplate_id",
+                                    "key": "replyTemplate_id",
+                                    "value": 16,
+                                    "description": "The ID of the replyTemplate."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Me",
             "description": "",
             "item": [
@@ -663,19 +1141,19 @@
                             }
                         ],
                         "body": null,
-                        "description": "Combines profile, current team\/role, plan entitlements, and SMS credit balance \u2014\nthe client's single call after launch\/login. `needs_profile_setup` is true until\n`\/profile\/setup` has been completed."
+                        "description": "Combines profile, current team\/role, plan entitlements, SMS credit balance,\nresolved feature flags, the active SMS top-up pack catalog, and active\npaywall\/content copy blocks \u2014 the client's single call after launch\/login.\n`needs_profile_setup` is true until `\/profile\/setup` has been completed."
                     },
                     "response": [
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42 },\n    \"needs_profile_setup\": false\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42 },\n    \"feature_flags\": { \"new_rules_ui\": true },\n    \"sms_topup_packs\": [ { \"key\": \"sms_100\", \"name\": \"100 SMS\", \"sms_credits\": 100, \"price_usd\": \"2.99\" } ],\n    \"content\": { \"paywall_pro_headline\": \"...\" },\n    \"needs_profile_setup\": false\n  }\n}",
                             "name": "profile setup complete"
                         },
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": { \"id\": 1, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\", \"business_name\": null, \"base_currency\": null, \"timezone\": null, \"sells_on\": null },\n    \"team\": null,\n    \"entitlements\": null,\n    \"needs_profile_setup\": true\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": { \"id\": 1, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\", \"business_name\": null, \"base_currency\": null, \"timezone\": null, \"sells_on\": null },\n    \"team\": null,\n    \"entitlements\": null,\n    \"feature_flags\": null,\n    \"sms_topup_packs\": [],\n    \"content\": {},\n    \"needs_profile_setup\": true\n  }\n}",
                             "name": "profile setup pending"
                         }
                     ]
@@ -781,7 +1259,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"woo\",\"store\":16,\"status\":\"cancelled\",\"date_from\":\"2026-07-16T18:25:25\",\"date_to\":\"2026-07-16T18:25:25\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":false}"
+                            "raw": "{\"channel\":\"ebay\",\"store\":16,\"status\":\"new\",\"date_from\":\"2026-07-21T22:22:31\",\"date_to\":\"2026-07-21T22:22:31\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -806,7 +1284,7 @@
                                 {
                                     "id": "id",
                                     "key": "id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -846,7 +1324,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -889,7 +1367,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -932,7 +1410,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -950,7 +1428,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"until\":\"2052-08-09\"}"
+                            "raw": "{\"until\":\"2052-08-14\"}"
                         },
                         "description": "Pass `until` as an ISO-8601 datetime to snooze, or omit\/null it to clear the snooze."
                     },
@@ -975,7 +1453,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1006,8 +1484,8 @@
                         },
                         {
                             "header": [],
-                            "code": 200,
-                            "body": "{\n  \"success\": false,\n  \"message\": \"Fulfillment isn't supported for this platform yet.\",\n  \"errors\": null\n}",
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"order\": [\"This channel doesn't support marking orders fulfilled from here.\"] }\n}",
                             "name": "capability not supported"
                         }
                     ]
@@ -1024,7 +1502,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1067,7 +1545,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1110,7 +1588,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 16,
+                                    "value": 4,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1128,6 +1606,116 @@
                         ],
                         "body": null,
                         "description": "Returns the rendered PDF directly (`Content-Type: application\/pdf`), not a JSON envelope."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Message the customer (Plan \u00a74.3: \"opens inbox thread\").",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/message",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/message",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 4,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\",\"reply_template_id\":16}"
+                        },
+                        "description": "Gets or creates the order's unified-inbox thread (Plan \u00a74.5, Shopify\/Woo\norder-linked email threading) and sends the first (or next) message \u2014\na repeat call to the same order always continues the same thread."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 201,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"message\": { \"id\": 1, \"direction\": \"out\", \"body\": \"Hi! Just checking in on your order.\", \"status\": \"sent\", \"created_at\": \"2026-07-17T02:00:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Products",
+            "description": "\nPolled product\/stock snapshots (Plan \u00a74.4's `low_stock` trigger) \u2014 not a\ncatalog management feature. The only seller-editable field is\n`cost_price` (Plan \u00a74.12 Phase B), since no platform API exposes true\ncost-of-goods.",
+            "item": [
+                {
+                    "name": "List this team's polled products.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/products",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/products"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Set (or clear) a product's seller-entered cost price.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/products\/:product_id\/cost-price",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/products\/:product_id\/cost-price",
+                            "variable": [
+                                {
+                                    "id": "product_id",
+                                    "key": "product_id",
+                                    "value": 16,
+                                    "description": "The ID of the product."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"cost_price\":1}"
+                        },
+                        "description": ""
                     },
                     "response": []
                 }
@@ -1191,7 +1779,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"new_order\",\"actions\":[{\"type\":\"push\",\"tag\":\"d\",\"user_id\":16}],\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"18:25\",\"end\":\"18:25\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"18:25\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"digest\",\"actions\":[{\"type\":\"sms\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"cha_ching\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"22:22\",\"end\":\"22:22\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"22:22\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"store\",\"operator\":\"gt\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"total\",\"operator\":\"lt\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -1240,7 +1828,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"negative_review\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"18:25\",\"end\":\"18:25\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"daily\",\"digest_time\":\"18:25\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"actions\":[{\"type\":\"notify_member\",\"tag\":\"l\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"order_spike\",\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"22:22\",\"end\":\"22:22\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"daily\",\"digest_time\":\"22:22\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"total\",\"operator\":\"eq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"sku\",\"operator\":\"between\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -1393,7 +1981,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":false,\"email_enabled\":false,\"sms_enabled\":true,\"quiet_hours_start\":\"18:25\",\"quiet_hours_end\":\"18:25\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"n\"}"
+                            "raw": "{\"push_enabled\":false,\"email_enabled\":false,\"sms_enabled\":false,\"quiet_hours_start\":\"22:22\",\"quiet_hours_end\":\"22:22\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"n\"}"
                         },
                         "description": ""
                     },
@@ -1475,6 +2063,41 @@
                             "header": [],
                             "code": 201,
                             "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"message\": { \"id\": 2, \"direction\": \"user\", \"body\": \"Any update?\", \"attachments\": null, \"created_at\": \"2026-07-16T02:05:00.000000Z\" }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Rate the (resolved) support conversation \u2014 \ud83d\udc4d\/\ud83d\udc4e (Plan \u00a74.9\/\u00a78.7.6).",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/support\/csat",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/support\/csat"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"rating\":1}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"thread\": { \"id\": 1, \"csat\": 1 } }\n}",
                             "name": "success"
                         }
                     ]
@@ -1564,7 +2187,7 @@
                                 {
                                     "id": "member_id",
                                     "key": "member_id",
-                                    "value": 16,
+                                    "value": 3,
                                     "description": "The ID of the member."
                                 }
                             ]
@@ -1582,7 +2205,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"role\":\"viewer\",\"store_visibility\":[16]}"
+                            "raw": "{\"role\":\"manager\",\"store_visibility\":[16]}"
                         },
                         "description": ""
                     },

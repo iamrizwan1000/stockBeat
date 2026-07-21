@@ -1,27 +1,19 @@
-name: Analytics
-description: |-
-
-  Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
-  (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
-  tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+name: Notifications
+description: ''
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/analytics/summary
+    uri: api/v1/notifications
     metadata:
       custom: []
-      groupName: Analytics
-      groupDescription: |-
-
-        Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
-        (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
-        tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+      groupName: Notifications
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get the analytics summary.'
-      description: '`comparison` and `goal` are only present at the `full` analytics level (Pro/Premium).'
+      title: 'List notifications.'
+      description: 'Most recent 50, newest first.'
       authenticated: true
       deprecated: false
     headers:
@@ -30,37 +22,10 @@ endpoints:
       Accept: application/json
     urlParameters: []
     cleanUrlParameters: []
-    queryParameters:
-      range:
-        custom: []
-        name: range
-        description: 'One of `today`, `7d`, `30d`.'
-        required: true
-        example: 7d
-        type: string
-        enumValues: []
-        exampleWasSpecified: true
-        nullable: false
-        deprecated: false
-    cleanQueryParameters:
-      range: 7d
-    bodyParameters:
-      range:
-        custom: []
-        name: range
-        description: ''
-        required: false
-        example: 30d
-        type: string
-        enumValues:
-          - today
-          - 7d
-          - 30d
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      range: 30d
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
     fileParameters: []
     responses:
       -
@@ -71,45 +36,21 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "range": "7d",
-              "total": { "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 },
-              "by_channel": [
-                { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 }
-              ],
-              "comparison": { "previous_period_revenue": 1500.0, "change_pct": 22.7 },
-              "goal": { "current_month_revenue": 4200.0, "best_month_revenue": 6100.0, "pct_of_best_month": 68.9 }
-            }
-          }
-        headers: []
-        description: 'full (Pro/Premium)'
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "range": "today",
-              "total": { "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 },
-              "by_channel": [
-                { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 }
+              "notifications": [
+                {
+                  "id": 1,
+                  "type": "rule_fired",
+                  "title": "High-value order",
+                  "body": "Order #1042 — $84.00",
+                  "data": { "order_id": 1, "rule_id": 1 },
+                  "read_at": null,
+                  "created_at": "2026-07-16T01:00:00.000000Z"
+                }
               ]
             }
           }
         headers: []
-        description: 'today only (Free)'
-      -
-        custom: []
-        status: 422
-        content: |-
-          {
-            "success": false,
-            "message": "The given data was invalid.",
-            "errors": { "range": ["Upgrade your plan for more analytics history."] }
-          }
-        headers: []
-        description: 'range not allowed on this plan'
+        description: success
     responseFields: []
     auth:
       - headers
@@ -121,20 +62,16 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - GET
-    uri: api/v1/analytics/products
+      - POST
+    uri: api/v1/notifications/read
     metadata:
       custom: []
-      groupName: Analytics
-      groupDescription: |-
-
-        Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
-        (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
-        tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+      groupName: Notifications
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get top products.'
-      description: 'Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary.'
+      title: 'Mark notifications as read.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -143,37 +80,24 @@ endpoints:
       Accept: application/json
     urlParameters: []
     cleanUrlParameters: []
-    queryParameters:
-      range:
-        custom: []
-        name: range
-        description: 'One of `today`, `7d`, `30d`.'
-        required: true
-        example: 7d
-        type: string
-        enumValues: []
-        exampleWasSpecified: true
-        nullable: false
-        deprecated: false
-    cleanQueryParameters:
-      range: 7d
+    queryParameters: []
+    cleanQueryParameters: []
     bodyParameters:
-      range:
+      ids:
         custom: []
-        name: range
+        name: ids
         description: ''
         required: false
-        example: 7d
-        type: string
-        enumValues:
-          - today
-          - 7d
-          - 30d
+        example:
+          - 16
+        type: 'integer[]'
+        enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      range: 7d
+      ids:
+        - 16
     fileParameters: []
     responses:
       -
@@ -183,11 +107,7 @@ endpoints:
           {
             "success": true,
             "message": null,
-            "data": {
-              "products": [
-                { "sku": "VNT-014", "title": "Vintage Denim Jacket", "units": 12, "revenue": 1008.0 }
-              ]
-            }
+            "data": { "marked_read": 3 }
           }
         headers: []
         description: success

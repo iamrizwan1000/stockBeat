@@ -1,26 +1,28 @@
-name: Support
+name: Products
 description: |-
 
-  Live support chat (Plan §4.9). One thread per user, resumed across visits —
-  never a fresh thread. Internal staff notes (`direction=note`) are never
-  returned here.
+  Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+  catalog management feature. The only seller-editable field is
+  `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+  cost-of-goods.
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/support/thread
+    uri: api/v1/products
     metadata:
       custom: []
-      groupName: Support
+      groupName: Products
       groupDescription: |-
 
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. The only seller-editable field is
+        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+        cost-of-goods.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get (or start) the support thread.'
+      title: "List this team's polled products."
       description: ''
       authenticated: true
       deprecated: false
@@ -35,23 +37,7 @@ endpoints:
     bodyParameters: []
     cleanBodyParameters: []
     fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "thread": { "id": 1, "status": "open" },
-              "messages": [
-                { "id": 1, "direction": "user", "body": "My orders stopped syncing", "attachments": null, "created_at": "2026-07-16T02:00:00.000000Z" }
-              ]
-            }
-          }
-        headers: []
-        description: success
+    responses: []
     responseFields: []
     auth:
       - headers
@@ -63,59 +49,59 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: api/v1/support/messages
+      - PUT
+    uri: 'api/v1/products/{product_id}/cost-price'
     metadata:
       custom: []
-      groupName: Support
+      groupName: Products
       groupDescription: |-
 
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. The only seller-editable field is
+        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+        cost-of-goods.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Send a message.'
-      description: 'Reopens the thread if it was previously resolved.'
+      title: "Set (or clear) a product's seller-entered cost price."
+      description: ''
       authenticated: true
       deprecated: false
     headers:
       Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
       Content-Type: application/json
       Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      body:
+    urlParameters:
+      product_id:
         custom: []
-        name: body
-        description: 'Must not be greater than 4000 characters.'
+        name: product_id
+        description: 'The ID of the product.'
         required: true
-        example: b
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-    cleanBodyParameters:
-      body: b
-    fileParameters: []
-    responses:
-      -
+    cleanUrlParameters:
+      product_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      cost_price:
         custom: []
-        status: 201
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "message": { "id": 2, "direction": "user", "body": "Any update?", "attachments": null, "created_at": "2026-07-16T02:05:00.000000Z" }
-            }
-          }
-        headers: []
-        description: success
+        name: cost_price
+        description: 'Must be at least 0. Must not be greater than 999999.99.'
+        required: false
+        example: 1
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      cost_price: 1
+    fileParameters: []
+    responses: []
     responseFields: []
     auth:
       - headers

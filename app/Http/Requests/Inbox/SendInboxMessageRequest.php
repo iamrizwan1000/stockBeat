@@ -18,9 +18,9 @@ class SendInboxMessageRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
-        $teamId = $user->currentTeam()?->id;
+        $teamId = $user?->currentTeam()?->id;
 
         return [
             'body' => ['required_without:reply_template_id', 'nullable', 'string', 'max:4000'],

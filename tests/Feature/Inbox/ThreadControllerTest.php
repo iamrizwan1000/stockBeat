@@ -49,6 +49,16 @@ test('a seller only sees threads belonging to their own team', function () {
     test()->getJson('/api/v1/threads')->assertOk()->assertJsonCount(1, 'data.threads');
 });
 
+test('a thread exposes its connection_id so the client can look up messaging capabilities', function () {
+    [$user, $connection] = onboardedInboxSeller();
+    InboxThread::factory()->create(['team_id' => $user->ownedTeam->id, 'connection_id' => $connection->id]);
+
+    Sanctum::actingAs($user);
+    test()->getJson('/api/v1/threads')
+        ->assertOk()
+        ->assertJsonPath('data.threads.0.connection_id', $connection->id);
+});
+
 test('sending a free-text message to a thread creates it', function () {
     [$user, $connection] = onboardedInboxSeller();
     $thread = InboxThread::factory()->create([

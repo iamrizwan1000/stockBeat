@@ -1,30 +1,25 @@
-name: Config
-description: |-
-
-  Remote app config (Plan §10/§17.7) — deliberately unauthenticated so a
-  killed app version or a maintenance banner can be checked before the
-  user has signed in.
+name: Announcements
+description: ''
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/config
+    uri: api/v1/announcements
     metadata:
       custom: []
-      groupName: Config
-      groupDescription: |-
-
-        Remote app config (Plan §10/§17.7) — deliberately unauthenticated so a
-        killed app version or a maintenance banner can be checked before the
-        user has signed in.
+      groupName: Announcements
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get remote config.'
-      description: ''
-      authenticated: false
+      title: 'List active announcements.'
+      description: |-
+        In-app banners currently active (within `starts_at`/`ends_at`) and matching the caller's
+        audience rules, newest first.
+      authenticated: true
       deprecated: false
     headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
       Content-Type: application/json
       Accept: application/json
     urlParameters: []
@@ -43,15 +38,18 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "min_version": "1.2.0",
-              "maintenance_mode": false,
-              "maintenance_banner": null
+              "announcements": [
+                { "id": 1, "title": "New: order-spike alerts", "body": "Premium now includes order and refund spike alerts.", "dismissible": true }
+              ]
             }
           }
         headers: []
         description: success
     responseFields: []
-    auth: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
     controller: null
     method: null
     route: null

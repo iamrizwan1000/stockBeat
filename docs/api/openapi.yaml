@@ -6,6 +6,8 @@ info:
 servers:
   - url: 'https://stockbeat.ddev.site'
 tags:
+  - name: 'AI Assistant'
+    description: "\nData Copilot + natural-language Rule Builder (Plan §4.12). Every answer\nis grounded in real tool-call results over the team's own data\n(`AssistantToolRegistry`) — never a raw guess."
   - name: Account
     description: "\nGDPR-related self-service actions."
   - name: Analytics
@@ -18,16 +20,22 @@ tags:
     description: ''
   - name: 'Auth — Session'
     description: ''
+  - name: Config
+    description: "\nRemote app config (Plan §10/§17.7) — deliberately unauthenticated so a\nkilled app version or a maintenance banner can be checked before the\nuser has signed in."
   - name: Connections
-    description: "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon).\nOnly WooCommerce is fully live end-to-end today — the others accept a connection\nrecord but adapter operations are not yet available."
+    description: "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).\nOnly WooCommerce is fully live end-to-end today — the others accept a connection\nrecord but adapter operations are not yet available."
   - name: Devices
     description: ''
+  - name: Inbox
+    description: "\nUnified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)\nroutes per-thread by channel: Shopify/Woo via order-linked email, eBay via\nreal Trading API member messages, Etsy the same way but gated behind its\nown conversations-API approval, Amazon out of scope until that adapter's\nbuilt."
   - name: Me
     description: ''
   - name: Notifications
     description: ''
   - name: Orders
     description: "\nThe unified order feed across all connected channels, plus quick actions\n(fulfill/tracking, refund, cancel, notes/tags, packing slip)."
+  - name: Products
+    description: "\nPolled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a\ncatalog management feature. The only seller-editable field is\n`cost_price` (Plan §4.12 Phase B), since no platform API exposes true\ncost-of-goods."
   - name: Rules
     description: "\nCustom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,\nand an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.\n`new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`)."
   - name: Settings
@@ -46,6 +54,117 @@ security:
   -
     default: []
 paths:
+  /api/v1/assistant/ask:
+    post:
+      summary: 'Ask the assistant a question.'
+      operationId: askTheAssistantAQuestion
+      description: ''
+      parameters: []
+      responses:
+        422:
+          description: 'quota exhausted'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: "You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset."
+                  errors:
+                    question:
+                      - "You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset."
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset."
+                  errors:
+                    type: object
+                    properties:
+                      question:
+                        type: array
+                        example:
+                          - "You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset."
+                        items:
+                          type: string
+      tags:
+        - 'AI Assistant'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                  description: 'Must not be greater than 1000 characters.'
+                  example: b
+                conversation_id:
+                  type: integer
+                  description: 'Must match an existing stored value.'
+                  example: 16
+                  nullable: true
+                mode:
+                  type: string
+                  description: ''
+                  example: data
+                  enum:
+                    - data
+                    - help
+              required:
+                - question
+  /api/v1/assistant/conversations:
+    get:
+      summary: "List this team's AI Assistant conversations, most recent first."
+      operationId: listThisTeamsAIAssistantConversationsMostRecentFirst
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - 'AI Assistant'
+  '/api/v1/assistant/conversations/{id}':
+    get:
+      summary: "Show one conversation's full message history."
+      operationId: showOneConversationsFullMessageHistory
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - 'AI Assistant'
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the conversation.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  /api/v1/assistant/rule-draft:
+    post:
+      summary: 'Generate a structured rule draft from a plain-English prompt (Pro+).'
+      operationId: generateAStructuredRuleDraftFromAPlainEnglishPromptPro+
+      description: "Never persists — the client must POST the returned draft to\n`POST /rules` after the seller confirms it."
+      parameters: []
+      responses: {}
+      tags:
+        - 'AI Assistant'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  description: 'Must not be greater than 500 characters.'
+                  example: b
+              required:
+                - prompt
   /api/v1/account/data-export:
     post:
       summary: 'Request a data export.'
@@ -450,7 +569,7 @@ paths:
                 range:
                   type: string
                   description: ''
-                  example: 7d
+                  example: today
                   enum:
                     - today
                     - 7d
@@ -762,7 +881,7 @@ paths:
                   type: array
                   description: ''
                   example:
-                    - woo
+                    - etsy
                   items:
                     type: string
                     enum:
@@ -771,10 +890,11 @@ paths:
                       - ebay
                       - etsy
                       - amazon
+                      - tiktok
                 timezone:
                   type: string
                   description: ''
-                  example: Pacific/Kiritimati
+                  example: Asia/Yekaterinburg
                   enum:
                     - Africa/Abidjan
                     - Africa/Accra
@@ -1263,15 +1383,84 @@ paths:
                     nullable: true
       tags:
         - 'Auth — Session'
+  /api/v1/config:
+    get:
+      summary: 'Get remote config.'
+      operationId: getRemoteConfig
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    min_version: 1.2.0
+                    maintenance_mode: false
+                    maintenance_banner: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      min_version:
+                        type: string
+                        example: 1.2.0
+                      maintenance_mode:
+                        type: boolean
+                        example: false
+                      maintenance_banner:
+                        type: string
+                        example: null
+                        nullable: true
+      tags:
+        - Config
+      security: []
   '/api/v1/connections/{platform}/start':
     post:
       summary: 'Start connecting a store.'
       operationId: startConnectingAStore
-      description: "`credentials` shape depends on `platform` — WooCommerce expects `{store_url, consumer_key,\nconsumer_secret}` (key-intake); OAuth-based platforms (Shopify/eBay/Etsy/Amazon) are\npending adapter approval and will return an OAuth URL once available."
+      description: "`credentials` shape depends on `platform`: WooCommerce expects `{store_url, consumer_key,\nconsumer_secret}` (key-intake, connects immediately). Shopify expects `{shop_domain}`.\neBay/Etsy expect no credentials at all. Amazon is still pending adapter approval.\nOAuth platforms (Shopify/eBay/Etsy) don't connect immediately — this returns an\n`authorization_url` to open in an in-app browser; the connection itself is created once\nthe merchant approves and the platform redirects back to our callback."
       parameters: []
       responses:
+        200:
+          description: 'shopify/ebay/etsy — OAuth redirect'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    authorization_url: 'https://my-shop.myshopify.com/admin/oauth/authorize?client_id=...'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      authorization_url:
+                        type: string
+                        example: 'https://my-shop.myshopify.com/admin/oauth/authorize?client_id=...'
         201:
-          description: success
+          description: 'woo — connects immediately'
           content:
             application/json:
               schema:
@@ -1365,7 +1554,7 @@ paths:
       -
         in: path
         name: platform
-        description: 'One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`.'
+        description: 'One of `shopify`, `woo`, `ebay`, `etsy`, `amazon`, `tiktok`.'
         example: woo
         required: true
         schema:
@@ -1543,7 +1732,7 @@ paths:
         in: path
         name: connection_id
         description: 'The ID of the connection.'
-        example: 16
+        example: 3
         required: true
         schema:
           type: integer
@@ -1582,7 +1771,7 @@ paths:
         in: path
         name: id
         description: 'The ID of the connection.'
-        example: 16
+        example: 3
         required: true
         schema:
           type: integer
@@ -1653,11 +1842,477 @@ paths:
               required:
                 - platform
                 - push_token
+  /api/v1/threads:
+    get:
+      summary: 'List threads.'
+      operationId: listThreads
+      description: ''
+      parameters:
+        -
+          in: query
+          name: assigned_to
+          description: 'Filter to threads assigned to this user id.'
+          example: 3
+          required: false
+          schema:
+            type: integer
+            description: 'Filter to threads assigned to this user id.'
+            example: 3
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    threads:
+                      -
+                        id: 1
+                        channel: woo
+                        customer_name: 'Alex Chen'
+                        customer_email: alex@example.com
+                        order_id: 1
+                        order_number: '#1042'
+                        assigned_to: null
+                        last_message_at: '2026-07-17T01:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      threads:
+                        type: array
+                        example:
+                          - id: 1
+                            channel: woo
+                            customer_name: 'Alex Chen'
+                            customer_email: alex@example.com
+                            order_id: 1
+                            order_number: '#1042'
+                            assigned_to: null
+                            last_message_at: '2026-07-17T01:00:00.000000Z'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            channel:
+                              type: string
+                              example: woo
+                            customer_name:
+                              type: string
+                              example: 'Alex Chen'
+                            customer_email:
+                              type: string
+                              example: alex@example.com
+                            order_id:
+                              type: integer
+                              example: 1
+                            order_number:
+                              type: string
+                              example: '#1042'
+                            assigned_to:
+                              type: string
+                              example: null
+                              nullable: true
+                            last_message_at:
+                              type: string
+                              example: '2026-07-17T01:00:00.000000Z'
+      tags:
+        - Inbox
+  '/api/v1/threads/{thread_id}/messages':
+    get:
+      summary: "List a thread's messages."
+      operationId: listAThreadsMessages
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    messages:
+                      -
+                        id: 1
+                        direction: in
+                        body: "Where's my order?"
+                        status: delivered
+                        created_at: '2026-07-17T01:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      messages:
+                        type: array
+                        example:
+                          - id: 1
+                            direction: in
+                            body: "Where's my order?"
+                            status: delivered
+                            created_at: '2026-07-17T01:00:00.000000Z'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            direction:
+                              type: string
+                              example: in
+                            body:
+                              type: string
+                              example: "Where's my order?"
+                            status:
+                              type: string
+                              example: delivered
+                            created_at:
+                              type: string
+                              example: '2026-07-17T01:00:00.000000Z'
+      tags:
+        - Inbox
+    post:
+      summary: 'Send a message.'
+      operationId: sendAMessage
+      description: "Pass either `body` (free text) or `reply_template_id` (a saved template, rendered\nserver-side with the thread's `{customer_name}`/`{order_number}`/`{tracking}`)."
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    message:
+                      id: 2
+                      direction: out
+                      body: 'It shipped yesterday!'
+                      status: sent
+                      created_at: '2026-07-17T01:05:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          direction:
+                            type: string
+                            example: out
+                          body:
+                            type: string
+                            example: 'It shipped yesterday!'
+                          status:
+                            type: string
+                            example: sent
+                          created_at:
+                            type: string
+                            example: '2026-07-17T01:05:00.000000Z'
+      tags:
+        - Inbox
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  description: 'This field is required when <code>reply_template_id</code> is not present. Must not be greater than 4000 characters.'
+                  example: b
+                  nullable: true
+                reply_template_id:
+                  type: integer
+                  description: 'Must match an existing stored value.'
+                  example: 16
+                  nullable: true
+    parameters:
+      -
+        in: path
+        name: thread_id
+        description: 'The ID of the thread.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/threads/{thread_id}/assign':
+    post:
+      summary: 'Assign (or unassign) a thread to a team member.'
+      operationId: assignorUnassignAThreadToATeamMember
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    thread:
+                      id: 1
+                      channel: woo
+                      customer_name: 'Alex Chen'
+                      customer_email: alex@example.com
+                      order_id: 1
+                      order_number: '#1042'
+                      assigned_to: 3
+                      last_message_at: '2026-07-17T01:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      thread:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          channel:
+                            type: string
+                            example: woo
+                          customer_name:
+                            type: string
+                            example: 'Alex Chen'
+                          customer_email:
+                            type: string
+                            example: alex@example.com
+                          order_id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          assigned_to:
+                            type: integer
+                            example: 3
+                          last_message_at:
+                            type: string
+                            example: '2026-07-17T01:00:00.000000Z'
+      tags:
+        - Inbox
+    parameters:
+      -
+        in: path
+        name: thread_id
+        description: 'The ID of the thread.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  /api/v1/reply-templates:
+    get:
+      summary: 'List saved reply templates.'
+      operationId: listSavedReplyTemplates
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    templates:
+                      -
+                        id: 1
+                        name: Shipped
+                        body_with_variables: 'Hi {customer_name}, order {order_number} shipped! Tracking: {tracking}'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      templates:
+                        type: array
+                        example:
+                          - id: 1
+                            name: Shipped
+                            body_with_variables: 'Hi {customer_name}, order {order_number} shipped! Tracking: {tracking}'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: Shipped
+                            body_with_variables:
+                              type: string
+                              example: 'Hi {customer_name}, order {order_number} shipped! Tracking: {tracking}'
+      tags:
+        - Inbox
+    post:
+      summary: 'Create a reply template.'
+      operationId: createAReplyTemplate
+      description: ''
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    template:
+                      id: 2
+                      name: Delay
+                      body_with_variables: 'Hi {customer_name}, order {order_number} is running a little late.'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      template:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          name:
+                            type: string
+                            example: Delay
+                          body_with_variables:
+                            type: string
+                            example: 'Hi {customer_name}, order {order_number} is running a little late.'
+      tags:
+        - Inbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+                body_with_variables:
+                  type: string
+                  description: 'Must not be greater than 4000 characters.'
+                  example: 'n'
+              required:
+                - name
+                - body_with_variables
+  '/api/v1/reply-templates/{replyTemplate_id}':
+    put:
+      summary: ''
+      operationId: putApiV1ReplyTemplatesReplyTemplate_id
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Inbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+                body_with_variables:
+                  type: string
+                  description: 'Must not be greater than 4000 characters.'
+                  example: 'n'
+              required:
+                - name
+                - body_with_variables
+    delete:
+      summary: ''
+      operationId: deleteApiV1ReplyTemplatesReplyTemplate_id
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Inbox
+    parameters:
+      -
+        in: path
+        name: replyTemplate_id
+        description: 'The ID of the replyTemplate.'
+        example: 16
+        required: true
+        schema:
+          type: integer
   /api/v1/me:
     get:
       summary: 'Get the current user.'
       operationId: getTheCurrentUser
-      description: "Combines profile, current team/role, plan entitlements, and SMS credit balance —\nthe client's single call after launch/login. `needs_profile_setup` is true until\n`/profile/setup` has been completed."
+      description: "Combines profile, current team/role, plan entitlements, SMS credit balance,\nresolved feature flags, the active SMS top-up pack catalog, and active\npaywall/content copy blocks — the client's single call after launch/login.\n`needs_profile_setup` is true until `/profile/setup` has been completed."
       parameters: []
       responses:
         200:
@@ -1690,6 +2345,16 @@ paths:
                           plan: pro
                           history_days: 90
                           sms_balance: 42
+                        feature_flags:
+                          new_rules_ui: true
+                        sms_topup_packs:
+                          -
+                            key: sms_100
+                            name: '100 SMS'
+                            sms_credits: 100
+                            price_usd: '2.99'
+                        content:
+                          paywall_pro_headline: ...
                         needs_profile_setup: false
                     properties:
                       success:
@@ -1753,6 +2418,40 @@ paths:
                               sms_balance:
                                 type: integer
                                 example: 42
+                          feature_flags:
+                            type: object
+                            properties:
+                              new_rules_ui:
+                                type: boolean
+                                example: true
+                          sms_topup_packs:
+                            type: array
+                            example:
+                              - key: sms_100
+                                name: '100 SMS'
+                                sms_credits: 100
+                                price_usd: '2.99'
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  type: string
+                                  example: sms_100
+                                name:
+                                  type: string
+                                  example: '100 SMS'
+                                sms_credits:
+                                  type: integer
+                                  example: 100
+                                price_usd:
+                                  type: string
+                                  example: '2.99'
+                          content:
+                            type: object
+                            properties:
+                              paywall_pro_headline:
+                                type: string
+                                example: ...
                           needs_profile_setup:
                             type: boolean
                             example: false
@@ -1773,6 +2472,9 @@ paths:
                           sells_on: null
                         team: null
                         entitlements: null
+                        feature_flags: null
+                        sms_topup_packs: []
+                        content: {}
                         needs_profile_setup: true
                     properties:
                       success:
@@ -1821,6 +2523,16 @@ paths:
                             type: string
                             example: null
                             nullable: true
+                          feature_flags:
+                            type: string
+                            example: null
+                            nullable: true
+                          sms_topup_packs:
+                            type: array
+                            example: []
+                          content:
+                            type: object
+                            properties: {}
                           needs_profile_setup:
                             type: boolean
                             example: true
@@ -2138,13 +2850,14 @@ paths:
                 channel:
                   type: string
                   description: ''
-                  example: woo
+                  example: ebay
                   enum:
                     - shopify
                     - woo
                     - ebay
                     - etsy
                     - amazon
+                    - tiktok
                 store:
                   type: integer
                   description: ''
@@ -2152,7 +2865,7 @@ paths:
                 status:
                   type: string
                   description: ''
-                  example: cancelled
+                  example: new
                   enum:
                     - new
                     - unfulfilled
@@ -2162,11 +2875,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-16T18:25:25'
+                  example: '2026-07-21T22:22:31'
                 date_to:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-16T18:25:25'
+                  example: '2026-07-21T22:22:31'
                 value_min:
                   type: number
                   description: ''
@@ -2186,7 +2899,7 @@ paths:
                 include_snoozed:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
   '/api/v1/orders/{id}':
     get:
       summary: 'Get an order.'
@@ -2369,7 +3082,7 @@ paths:
         in: path
         name: id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2441,7 +3154,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2516,7 +3229,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2576,14 +3289,14 @@ paths:
                 until:
                   type: string
                   description: 'Must be a valid date. Must be a date after <code>now</code>.'
-                  example: '2052-08-09'
+                  example: '2052-08-14'
                   nullable: true
     parameters:
       -
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2595,66 +3308,73 @@ paths:
       parameters: []
       responses:
         200:
-          description: ''
+          description: success
           content:
             application/json:
               schema:
-                oneOf:
-                  -
-                    description: success
+                type: object
+                example:
+                  success: true
+                  message: 'Order marked as fulfilled.'
+                  data:
+                    order:
+                      id: 1
+                      order_number: '#1042'
+                      status: shipped
+                      fulfillment_status: fulfilled
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Order marked as fulfilled.'
+                  data:
                     type: object
-                    example:
-                      success: true
-                      message: 'Order marked as fulfilled.'
-                      data:
-                        order:
-                          id: 1
-                          order_number: '#1042'
-                          status: shipped
-                          fulfillment_status: fulfilled
                     properties:
-                      success:
-                        type: boolean
-                        example: true
-                      message:
-                        type: string
-                        example: 'Order marked as fulfilled.'
-                      data:
+                      order:
                         type: object
                         properties:
-                          order:
-                            type: object
-                            properties:
-                              id:
-                                type: integer
-                                example: 1
-                              order_number:
-                                type: string
-                                example: '#1042'
-                              status:
-                                type: string
-                                example: shipped
-                              fulfillment_status:
-                                type: string
-                                example: fulfilled
-                  -
-                    description: 'capability not supported'
+                          id:
+                            type: integer
+                            example: 1
+                          order_number:
+                            type: string
+                            example: '#1042'
+                          status:
+                            type: string
+                            example: shipped
+                          fulfillment_status:
+                            type: string
+                            example: fulfilled
+        422:
+          description: 'capability not supported'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    order:
+                      - "This channel doesn't support marking orders fulfilled from here."
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
                     type: object
-                    example:
-                      success: false
-                      message: "Fulfillment isn't supported for this platform yet."
-                      errors: null
                     properties:
-                      success:
-                        type: boolean
-                        example: false
-                      message:
-                        type: string
-                        example: "Fulfillment isn't supported for this platform yet."
-                      errors:
-                        type: string
-                        example: null
-                        nullable: true
+                      order:
+                        type: array
+                        example:
+                          - "This channel doesn't support marking orders fulfilled from here."
+                        items:
+                          type: string
       tags:
         - Orders
       requestBody:
@@ -2680,7 +3400,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2755,7 +3475,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2821,7 +3541,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 16
+        example: 4
         required: true
         schema:
           type: integer
@@ -2839,6 +3559,125 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
+        example: 4
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/message':
+    post:
+      summary: 'Message the customer (Plan §4.3: "opens inbox thread").'
+      operationId: messageTheCustomerPlan43opensInboxThread
+      description: "Gets or creates the order's unified-inbox thread (Plan §4.5, Shopify/Woo\norder-linked email threading) and sends the first (or next) message —\na repeat call to the same order always continues the same thread."
+      parameters: []
+      responses:
+        201:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    message:
+                      id: 1
+                      direction: out
+                      body: 'Hi! Just checking in on your order.'
+                      status: sent
+                      created_at: '2026-07-17T02:00:00.000000Z'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          direction:
+                            type: string
+                            example: out
+                          body:
+                            type: string
+                            example: 'Hi! Just checking in on your order.'
+                          status:
+                            type: string
+                            example: sent
+                          created_at:
+                            type: string
+                            example: '2026-07-17T02:00:00.000000Z'
+      tags:
+        - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  description: 'This field is required when <code>reply_template_id</code> is not present. Must not be greater than 4000 characters.'
+                  example: b
+                  nullable: true
+                reply_template_id:
+                  type: integer
+                  description: 'Must match an existing stored value.'
+                  example: 16
+                  nullable: true
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 4
+        required: true
+        schema:
+          type: integer
+  /api/v1/products:
+    get:
+      summary: "List this team's polled products."
+      operationId: listThisTeamsPolledProducts
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Products
+  '/api/v1/products/{product_id}/cost-price':
+    put:
+      summary: "Set (or clear) a product's seller-entered cost price."
+      operationId: setorClearAProductsSellerEnteredCostPrice
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Products
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cost_price:
+                  type: number
+                  description: 'Must be at least 0. Must not be greater than 999999.99.'
+                  example: 1
+                  nullable: true
+    parameters:
+      -
+        in: path
+        name: product_id
+        description: 'The ID of the product.'
         example: 16
         required: true
         schema:
@@ -3080,7 +3919,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: new_order
+                  example: digest
                   enum:
                     - new_order
                     - high_value_order
@@ -3094,21 +3933,98 @@ paths:
                     - order_spike
                     - refund_spike
                     - digest
+                    - ai_insight
                 conditions:
                   type: object
                   description: ''
                   example: null
                   properties:
                     all:
-                      type: object
+                      type: array
                       description: ''
                       example: null
-                      properties: {}
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                            description: ''
+                            example: store
+                            enum:
+                              - channel
+                              - store
+                              - total
+                              - sku
+                              - product
+                              - quantity
+                              - customer_country
+                              - repeat_buyer
+                              - shipping_method
+                              - tag
+                          operator:
+                            type: string
+                            description: ''
+                            example: gt
+                            enum:
+                              - eq
+                              - neq
+                              - gt
+                              - gte
+                              - lt
+                              - lte
+                              - in
+                              - between
+                          value:
+                            type: string
+                            description: ''
+                            example: architecto
+                        required:
+                          - field
+                          - operator
+                          - value
                     any:
-                      type: object
+                      type: array
                       description: ''
                       example: null
-                      properties: {}
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                            description: ''
+                            example: total
+                            enum:
+                              - channel
+                              - store
+                              - total
+                              - sku
+                              - product
+                              - quantity
+                              - customer_country
+                              - repeat_buyer
+                              - shipping_method
+                              - tag
+                          operator:
+                            type: string
+                            description: ''
+                            example: lt
+                            enum:
+                              - eq
+                              - neq
+                              - gt
+                              - gte
+                              - lt
+                              - lte
+                              - in
+                              - between
+                          value:
+                            type: string
+                            description: ''
+                            example: architecto
+                        required:
+                          - field
+                          - operator
+                          - value
                 actions:
                   type: array
                   description: 'Must have at least 1 items.'
@@ -3120,7 +4036,7 @@ paths:
                       type:
                         type: string
                         description: ''
-                        example: push
+                        example: sms
                         enum:
                           - push
                           - email
@@ -3130,13 +4046,23 @@ paths:
                       tag:
                         type: string
                         description: 'This field is required when <code>actions.*.type</code> is <code>auto_tag</code>. Must not be greater than 50 characters.'
-                        example: d
+                        example: 'n'
                       user_id:
                         type: integer
                         description: 'This field is required when <code>actions.*.type</code> is <code>notify_member</code>.'
                         example: 16
                     required:
                       - type
+                sound:
+                  type: string
+                  description: ''
+                  example: cha_ching
+                  enum:
+                    - default
+                    - cha_ching
+                    - alert
+                    - chime
+                  nullable: true
                 controls:
                   type: object
                   description: ''
@@ -3154,11 +4080,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '18:25'
+                          example: '22:22'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '18:25'
+                          example: '22:22'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -3177,7 +4103,7 @@ paths:
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '18:25'
+                      example: '22:22'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -3322,7 +4248,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: negative_review
+                  example: order_spike
                   enum:
                     - new_order
                     - high_value_order
@@ -3336,21 +4262,98 @@ paths:
                     - order_spike
                     - refund_spike
                     - digest
+                    - ai_insight
                 conditions:
                   type: object
                   description: ''
                   example: null
                   properties:
                     all:
-                      type: object
+                      type: array
                       description: ''
                       example: null
-                      properties: {}
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                            description: ''
+                            example: total
+                            enum:
+                              - channel
+                              - store
+                              - total
+                              - sku
+                              - product
+                              - quantity
+                              - customer_country
+                              - repeat_buyer
+                              - shipping_method
+                              - tag
+                          operator:
+                            type: string
+                            description: ''
+                            example: eq
+                            enum:
+                              - eq
+                              - neq
+                              - gt
+                              - gte
+                              - lt
+                              - lte
+                              - in
+                              - between
+                          value:
+                            type: string
+                            description: ''
+                            example: architecto
+                        required:
+                          - field
+                          - operator
+                          - value
                     any:
-                      type: object
+                      type: array
                       description: ''
                       example: null
-                      properties: {}
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                            description: ''
+                            example: sku
+                            enum:
+                              - channel
+                              - store
+                              - total
+                              - sku
+                              - product
+                              - quantity
+                              - customer_country
+                              - repeat_buyer
+                              - shipping_method
+                              - tag
+                          operator:
+                            type: string
+                            description: ''
+                            example: between
+                            enum:
+                              - eq
+                              - neq
+                              - gt
+                              - gte
+                              - lt
+                              - lte
+                              - in
+                              - between
+                          value:
+                            type: string
+                            description: ''
+                            example: architecto
+                        required:
+                          - field
+                          - operator
+                          - value
                 actions:
                   type: array
                   description: 'Must have at least 1 items.'
@@ -3371,11 +4374,21 @@ paths:
                       tag:
                         type: string
                         description: 'This field is required when <code>actions.*.type</code> is <code>auto_tag</code>. Must not be greater than 50 characters.'
-                        example: l
+                        example: 'n'
                       user_id:
                         type: integer
                         description: 'This field is required when <code>actions.*.type</code> is <code>notify_member</code>.'
                         example: 16
+                sound:
+                  type: string
+                  description: ''
+                  example: alert
+                  enum:
+                    - default
+                    - cha_ching
+                    - alert
+                    - chime
+                  nullable: true
                 controls:
                   type: object
                   description: ''
@@ -3393,11 +4406,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '18:25'
+                          example: '22:22'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '18:25'
+                          example: '22:22'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -3416,7 +4429,7 @@ paths:
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '18:25'
+                      example: '22:22'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -3758,16 +4771,16 @@ paths:
                 sms_enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                 quiet_hours_start:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '18:25'
+                  example: '22:22'
                   nullable: true
                 quiet_hours_end:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '18:25'
+                  example: '22:22'
                   nullable: true
                 quiet_hours_timezone:
                   type: string
@@ -3922,6 +4935,64 @@ paths:
                   example: b
               required:
                 - body
+  /api/v1/support/csat:
+    post:
+      summary: 'Rate the (resolved) support conversation — 👍/👎 (Plan §4.9/§8.7.6).'
+      operationId: rateTheresolvedSupportConversationPlan49876
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    thread:
+                      id: 1
+                      csat: 1
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      thread:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          csat:
+                            type: integer
+                            example: 1
+      tags:
+        - Support
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  description: ''
+                  example: 1
+                  enum:
+                    - 0
+                    - 1
+              required:
+                - rating
   /api/v1/team:
     get:
       summary: 'List members and pending invites.'
@@ -4189,7 +5260,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: viewer
+                  example: manager
                   enum:
                     - manager
                     - agent
@@ -4206,7 +5277,7 @@ paths:
         in: path
         name: member_id
         description: 'The ID of the member.'
-        example: 16
+        example: 3
         required: true
         schema:
           type: integer

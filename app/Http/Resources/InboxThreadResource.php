@@ -19,6 +19,7 @@ class InboxThreadResource extends JsonResource
         return [
             'id' => $this->id,
             'channel' => $this->channel,
+            'connection_id' => $this->connection_id,
             'customer_name' => $this->customer_name,
             'customer_email' => $this->customer_email,
             'order_id' => $this->order_id,
