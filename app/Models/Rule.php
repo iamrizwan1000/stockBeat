@@ -133,6 +133,36 @@ class Rule extends Model
     }
 
     /**
+     * The real field vocabulary `ConditionEvaluator::evaluateCondition()`
+     * understands (Plan §8.4) — the single source of truth `StoreRuleRequest`/
+     * `UpdateRuleRequest` validate condition items against, and
+     * `GenerateRuleFromPromptAction`'s system prompt is built from too, so
+     * the three can never drift out of sync with each other again the way
+     * the AI Rule Builder's operator list did before this const existed.
+     *
+     * @return array<int, string>
+     */
+    public static function conditionFields(): array
+    {
+        return ['channel', 'store', 'total', 'sku', 'product', 'quantity', 'customer_country', 'repeat_buyer', 'shipping_method', 'tag'];
+    }
+
+    /**
+     * The real operator vocabulary `ConditionEvaluator::compare()`/
+     * `compareNumeric()` understand — plain words, not symbols
+     * (`"gt"` not `">"`). Any other string is silently treated as "never
+     * matches" by the evaluator rather than erroring, which is exactly
+     * what made the AI Rule Builder's earlier symbol-based prompt a real,
+     * silent bug: a validly-created rule that could never fire.
+     *
+     * @return array<int, string>
+     */
+    public static function conditionOperators(): array
+    {
+        return ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'between'];
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

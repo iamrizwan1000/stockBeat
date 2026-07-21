@@ -388,3 +388,38 @@ test('RuleEvaluationJob loads and evaluates the team\'s enabled rules for its tr
     expect(RuleExecution::query()->where('rule_id', $matchingRule->id)->exists())->toBeTrue();
     expect(RuleExecution::query()->where('rule_id', $otherTeamRule->id)->exists())->toBeFalse();
 });
+
+test('a condition using an unrecognized operator is rejected at creation time, not silently accepted', function () {
+    onboardedRuleUser();
+
+    // ">=" looks reasonable but isn't in ConditionEvaluator's real vocabulary
+    // (which is word-based: "gte", not ">=") — before this validation existed,
+    // this would have saved successfully and then simply never fired.
+    $response = test()->postJson('/api/v1/rules', validRulePayload([
+        'conditions' => ['all' => [['field' => 'total', 'operator' => '>=', 'value' => 100]]],
+    ]));
+
+    $response->assertStatus(422);
+    expect($response->json('errors'))->toHaveKey('conditions.all.0.operator');
+});
+
+test('a condition using an unrecognized field is rejected at creation time', function () {
+    onboardedRuleUser();
+
+    $response = test()->postJson('/api/v1/rules', validRulePayload([
+        'conditions' => ['all' => [['field' => 'discount_code', 'operator' => 'eq', 'value' => 'SAVE10']]],
+    ]));
+
+    $response->assertStatus(422);
+    expect($response->json('errors'))->toHaveKey('conditions.all.0.field');
+});
+
+test('every real condition field/operator from Rule::conditionFields()/conditionOperators() is accepted', function () {
+    onboardedRuleUser();
+
+    $response = test()->postJson('/api/v1/rules', validRulePayload([
+        'conditions' => ['all' => [['field' => 'total', 'operator' => 'between', 'value' => [50, 100]]]],
+    ]));
+
+    $response->assertCreated();
+});

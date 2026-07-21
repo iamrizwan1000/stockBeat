@@ -32,7 +32,7 @@ class GenerateRuleFromPromptAction
           "controls": { ...trigger-specific settings, e.g. "threshold_hours" for unfulfilled_after_x, "spike_count"/"spike_window_minutes" for order_spike/refund_spike, "low_stock_threshold" for low_stock } or {}
         }
 
-        Condition fields you may use: channel, store, total, sku, product, quantity, customer_country, repeat_buyer, shipping_method, tag. Operators: =, !=, >, >=, <, <=, contains.
+        Condition fields you may use: channel, store, total, sku, product, quantity, customer_country, repeat_buyer, shipping_method, tag. Operators — use EXACTLY these strings, not symbols: "eq", "neq", "gt", "gte", "lt", "lte", "in" (value is an array), "between" (value is a two-item array [min, max]). For sku/product/tag matching, just use "eq" with the text value — there is no separate "contains" operator.
 
         If the request is ambiguous or doesn't map to a real trigger, still return your best-effort JSON — validation happens separately and the seller confirms before anything is saved.
         PROMPT;

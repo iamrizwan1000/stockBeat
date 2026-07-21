@@ -222,7 +222,7 @@ test('rule builder turns a prompt into a valid rule draft', function () {
                     'content' => json_encode([
                         'name' => 'High-value eBay orders',
                         'trigger' => 'high_value_order',
-                        'conditions' => ['all' => [['field' => 'total', 'operator' => '>=', 'value' => 200], ['field' => 'channel', 'operator' => '=', 'value' => 'ebay']]],
+                        'conditions' => ['all' => [['field' => 'total', 'operator' => 'gte', 'value' => 200], ['field' => 'channel', 'operator' => 'eq', 'value' => 'ebay']]],
                         'actions' => [['type' => 'sms']],
                         'controls' => [],
                     ]),
@@ -236,6 +236,38 @@ test('rule builder turns a prompt into a valid rule draft', function () {
     $response->assertOk();
     expect($response->json('data.valid'))->toBeTrue();
     expect($response->json('data.draft.trigger'))->toBe('high_value_order');
+});
+
+test('a rule draft using symbol operators instead of the real word-based vocabulary is correctly flagged invalid', function () {
+    // Regression test: an earlier version of the system prompt told the model
+    // to use symbols (">=", "=") which ConditionEvaluator doesn't recognize —
+    // such a rule would validate, save, and then silently never fire. The
+    // validator must catch this at draft time, not let it through as "valid".
+    $user = onboardedAssistantUser();
+    activateGroqProvider();
+
+    Http::fake([
+        'api.groq.com/*' => Http::response([
+            'choices' => [[
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => json_encode([
+                        'name' => 'High-value eBay orders',
+                        'trigger' => 'high_value_order',
+                        'conditions' => ['all' => [['field' => 'total', 'operator' => '>=', 'value' => 200]]],
+                        'actions' => [['type' => 'sms']],
+                        'controls' => [],
+                    ]),
+                ],
+            ]],
+        ], 200),
+    ]);
+
+    $response = test()->postJson('/api/v1/assistant/rule-draft', ['prompt' => 'notify me by text when an ebay order is over $200']);
+
+    $response->assertOk();
+    expect($response->json('data.valid'))->toBeFalse();
+    expect($response->json('data.errors'))->toHaveKey('conditions.all.0.operator');
 });
 
 test('App Help works on a Free-tier team with no AI question quota, and never debits it', function () {

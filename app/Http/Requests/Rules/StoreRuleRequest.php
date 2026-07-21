@@ -23,7 +23,13 @@ class StoreRuleRequest extends FormRequest
             'trigger' => ['required', 'string', ValidationRule::in(Rule::triggers())],
             'conditions' => ['sometimes', 'array'],
             'conditions.all' => ['sometimes', 'array'],
+            'conditions.all.*.field' => ['required', 'string', ValidationRule::in(Rule::conditionFields())],
+            'conditions.all.*.operator' => ['required', 'string', ValidationRule::in(Rule::conditionOperators())],
+            'conditions.all.*.value' => ['required'],
             'conditions.any' => ['sometimes', 'array'],
+            'conditions.any.*.field' => ['required', 'string', ValidationRule::in(Rule::conditionFields())],
+            'conditions.any.*.operator' => ['required', 'string', ValidationRule::in(Rule::conditionOperators())],
+            'conditions.any.*.value' => ['required'],
             'actions' => ['required', 'array', 'min:1'],
             'actions.*.type' => ['required', 'string', ValidationRule::in([
                 'push', 'email', 'sms', 'notify_member', 'auto_tag',
