@@ -1,114 +1,28 @@
-name: 'AI Assistant'
+name: Products
 description: |-
 
-  Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
-  is grounded in real tool-call results over the team's own data
-  (`AssistantToolRegistry`) — never a raw guess.
+  Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+  catalog management feature. The only seller-editable field is
+  `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+  cost-of-goods.
 endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: api/v1/assistant/ask
-    metadata:
-      custom: []
-      groupName: 'AI Assistant'
-      groupDescription: |-
-
-        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
-        is grounded in real tool-call results over the team's own data
-        (`AssistantToolRegistry`) — never a raw guess.
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Ask the assistant a question.'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      question:
-        custom: []
-        name: question
-        description: 'Must not be greater than 1000 characters.'
-        required: true
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      conversation_id:
-        custom: []
-        name: conversation_id
-        description: 'Must match an existing stored value.'
-        required: false
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      mode:
-        custom: []
-        name: mode
-        description: ''
-        required: false
-        example: help
-        type: string
-        enumValues:
-          - data
-          - help
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      question: b
-      conversation_id: 16
-      mode: help
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 422
-        content: |-
-          {
-            "success": false,
-            "message": "You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset.",
-            "errors": { "question": ["You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset."] }
-          }
-        headers: []
-        description: 'quota exhausted'
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
       - GET
-    uri: api/v1/assistant/conversations
+    uri: api/v1/products
     metadata:
       custom: []
-      groupName: 'AI Assistant'
+      groupName: Products
       groupDescription: |-
 
-        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
-        is grounded in real tool-call results over the team's own data
-        (`AssistantToolRegistry`) — never a raw guess.
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. The only seller-editable field is
+        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+        cost-of-goods.
       subgroup: ''
       subgroupDescription: ''
-      title: "List this team's AI Assistant conversations, most recent first."
+      title: "List this team's polled products."
       description: ''
       authenticated: true
       deprecated: false
@@ -135,19 +49,20 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - GET
-    uri: 'api/v1/assistant/conversations/{id}'
+      - PUT
+    uri: 'api/v1/products/{product_id}/cost-price'
     metadata:
       custom: []
-      groupName: 'AI Assistant'
+      groupName: Products
       groupDescription: |-
 
-        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
-        is grounded in real tool-call results over the team's own data
-        (`AssistantToolRegistry`) — never a raw guess.
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. The only seller-editable field is
+        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+        cost-of-goods.
       subgroup: ''
       subgroupDescription: ''
-      title: "Show one conversation's full message history."
+      title: "Set (or clear) a product's seller-entered cost price."
       description: ''
       authenticated: true
       deprecated: false
@@ -156,10 +71,10 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      product_id:
         custom: []
-        name: id
-        description: 'The ID of the conversation.'
+        name: product_id
+        description: 'The ID of the product.'
         required: true
         example: 16
         type: integer
@@ -168,11 +83,23 @@ endpoints:
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 16
+      product_id: 16
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    bodyParameters:
+      cost_price:
+        custom: []
+        name: cost_price
+        description: 'Must be at least 0. Must not be greater than 999999.99.'
+        required: false
+        example: 1
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      cost_price: 1
     fileParameters: []
     responses: []
     responseFields: []
@@ -186,22 +113,21 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: api/v1/assistant/rule-draft
+      - PUT
+    uri: api/v1/products/cost-prices
     metadata:
       custom: []
-      groupName: 'AI Assistant'
+      groupName: Products
       groupDescription: |-
 
-        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
-        is grounded in real tool-call results over the team's own data
-        (`AssistantToolRegistry`) — never a raw guess.
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. The only seller-editable field is
+        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
+        cost-of-goods.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Generate a structured rule draft from a plain-English prompt (Pro+).'
-      description: |-
-        Never persists — the client must POST the returned draft to
-        `POST /rules` after the seller confirms it.
+      title: 'Set (or clear) cost prices on several products in one call.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -213,19 +139,44 @@ endpoints:
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
-      prompt:
+      updates:
         custom: []
-        name: prompt
-        description: 'Must not be greater than 500 characters.'
+        name: updates
+        description: 'Must have at least 1 items. Must not have more than 500 items.'
         required: true
-        example: b
-        type: string
+        example:
+          - []
+        type: 'object[]'
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      'updates[].id':
+        custom: []
+        name: 'updates[].id'
+        description: ''
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'updates[].cost_price':
+        custom: []
+        name: 'updates[].cost_price'
+        description: 'Must be at least 0. Must not be greater than 999999.99.'
+        required: false
+        example: 22
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
-      prompt: b
+      updates:
+        - id: 16
+          cost_price: 22
     fileParameters: []
     responses: []
     responseFields: []

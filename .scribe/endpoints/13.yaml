@@ -1,29 +1,27 @@
-name: Products
+name: Analytics
 description: |-
 
-  Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-  catalog management feature. The only seller-editable field is
-  `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-  cost-of-goods.
+  Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
+  (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
+  tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/products
+    uri: api/v1/analytics/summary
     metadata:
       custom: []
-      groupName: Products
+      groupName: Analytics
       groupDescription: |-
 
-        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-        catalog management feature. The only seller-editable field is
-        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-        cost-of-goods.
+        Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
+        (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
+        tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
       subgroup: ''
       subgroupDescription: ''
-      title: "List this team's polled products."
-      description: ''
+      title: 'Get the analytics summary.'
+      description: '`comparison` and `goal` are only present at the `full` analytics level (Pro/Premium).'
       authenticated: true
       deprecated: false
     headers:
@@ -32,153 +30,167 @@ endpoints:
       Accept: application/json
     urlParameters: []
     cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: 'api/v1/products/{product_id}/cost-price'
-    metadata:
-      custom: []
-      groupName: Products
-      groupDescription: |-
-
-        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-        catalog management feature. The only seller-editable field is
-        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-        cost-of-goods.
-      subgroup: ''
-      subgroupDescription: ''
-      title: "Set (or clear) a product's seller-entered cost price."
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      product_id:
+    queryParameters:
+      range:
         custom: []
-        name: product_id
-        description: 'The ID of the product.'
+        name: range
+        description: 'One of `today`, `7d`, `30d`.'
         required: true
-        example: 16
-        type: integer
+        example: 7d
+        type: string
         enumValues: []
-        exampleWasSpecified: false
+        exampleWasSpecified: true
         nullable: false
         deprecated: false
-    cleanUrlParameters:
-      product_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
+    cleanQueryParameters:
+      range: 7d
     bodyParameters:
-      cost_price:
+      range:
         custom: []
-        name: cost_price
-        description: 'Must be at least 0. Must not be greater than 999999.99.'
-        required: false
-        example: 1
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      cost_price: 1
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: api/v1/products/cost-prices
-    metadata:
-      custom: []
-      groupName: Products
-      groupDescription: |-
-
-        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-        catalog management feature. The only seller-editable field is
-        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-        cost-of-goods.
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Set (or clear) cost prices on several products in one call.'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      updates:
-        custom: []
-        name: updates
-        description: 'Must have at least 1 items. Must not have more than 500 items.'
-        required: true
-        example:
-          - []
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'updates[].id':
-        custom: []
-        name: 'updates[].id'
+        name: range
         description: ''
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
+        required: false
+        example: today
+        type: string
+        enumValues:
+          - today
+          - 7d
+          - 30d
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      'updates[].cost_price':
+    cleanBodyParameters:
+      range: today
+    fileParameters: []
+    responses:
+      -
         custom: []
-        name: 'updates[].cost_price'
-        description: 'Must be at least 0. Must not be greater than 999999.99.'
-        required: false
-        example: 22
-        type: number
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "range": "7d",
+              "total": { "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 },
+              "by_channel": [
+                { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 }
+              ],
+              "comparison": { "previous_period_revenue": 1500.0, "change_pct": 22.7 },
+              "goal": { "current_month_revenue": 4200.0, "best_month_revenue": 6100.0, "pct_of_best_month": 68.9 }
+            }
+          }
+        headers: []
+        description: 'full (Pro/Premium)'
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "range": "today",
+              "total": { "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 },
+              "by_channel": [
+                { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 }
+              ]
+            }
+          }
+        headers: []
+        description: 'today only (Free)'
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "range": ["Upgrade your plan for more analytics history."] }
+          }
+        headers: []
+        description: 'range not allowed on this plan'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/analytics/products
+    metadata:
+      custom: []
+      groupName: Analytics
+      groupDescription: |-
+
+        Analytics-lite (Plan §4.6): today/7d/30d revenue + order count + AOV, gated by plan
+        (`analytics_level`: Free=today only, Starter=+7d, Pro/Premium=full with comparison + goal
+        tracking). "Today" is always computed live, never from the `daily_stats` pre-aggregation.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get top products.'
+      description: 'Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters:
+      range:
+        custom: []
+        name: range
+        description: 'One of `today`, `7d`, `30d`.'
+        required: true
+        example: 7d
+        type: string
         enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanQueryParameters:
+      range: 7d
+    bodyParameters:
+      range:
+        custom: []
+        name: range
+        description: ''
+        required: false
+        example: 30d
+        type: string
+        enumValues:
+          - today
+          - 7d
+          - 30d
         exampleWasSpecified: false
-        nullable: true
+        nullable: false
         deprecated: false
     cleanBodyParameters:
-      updates:
-        - id: 16
-          cost_price: 22
+      range: 30d
     fileParameters: []
-    responses: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "products": [
+                { "sku": "VNT-014", "title": "Vintage Denim Jacket", "units": 12, "revenue": 1008.0 }
+              ]
+            }
+          }
+        headers: []
+        description: success
     responseFields: []
     auth:
       - headers

@@ -1,27 +1,21 @@
-name: Support
-description: |-
-
-  Live support chat (Plan §4.9). One thread per user, resumed across visits —
-  never a fresh thread. Internal staff notes (`direction=note`) are never
-  returned here.
+name: Announcements
+description: ''
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/support/thread
+    uri: api/v1/announcements
     metadata:
       custom: []
-      groupName: Support
-      groupDescription: |-
-
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
+      groupName: Announcements
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get (or start) the support thread.'
-      description: ''
+      title: 'List active announcements.'
+      description: |-
+        In-app banners currently active (within `starts_at`/`ends_at`) and matching the caller's
+        audience rules, newest first.
       authenticated: true
       deprecated: false
     headers:
@@ -44,9 +38,8 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "thread": { "id": 1, "status": "open" },
-              "messages": [
-                { "id": 1, "direction": "user", "body": "My orders stopped syncing", "attachments": null, "created_at": "2026-07-16T02:00:00.000000Z" }
+              "announcements": [
+                { "id": 1, "title": "New: order-spike alerts", "body": "Premium now includes order and refund spike alerts.", "dismissible": true }
               ]
             }
           }
@@ -64,109 +57,41 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: api/v1/support/messages
+    uri: 'api/v1/announcements/{announcement_id}/dismiss'
     metadata:
       custom: []
-      groupName: Support
-      groupDescription: |-
-
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
+      groupName: Announcements
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Send a message.'
-      description: 'Reopens the thread if it was previously resolved.'
+      title: 'Dismiss an announcement.'
+      description: |-
+        Per-user — other users targeted by the same announcement are unaffected.
+        Idempotent: dismissing twice is not an error.
       authenticated: true
       deprecated: false
     headers:
       Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
       Content-Type: application/json
       Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      body:
+    urlParameters:
+      announcement_id:
         custom: []
-        name: body
-        description: 'Must not be greater than 4000 characters.'
+        name: announcement_id
+        description: 'The ID of the announcement.'
         required: true
-        example: b
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-    cleanBodyParameters:
-      body: b
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 201
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "message": { "id": 2, "direction": "user", "body": "Any update?", "attachments": null, "created_at": "2026-07-16T02:05:00.000000Z" }
-            }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/v1/support/csat
-    metadata:
-      custom: []
-      groupName: Support
-      groupDescription: |-
-
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Rate the (resolved) support conversation — 👍/👎 (Plan §4.9/§8.7.6).'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
+    cleanUrlParameters:
+      announcement_id: 16
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters:
-      rating:
-        custom: []
-        name: rating
-        description: ''
-        required: true
-        example: 0
-        type: integer
-        enumValues:
-          - 0
-          - 1
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      rating: 0
+    bodyParameters: []
+    cleanBodyParameters: []
     fileParameters: []
     responses:
       -
@@ -175,11 +100,22 @@ endpoints:
         content: |-
           {
             "success": true,
-            "message": null,
-            "data": { "thread": { "id": 1, "csat": 1 } }
+            "message": "Announcement dismissed.",
+            "data": null
           }
         headers: []
         description: success
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "announcement": ["This announcement can't be dismissed."] }
+          }
+        headers: []
+        description: 'not dismissible'
     responseFields: []
     auth:
       - headers

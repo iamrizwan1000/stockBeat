@@ -20,6 +20,8 @@ tags:
     description: ''
   - name: 'Auth — Session'
     description: ''
+  - name: 'Auth — Social sign-in'
+    description: "\nApple/Google one-tap, an alternative to email OTP. Both providers converge on the same\nuser record as OTP by verified email — signing in with a different method never creates\na second account."
   - name: Config
     description: "\nRemote app config (Plan §10/§17.7) — deliberately unauthenticated so a\nkilled app version or a maintenance banner can be checked before the\nuser has signed in."
   - name: Connections
@@ -110,7 +112,7 @@ paths:
                 mode:
                   type: string
                   description: ''
-                  example: help
+                  example: data
                   enum:
                     - data
                     - help
@@ -948,7 +950,7 @@ paths:
                   type: array
                   description: ''
                   example:
-                    - amazon
+                    - etsy
                   items:
                     type: string
                     enum:
@@ -961,7 +963,7 @@ paths:
                 timezone:
                   type: string
                   description: ''
-                  example: America/Barbados
+                  example: Europe/Kyiv
                   enum:
                     - Africa/Abidjan
                     - Africa/Accra
@@ -1450,6 +1452,130 @@ paths:
                     nullable: true
       tags:
         - 'Auth — Session'
+  /api/v1/auth/social:
+    post:
+      summary: 'Sign in with Apple or Google.'
+      operationId: signInWithAppleOrGoogle
+      description: "Verifies the client-obtained id_token server-side, then issues a Sanctum bearer token.\nSame response shape as `/auth/otp/verify` — `is_new_user` tells the client whether to\nroute into `/profile/setup` next."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    token: 1|abcdef1234567890
+                    is_new_user: false
+                    user:
+                      id: 1
+                      name: 'Jamie Rivera'
+                      email: jamie@example.com
+                      business_name: 'Rivera Vintage Co'
+                      base_currency: AUD
+                      timezone: Australia/Sydney
+                      sells_on:
+                        - woocommerce
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: 1|abcdef1234567890
+                      is_new_user:
+                        type: boolean
+                        example: false
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          name:
+                            type: string
+                            example: 'Jamie Rivera'
+                          email:
+                            type: string
+                            example: jamie@example.com
+                          business_name:
+                            type: string
+                            example: 'Rivera Vintage Co'
+                          base_currency:
+                            type: string
+                            example: AUD
+                          timezone:
+                            type: string
+                            example: Australia/Sydney
+                          sells_on:
+                            type: array
+                            example:
+                              - woocommerce
+                            items:
+                              type: string
+        422:
+          description: 'invalid token'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'This sign-in token is invalid or has expired.'
+                  errors:
+                    id_token:
+                      - 'This sign-in token is invalid or has expired.'
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'This sign-in token is invalid or has expired.'
+                  errors:
+                    type: object
+                    properties:
+                      id_token:
+                        type: array
+                        example:
+                          - 'This sign-in token is invalid or has expired.'
+                        items:
+                          type: string
+      tags:
+        - 'Auth — Social sign-in'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  description: ''
+                  example: apple
+                  enum:
+                    - apple
+                    - google
+                id_token:
+                  type: string
+                  description: ''
+                  example: architecto
+              required:
+                - provider
+                - id_token
+      security: []
   /api/v1/config:
     get:
       summary: 'Get remote config.'
@@ -2953,7 +3079,7 @@ paths:
                 channel:
                   type: string
                   description: ''
-                  example: ebay
+                  example: shopify
                   enum:
                     - shopify
                     - woo
@@ -2968,7 +3094,7 @@ paths:
                 status:
                   type: string
                   description: ''
-                  example: cancelled
+                  example: unfulfilled
                   enum:
                     - new
                     - unfulfilled
@@ -2978,11 +3104,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-21T23:06:47'
+                  example: '2026-07-22T14:44:29'
                 date_to:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-21T23:06:47'
+                  example: '2026-07-22T14:44:29'
                 value_min:
                   type: number
                   description: ''
@@ -3392,7 +3518,7 @@ paths:
                 until:
                   type: string
                   description: 'Must be a valid date. Must be a date after <code>now</code>.'
-                  example: '2052-08-14'
+                  example: '2052-08-15'
                   nullable: true
     parameters:
       -
@@ -4059,7 +4185,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: negative_review
+                  example: high_value_order
                   enum:
                     - new_order
                     - high_value_order
@@ -4089,7 +4215,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: store
+                            example: tag
                             enum:
                               - channel
                               - store
@@ -4104,7 +4230,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: gt
+                            example: in
                             enum:
                               - eq
                               - neq
@@ -4132,7 +4258,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: product
+                            example: tag
                             enum:
                               - channel
                               - store
@@ -4147,7 +4273,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: neq
+                            example: eq
                             enum:
                               - eq
                               - neq
@@ -4176,7 +4302,7 @@ paths:
                       type:
                         type: string
                         description: ''
-                        example: notify_member
+                        example: email
                         enum:
                           - push
                           - email
@@ -4196,7 +4322,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: alert
+                  example: default
                   enum:
                     - default
                     - cha_ching
@@ -4220,11 +4346,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '23:06'
+                          example: '14:44'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '23:06'
+                          example: '14:44'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4236,14 +4362,14 @@ paths:
                     digest_frequency:
                       type: string
                       description: ''
-                      example: weekly
+                      example: daily
                       enum:
                         - daily
                         - weekly
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '23:06'
+                      example: '14:44'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4267,7 +4393,7 @@ paths:
                 enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
               required:
                 - name
                 - trigger
@@ -4418,7 +4544,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: product
+                            example: total
                             enum:
                               - channel
                               - store
@@ -4433,7 +4559,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: neq
+                            example: in
                             enum:
                               - eq
                               - neq
@@ -4461,7 +4587,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: repeat_buyer
+                            example: tag
                             enum:
                               - channel
                               - store
@@ -4476,7 +4602,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: eq
+                            example: gt
                             enum:
                               - eq
                               - neq
@@ -4504,7 +4630,7 @@ paths:
                       type:
                         type: string
                         description: 'This field is required when <code>actions</code> is present.'
-                        example: sms
+                        example: push
                         enum:
                           - push
                           - email
@@ -4522,7 +4648,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: default
+                  example: chime
                   enum:
                     - default
                     - cha_ching
@@ -4546,11 +4672,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '23:06'
+                          example: '14:44'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '23:06'
+                          example: '14:44'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4562,14 +4688,14 @@ paths:
                     digest_frequency:
                       type: string
                       description: ''
-                      example: daily
+                      example: weekly
                       enum:
                         - daily
                         - weekly
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '23:06'
+                      example: '14:44'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4903,7 +5029,7 @@ paths:
                 push_enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                 email_enabled:
                   type: boolean
                   description: ''
@@ -4911,16 +5037,16 @@ paths:
                 sms_enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
                 quiet_hours_start:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '23:06'
+                  example: '14:44'
                   nullable: true
                 quiet_hours_end:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '23:06'
+                  example: '14:44'
                   nullable: true
                 quiet_hours_timezone:
                   type: string
@@ -4930,7 +5056,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: alert
+                  example: default
                   enum:
                     - default
                     - cha_ching
@@ -5132,7 +5258,7 @@ paths:
                 rating:
                   type: integer
                   description: ''
-                  example: 0
+                  example: 1
                   enum:
                     - 0
                     - 1
@@ -5314,7 +5440,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: manager
+                  example: viewer
                   enum:
                     - manager
                     - agent

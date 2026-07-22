@@ -1,23 +1,19 @@
-name: Account
-description: |-
-
-  GDPR-related self-service actions.
+name: Settings
+description: ''
 endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: api/v1/account/data-export
+      - GET
+    uri: api/v1/settings/notifications
     metadata:
       custom: []
-      groupName: Account
-      groupDescription: |-
-
-        GDPR-related self-service actions.
+      groupName: Settings
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Request a data export.'
-      description: 'Queues a GDPR data export; the user receives it by email.'
+      title: 'Get notification preferences.'
+      description: 'Returns defaults (all channels enabled, no quiet hours) if the user has never saved any.'
       authenticated: true
       deprecated: false
     headers:
@@ -38,8 +34,18 @@ endpoints:
         content: |-
           {
             "success": true,
-            "message": "We're preparing your data export — you'll receive it by email shortly.",
-            "data": null
+            "message": null,
+            "data": {
+              "preferences": {
+                "push_enabled": true,
+                "email_enabled": true,
+                "sms_enabled": false,
+                "quiet_hours_start": "21:00",
+                "quiet_hours_end": "07:00",
+                "quiet_hours_timezone": "Australia/Sydney",
+                "sound": "default"
+              }
+            }
           }
         headers: []
         description: success
@@ -54,18 +60,16 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: api/v1/account/delete-request
+      - PUT
+    uri: api/v1/settings/notifications
     metadata:
       custom: []
-      groupName: Account
-      groupDescription: |-
-
-        GDPR-related self-service actions.
+      groupName: Settings
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Request account deletion.'
-      description: 'Schedules a GDPR soft-delete; the account is retained for a grace period before purge.'
+      title: 'Update notification preferences.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -76,8 +80,96 @@ endpoints:
     cleanUrlParameters: []
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    bodyParameters:
+      push_enabled:
+        custom: []
+        name: push_enabled
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      email_enabled:
+        custom: []
+        name: email_enabled
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      sms_enabled:
+        custom: []
+        name: sms_enabled
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      quiet_hours_start:
+        custom: []
+        name: quiet_hours_start
+        description: 'Must be a valid date in the format <code>H:i</code>.'
+        required: false
+        example: '14:44'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      quiet_hours_end:
+        custom: []
+        name: quiet_hours_end
+        description: 'Must be a valid date in the format <code>H:i</code>.'
+        required: false
+        example: '14:44'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      quiet_hours_timezone:
+        custom: []
+        name: quiet_hours_timezone
+        description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
+        required: false
+        example: Asia/Yekaterinburg
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      sound:
+        custom: []
+        name: sound
+        description: ''
+        required: false
+        example: default
+        type: string
+        enumValues:
+          - default
+          - cha_ching
+          - alert
+          - chime
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      push_enabled: false
+      email_enabled: true
+      sms_enabled: true
+      quiet_hours_start: '14:44'
+      quiet_hours_end: '14:44'
+      quiet_hours_timezone: Asia/Yekaterinburg
+      sound: default
     fileParameters: []
     responses:
       -
@@ -86,8 +178,18 @@ endpoints:
         content: |-
           {
             "success": true,
-            "message": "Your account has been scheduled for deletion.",
-            "data": null
+            "message": null,
+            "data": {
+              "preferences": {
+                "push_enabled": true,
+                "email_enabled": false,
+                "sms_enabled": false,
+                "quiet_hours_start": "21:00",
+                "quiet_hours_end": "07:00",
+                "quiet_hours_timezone": "Australia/Sydney",
+                "sound": "chime"
+              }
+            }
           }
         headers: []
         description: success

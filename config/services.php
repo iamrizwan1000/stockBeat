@@ -60,6 +60,20 @@ return [
         'messaging_service_sid' => env('TWILIO_MESSAGING_SERVICE_SID'),
     ],
 
+    'apple' => [
+        // The Services ID (web/app) that must match the `aud` claim on
+        // every Apple-issued id_token (Plan §4.1) — Apple signs tokens for
+        // multiple client types, so without this check a token minted for
+        // an unrelated Apple app would still pass signature verification.
+        'client_id' => env('APPLE_CLIENT_ID'),
+    ],
+
+    'google' => [
+        // OAuth client ID validated against the `aud` claim on every
+        // Google-issued id_token, same purpose as apple.client_id above.
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
     'shopify' => [
         'client_id' => env('SHOPIFY_CLIENT_ID'),
         'client_secret' => env('SHOPIFY_CLIENT_SECRET'),

@@ -115,6 +115,65 @@ For a genuinely brand-new user, `user` fields other than `id`/`email` will be em
 
 ---
 
+## `POST /auth/social`
+
+Unauthenticated. Sign in with Apple or Google as an alternative to email OTP — obtain the `id_token` from the native SDK (`AuthenticationServices`/Sign in with Apple on iOS, Google Sign-In SDK on Android/iOS) and send it here; verification happens entirely server-side, the client never talks to Apple/Google's servers directly for this call.
+
+**Request body:**
+```json
+{ "provider": "apple", "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6..." }
+```
+| Field | Rules |
+|---|---|
+| `provider` | required, one of `apple` `google` |
+| `id_token` | required, string — the raw JWT from the native SDK, not the authorization code |
+
+**Success — 200:** identical shape to `/auth/otp/verify` — same `token`/`is_new_user`/`user`, same rules for what a brand-new user's `user` fields look like:
+```json
+{
+  "success": true,
+  "message": null,
+  "data": {
+    "token": "1|abcdef1234567890...",
+    "is_new_user": false,
+    "user": {
+      "id": 1,
+      "name": "Jamie Rivera",
+      "email": "jamie@example.com",
+      "business_name": "Rivera Vintage Co",
+      "base_currency": "AUD",
+      "timezone": "Australia/Sydney",
+      "sells_on": ["woo"]
+    }
+  }
+}
+```
+
+**Account convergence — important for the "which screen next" decision:** all three sign-in paths (OTP, Apple, Google) resolve to the *same* user record by verified email. Someone who signed up via OTP once and later taps "Continue with Apple" lands back on their existing account (`is_new_user: false`, all their data intact) — this endpoint never creates a second account for an email that already exists. Route purely on `is_new_user`, exactly like the OTP flow — don't add any provider-specific branching to the post-sign-in navigation.
+
+**Errors (all 422, read the message under `errors.id_token[0]` / `errors.provider[0]` / `errors.email[0]`):**
+| Message | Meaning | What the client should do |
+|---|---|---|
+| `"This sign-in token is invalid or has expired."` | Signature/issuer/audience check failed, or the token's `exp` has passed | Re-run the native sign-in flow to get a fresh token, then retry — never retry with the same `id_token` |
+| `"This sign-in token did not include an email address."` | Provider returned no email claim at all (rare — some Android configurations can omit it) | Fall back to OTP sign-in |
+| `"This account's email address is not verified."` | Apple/Google says the email itself isn't verified | Fall back to OTP sign-in |
+| `"This account has been deleted. Contact support if you believe this is a mistake."` | Verified email matches a soft-deleted account | Same distinct "contact support" state as the OTP flow — do not offer retry |
+| `"Unsupported sign-in provider."` | `provider` failed validation (shouldn't happen if the client only ever sends `apple`/`google`) | — |
+| `"Sign in with {provider} isn't configured yet."` | Server-side: that provider's credentials aren't configured in this environment | Hide that provider's button entirely rather than surfacing this to a merchant — check with backend which providers are live before shipping |
+
+| Status | Trigger |
+|---|---|
+| 429 | Route-level throttle: **10 attempts per minute, keyed by IP** |
+
+**Apple-specific notes:**
+- Apple only returns the user's email on the **first** authorization ever granted to this app — on every sign-in after that, Apple's own SDK response won't include it again (though the `id_token`'s `email` claim is still present every time, since that's what this endpoint actually reads — nothing extra to persist client-side for this).
+- Apple can return a **private relay address** (`@privaterelay.appleid.com`) instead of the real one if the merchant chose "Hide My Email" — treat it as a completely normal email for account purposes, no special handling needed client-side.
+- Per Apple's platform requirement, **Sign in with Apple must be offered whenever Google sign-in is offered** — don't ship one without the other.
+
+**Request throttling reminder:** unlike OTP verify (which locks a specific *code* after 5 wrong tries), a bad `id_token` doesn't lock anything — it's just rejected every time. The 429 above is the only rate-limit signal for this endpoint.
+
+---
+
 ## `POST /profile/setup`
 
 **Requires auth.** One-time step for new users. Idempotent-ish — calling it again just updates the same fields (it does not create a second team).
@@ -319,6 +378,5 @@ Client action: delete the locally stored token regardless of response body, navi
 | 429 | Rate limited — generic "too many requests" messaging is fine, no need to parse further |
 
 ## Not implemented yet — do not build UI for these
-- Apple/Google/social sign-in (`POST /auth/social` does not exist)
 - Password reset / forgot password (there is no password, ever)
 - Email verification as a separate step (the OTP itself is the verification)

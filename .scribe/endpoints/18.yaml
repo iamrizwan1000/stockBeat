@@ -1,22 +1,30 @@
-name: Team
+name: Inbox
 description: |-
 
-  Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+  Unified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)
+  routes per-thread by channel: Shopify/Woo via order-linked email, eBay via
+  real Trading API member messages, Etsy the same way but gated behind its
+  own conversations-API approval, Amazon out of scope until that adapter's
+  built.
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/team
+    uri: api/v1/threads
     metadata:
       custom: []
-      groupName: Team
+      groupName: Inbox
       groupDescription: |-
 
-        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+        Unified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)
+        routes per-thread by channel: Shopify/Woo via order-linked email, eBay via
+        real Trading API member messages, Etsy the same way but gated behind its
+        own conversations-API approval, Amazon out of scope until that adapter's
+        built.
       subgroup: ''
       subgroupDescription: ''
-      title: 'List members and pending invites.'
+      title: 'List threads.'
       description: ''
       authenticated: true
       deprecated: false
@@ -26,6 +34,86 @@ endpoints:
       Accept: application/json
     urlParameters: []
     cleanUrlParameters: []
+    queryParameters:
+      assigned_to:
+        custom: []
+        name: assigned_to
+        description: 'Filter to threads assigned to this user id.'
+        required: false
+        example: 3
+        type: integer
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanQueryParameters:
+      assigned_to: 3
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "threads": [
+                { "id": 1, "channel": "woo", "customer_name": "Alex Chen", "customer_email": "alex@example.com", "order_id": 1, "order_number": "#1042", "assigned_to": null, "last_message_at": "2026-07-17T01:00:00.000000Z" }
+              ]
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/v1/threads/{thread_id}/messages'
+    metadata:
+      custom: []
+      groupName: Inbox
+      groupDescription: |-
+
+        Unified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)
+        routes per-thread by channel: Shopify/Woo via order-linked email, eBay via
+        real Trading API member messages, Etsy the same way but gated behind its
+        own conversations-API approval, Amazon out of scope until that adapter's
+        built.
+      subgroup: ''
+      subgroupDescription: ''
+      title: "List a thread's messages."
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      thread_id:
+        custom: []
+        name: thread_id
+        description: 'The ID of the thread.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      thread_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -40,11 +128,8 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "members": [
-                { "id": 1, "role": "owner", "store_visibility": null, "user": { "id": 1, "name": "Jamie Rivera", "email": "jamie@example.com" } }
-              ],
-              "pending_invites": [
-                { "id": 1, "email": "sam@example.com", "role": "manager", "status": "pending", "expires_at": "2026-07-23T00:00:00+00:00" }
+              "messages": [
+                { "id": 1, "direction": "in", "body": "Where's my order?", "status": "delivered", "created_at": "2026-07-17T01:00:00.000000Z" }
               ]
             }
           }
@@ -62,17 +147,223 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: api/v1/team/invite
+    uri: 'api/v1/threads/{thread_id}/messages'
     metadata:
       custom: []
-      groupName: Team
+      groupName: Inbox
       groupDescription: |-
 
-        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+        Unified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)
+        routes per-thread by channel: Shopify/Woo via order-linked email, eBay via
+        real Trading API member messages, Etsy the same way but gated behind its
+        own conversations-API approval, Amazon out of scope until that adapter's
+        built.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Invite a team member.'
-      description: '`store_visibility` optionally restricts the invited member to specific connection IDs.'
+      title: 'Send a message.'
+      description: |-
+        Pass either `body` (free text) or `reply_template_id` (a saved template, rendered
+        server-side with the thread's `{customer_name}`/`{order_number}`/`{tracking}`).
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      thread_id:
+        custom: []
+        name: thread_id
+        description: 'The ID of the thread.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      thread_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      body:
+        custom: []
+        name: body
+        description: 'This field is required when <code>reply_template_id</code> is not present. Must not be greater than 4000 characters.'
+        required: false
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      reply_template_id:
+        custom: []
+        name: reply_template_id
+        description: 'Must match an existing stored value.'
+        required: false
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      body: b
+      reply_template_id: 16
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 201
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "message": { "id": 2, "direction": "out", "body": "It shipped yesterday!", "status": "sent", "created_at": "2026-07-17T01:05:00.000000Z" }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/threads/{thread_id}/assign'
+    metadata:
+      custom: []
+      groupName: Inbox
+      groupDescription: |-
+
+        Unified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)
+        routes per-thread by channel: Shopify/Woo via order-linked email, eBay via
+        real Trading API member messages, Etsy the same way but gated behind its
+        own conversations-API approval, Amazon out of scope until that adapter's
+        built.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Assign (or unassign) a thread to a team member.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      thread_id:
+        custom: []
+        name: thread_id
+        description: 'The ID of the thread.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      thread_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "thread": { "id": 1, "channel": "woo", "customer_name": "Alex Chen", "customer_email": "alex@example.com", "order_id": 1, "order_number": "#1042", "assigned_to": 3, "last_message_at": "2026-07-17T01:00:00.000000Z" }
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/reply-templates
+    metadata:
+      custom: []
+      groupName: Inbox
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'List saved reply templates.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "templates": [
+                { "id": 1, "name": "Shipped", "body_with_variables": "Hi {customer_name}, order {order_number} shipped! Tracking: {tracking}" }
+              ]
+            }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/reply-templates
+    metadata:
+      custom: []
+      groupName: Inbox
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Create a reply template.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -84,48 +375,31 @@ endpoints:
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
-      email:
+      name:
         custom: []
-        name: email
-        description: 'Must be a valid email address. Must not be greater than 255 characters.'
+        name: name
+        description: 'Must not be greater than 255 characters.'
         required: true
-        example: gbailey@example.net
+        example: b
         type: string
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      role:
+      body_with_variables:
         custom: []
-        name: role
-        description: ''
+        name: body_with_variables
+        description: 'Must not be greater than 4000 characters.'
         required: true
-        example: manager
+        example: 'n'
         type: string
-        enumValues:
-          - manager
-          - agent
-          - viewer
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      store_visibility:
-        custom: []
-        name: store_visibility
-        description: ''
-        required: false
-        example:
-          - 16
-        type: 'integer[]'
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      email: gbailey@example.net
-      role: manager
-      store_visibility:
-        - 16
+      name: b
+      body_with_variables: 'n'
     fileParameters: []
     responses:
       -
@@ -136,7 +410,7 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "invite": { "id": 2, "email": "sam@example.com", "role": "manager", "status": "pending", "expires_at": "2026-07-23T00:00:00+00:00" }
+              "template": { "id": 2, "name": "Delay", "body_with_variables": "Hi {customer_name}, order {order_number} is running a little late." }
             }
           }
         headers: []
@@ -153,16 +427,14 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/v1/team/{member_id}'
+    uri: 'api/v1/reply-templates/{replyTemplate_id}'
     metadata:
       custom: []
-      groupName: Team
-      groupDescription: |-
-
-        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+      groupName: Inbox
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Update a team member.'
+      title: ''
       description: ''
       authenticated: true
       deprecated: false
@@ -171,67 +443,49 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      member_id:
+      replyTemplate_id:
         custom: []
-        name: member_id
-        description: 'The ID of the member.'
+        name: replyTemplate_id
+        description: 'The ID of the replyTemplate.'
         required: true
-        example: 3
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      member_id: 3
+      replyTemplate_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
-      role:
+      name:
         custom: []
-        name: role
-        description: ''
-        required: false
-        example: agent
+        name: name
+        description: 'Must not be greater than 255 characters.'
+        required: true
+        example: b
         type: string
-        enumValues:
-          - manager
-          - agent
-          - viewer
+        enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      store_visibility:
+      body_with_variables:
         custom: []
-        name: store_visibility
-        description: ''
-        required: false
-        example:
-          - 16
-        type: 'integer[]'
+        name: body_with_variables
+        description: 'Must not be greater than 4000 characters.'
+        required: true
+        example: 'n'
+        type: string
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      role: agent
-      store_visibility:
-        - 16
+      name: b
+      body_with_variables: 'n'
     fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "member": { "id": 2, "role": "staff", "store_visibility": [1], "user": { "id": 3, "name": "Sam Lee", "email": "sam@example.com" } }
-            }
-          }
-        headers: []
-        description: success
+    responses: []
     responseFields: []
     auth:
       - headers
@@ -244,16 +498,14 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/v1/team/{member_id}'
+    uri: 'api/v1/reply-templates/{replyTemplate_id}'
     metadata:
       custom: []
-      groupName: Team
-      groupDescription: |-
-
-        Team seats and roles (owner/manager/staff), with per-member `store_visibility` restriction.
+      groupName: Inbox
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Remove a member from the team.'
+      title: ''
       description: ''
       authenticated: true
       deprecated: false
@@ -262,47 +514,25 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      member_id:
+      replyTemplate_id:
         custom: []
-        name: member_id
-        description: 'The ID of the member.'
+        name: replyTemplate_id
+        description: 'The ID of the replyTemplate.'
         required: true
-        example: 3
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      member_id: 3
+      replyTemplate_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
     cleanBodyParameters: []
     fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": "Team member removed.",
-            "data": null
-          }
-        headers: []
-        description: success
-      -
-        custom: []
-        status: 422
-        content: |-
-          {
-            "success": false,
-            "message": "The given data was invalid.",
-            "errors": { "member": ["The team owner can't be removed."] }
-          }
-        headers: []
-        description: owner
+    responses: []
     responseFields: []
     auth:
       - headers

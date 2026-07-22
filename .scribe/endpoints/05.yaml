@@ -1,19 +1,23 @@
-name: Devices
+name: Me
 description: ''
 endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: api/v1/devices
+      - GET
+    uri: api/v1/me
     metadata:
       custom: []
-      groupName: Devices
+      groupName: Me
       groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Register a push device.'
-      description: "Upserts the device's push token so the backend can deliver notifications to it."
+      title: 'Get the current user.'
+      description: |-
+        Combines profile, current team/role, plan entitlements, SMS credit balance,
+        resolved feature flags, the active SMS top-up pack catalog, and active
+        paywall/content copy blocks — the client's single call after launch/login.
+        `needs_profile_setup` is true until `/profile/setup` has been completed.
       authenticated: true
       deprecated: false
     headers:
@@ -24,49 +28,58 @@ endpoints:
     cleanUrlParameters: []
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters:
-      platform:
-        custom: []
-        name: platform
-        description: ''
-        required: true
-        example: ios
-        type: string
-        enumValues:
-          - ios
-          - android
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      push_token:
-        custom: []
-        name: push_token
-        description: 'Must not be greater than 255 characters.'
-        required: true
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      platform: ios
-      push_token: b
+    bodyParameters: []
+    cleanBodyParameters: []
     fileParameters: []
     responses:
       -
         custom: []
-        status: 201
+        status: 200
         content: |-
           {
             "success": true,
             "message": null,
             "data": {
-              "device": { "id": 1, "platform": "ios", "last_seen_at": "2026-07-16T02:00:00.000000Z" }
+              "user": {
+                "id": 1,
+                "name": "Jamie Rivera",
+                "email": "jamie@example.com",
+                "business_name": "Rivera Vintage Co",
+                "base_currency": "AUD",
+                "timezone": "Australia/Sydney",
+                "sells_on": ["woocommerce"]
+              },
+              "team": { "id": 1, "name": "Rivera Vintage Co", "role": "owner" },
+              "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42, "ai_questions_remaining": 148 },
+              "feature_flags": { "new_rules_ui": true },
+              "sms_topup_packs": [ { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" } ],
+              "ai_topup_packs": [ { "key": "ai_50", "name": "50 AI questions", "ai_questions": 50, "price_usd": "4.99" } ],
+              "content": { "paywall_pro_headline": "..." },
+              "needs_profile_setup": false
             }
           }
         headers: []
-        description: success
+        description: 'profile setup complete'
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "user": { "id": 1, "name": "Jamie Rivera", "email": "jamie@example.com", "business_name": null, "base_currency": null, "timezone": null, "sells_on": null },
+              "team": null,
+              "entitlements": null,
+              "feature_flags": null,
+              "sms_topup_packs": [],
+              "ai_topup_packs": [],
+              "content": {},
+              "needs_profile_setup": true
+            }
+          }
+        headers: []
+        description: 'profile setup pending'
     responseFields: []
     auth:
       - headers

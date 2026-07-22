@@ -41,6 +41,9 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('otp-verify', fn ($request) => Limit::perMinute(10)
             ->by($request->ip()));
+
+        RateLimiter::for('social-signin', fn ($request) => Limit::perMinute(10)
+            ->by($request->ip()));
     }
 
     /**

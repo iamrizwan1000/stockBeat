@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "ad81b17a-cd51-436b-8f5f-4119371a9c0b",
+        "_postman_id": "1f7c8f8c-400e-4fb4-8be1-e1aa072fc3bf",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -41,7 +41,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"help\"}"
+                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"data\"}"
                         },
                         "description": ""
                     },
@@ -512,7 +512,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"amazon\"],\"timezone\":\"America\\\/Barbados\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"etsy\"],\"timezone\":\"Europe\\\/Kyiv\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -592,6 +592,56 @@
                             "code": 200,
                             "body": "{\n  \"success\": true,\n  \"message\": \"Logged out of all devices.\",\n  \"data\": null\n}",
                             "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Auth \u2014 Social sign-in",
+            "description": "\nApple\/Google one-tap, an alternative to email OTP. Both providers converge on the same\nuser record as OTP by verified email \u2014 signing in with a different method never creates\na second account.",
+            "item": [
+                {
+                    "name": "Sign in with Apple or Google.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/auth\/social",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/auth\/social"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"provider\":\"apple\",\"id_token\":\"architecto\"}"
+                        },
+                        "description": "Verifies the client-obtained id_token server-side, then issues a Sanctum bearer token.\nSame response shape as `\/auth\/otp\/verify` \u2014 `is_new_user` tells the client whether to\nroute into `\/profile\/setup` next.",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"token\": \"1|abcdef1234567890\",\n    \"is_new_user\": false,\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    }\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"This sign-in token is invalid or has expired.\",\n  \"errors\": {\n    \"id_token\": [\"This sign-in token is invalid or has expired.\"]\n  }\n}",
+                            "name": "invalid token"
                         }
                     ]
                 }
@@ -1305,7 +1355,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"ebay\",\"store\":16,\"status\":\"cancelled\",\"date_from\":\"2026-07-21T23:06:47\",\"date_to\":\"2026-07-21T23:06:47\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
+                            "raw": "{\"channel\":\"shopify\",\"store\":16,\"status\":\"unfulfilled\",\"date_from\":\"2026-07-22T14:44:29\",\"date_to\":\"2026-07-22T14:44:29\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -1474,7 +1524,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"until\":\"2052-08-14\"}"
+                            "raw": "{\"until\":\"2052-08-15\"}"
                         },
                         "description": "Pass `until` as an ISO-8601 datetime to snooze, or omit\/null it to clear the snooze."
                     },
@@ -1853,7 +1903,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"negative_review\",\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"23:06\",\"end\":\"23:06\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"23:06\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"store\",\"operator\":\"gt\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"product\",\"operator\":\"neq\",\"value\":\"architecto\"}]}}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"high_value_order\",\"actions\":[{\"type\":\"email\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"default\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"14:44\",\"end\":\"14:44\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"daily\",\"digest_time\":\"14:44\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"tag\",\"operator\":\"in\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"eq\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -1902,7 +1952,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"ship_by_deadline\",\"sound\":\"default\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"23:06\",\"end\":\"23:06\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"daily\",\"digest_time\":\"23:06\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"product\",\"operator\":\"neq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"repeat_buyer\",\"operator\":\"eq\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"sms\",\"tag\":\"n\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"ship_by_deadline\",\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"14:44\",\"end\":\"14:44\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"14:44\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"total\",\"operator\":\"in\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"gt\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"push\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -2055,7 +2105,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":true,\"email_enabled\":true,\"sms_enabled\":false,\"quiet_hours_start\":\"23:06\",\"quiet_hours_end\":\"23:06\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"alert\"}"
+                            "raw": "{\"push_enabled\":false,\"email_enabled\":true,\"sms_enabled\":true,\"quiet_hours_start\":\"14:44\",\"quiet_hours_end\":\"14:44\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"default\"}"
                         },
                         "description": ""
                     },
@@ -2163,7 +2213,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"rating\":0}"
+                            "raw": "{\"rating\":1}"
                         },
                         "description": ""
                     },
@@ -2236,7 +2286,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"manager\",\"store_visibility\":[16]}"
+                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"viewer\",\"store_visibility\":[16]}"
                         },
                         "description": "`store_visibility` optionally restricts the invited member to specific connection IDs."
                     },

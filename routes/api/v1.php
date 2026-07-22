@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
+use App\Http\Controllers\Api\V1\Auth\SocialAuthController;
 use App\Http\Controllers\Api\V1\ConfigController;
 use App\Http\Controllers\Api\V1\ConnectionController;
 use App\Http\Controllers\Api\V1\DeviceController;
@@ -31,6 +32,10 @@ Route::prefix('auth')->name('auth.')->group(function () {
     Route::post('otp/verify', [OtpController::class, 'verify'])
         ->middleware('throttle:otp-verify')
         ->name('otp.verify');
+
+    Route::post('social', [SocialAuthController::class, 'signIn'])
+        ->middleware('throttle:social-signin')
+        ->name('social');
 });
 
 // Public/unauthenticated — must be checkable before the app has a token (Plan §17.7).

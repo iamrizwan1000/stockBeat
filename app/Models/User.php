@@ -27,6 +27,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property array<int, string>|null $sells_on
  * @property bool $marketing_opt_in
  * @property string|null $signup_ip
+ * @property string|null $apple_sub
+ * @property string|null $google_sub
  * @property Carbon|null $last_active_at
  * @property Carbon|null $suspended_at
  * @property Carbon|null $created_at
