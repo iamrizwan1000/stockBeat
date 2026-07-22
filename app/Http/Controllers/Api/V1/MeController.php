@@ -4,15 +4,12 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Billing\GetActiveAiTopupPacksAction;
 use App\Actions\Billing\GetActiveSmsTopupPacksAction;
-use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Actions\Billing\ResolveFullEntitlementsAction;
 use App\Actions\Content\GetActiveContentBlocksAction;
 use App\Actions\FeatureFlags\GetFeatureFlagsForTeamAction;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Http\Responses\ApiResponse;
-use App\Models\AiUsageLedger;
-use App\Models\SmsLedger;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,7 +66,7 @@ class MeController extends Controller
      */
     public function show(
         Request $request,
-        ResolveEntitlementsAction $resolveEntitlements,
+        ResolveFullEntitlementsAction $resolveEntitlements,
         GetFeatureFlagsForTeamAction $getFeatureFlags,
         GetActiveSmsTopupPacksAction $getSmsTopupPacks,
         GetActiveAiTopupPacksAction $getAiTopupPacks,
@@ -93,32 +90,15 @@ class MeController extends Controller
             ]);
         }
 
-        $entitlements = $resolveEntitlements->handle($team);
-
         return ApiResponse::success([
             'user' => new UserResource($user),
             'team' => ['id' => $team->id, 'name' => $team->name, 'role' => $user->currentTeamMember()?->role],
-            'entitlements' => [
-                ...$entitlements,
-                'sms_balance' => SmsLedger::currentBalance($team->id),
-                'ai_questions_remaining' => $this->aiQuestionsRemaining($team, $entitlements['limits']['ai_questions_monthly'] ?? null),
-            ],
+            'entitlements' => $resolveEntitlements->handle($team),
             'feature_flags' => $getFeatureFlags->handle($team),
             'sms_topup_packs' => $getSmsTopupPacks->handle(),
             'ai_topup_packs' => $getAiTopupPacks->handle(),
             'content' => $getContentBlocks->handle(),
             'needs_profile_setup' => false,
         ]);
-    }
-
-    private function aiQuestionsRemaining(Team $team, ?int $monthlyLimit): ?int
-    {
-        $effectiveLimit = AiUsageLedger::effectiveMonthlyLimit($team->id, $monthlyLimit);
-
-        if ($effectiveLimit === null) {
-            return null;
-        }
-
-        return max($effectiveLimit - AiUsageLedger::questionsUsedThisMonth($team->id), 0);
     }
 }

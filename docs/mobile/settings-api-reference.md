@@ -152,11 +152,12 @@ Compiles a real JSON export (profile, team, team members, store connections — 
 
 ## Billing & subscription (native IAP)
 
-**All purchases happen through the RevenueCat SDK directly on-device — there is no `POST /purchase` or `POST /subscribe` endpoint in this API.** The backend only ever *observes* purchases after the fact via a server-to-server RevenueCat webhook (`hooks/revenuecat`, outside `/api/v1`, not callable by the mobile app — it's authenticated with a fixed shared secret RevenueCat sends, not a user token). The mobile-facing contract is:
+**All purchases happen through the RevenueCat SDK directly on-device — there is no `POST /purchase` or `POST /subscribe` endpoint in this API.** The backend only ever *observes* purchases via a server-to-server RevenueCat webhook (`hooks/revenuecat`, outside `/api/v1`, not callable by the mobile app — authenticated with a fixed shared secret RevenueCat sends, not a user token) — **and, as of 2026-07-22, also via `POST /billing/sync` below**, which the client itself triggers. Neither endpoint ever purchases anything; both only reconcile entitlement state the store/RevenueCat already knows about. The mobile-facing contract is:
 
 1. Configure the RevenueCat SDK with `appUserID` = this user's numeric `id` (from `GET /me`'s `user.id`) — this is exactly how the backend links a purchase back to a `Team` (`rc_app_user_id`/`app_user_id` matching, Plan §6.1).
 2. Drive the actual purchase UI (paywall, price display, restore purchases) entirely through the RevenueCat SDK's own offerings/packages API — this backend does not serve product prices or descriptions for subscription tiers (only for SMS/AI top-ups, see below).
-3. After a purchase completes, **the entitlement change isn't instant on this API** — it lands whenever RevenueCat's webhook reaches the backend (real-world: seconds, not guaranteed). Re-fetch `GET /me` after a purchase (poll a few times over ~10–15s if needed, same pattern as the OAuth-connection polling workaround in `connections-api-reference.md`) rather than assuming the very next `/me` call already reflects the new plan.
+3. After a purchase completes, **call `POST /billing/sync`** (below) rather than just waiting on the webhook — it pulls the subscriber's current state directly from RevenueCat and returns fresh entitlements in the same response, which is faster and more reliable than polling `GET /me` and hoping the webhook has landed yet. Still safe to poll `GET /me` a few times as a fallback if you'd rather not add the extra call.
+4. **"Restore Purchases" button (an App Store/Play Store requirement) — implement it as: call the RevenueCat SDK's own `restorePurchases()`, then call `POST /billing/sync`.** The SDK call is what actually talks to Apple/Google; the backend call is what makes the restored entitlement visible to this API. Don't skip the backend call — a restore on a new device doesn't reliably fire the webhook on its own.
 
 ### The product ID contract (must match exactly on both sides)
 
@@ -169,6 +170,39 @@ RevenueCat product/offering identifiers are a **fixed whitelist in code**, not a
 | `premium_monthly` / `premium_yearly` | Premium |
 
 There is no Free product — Free is simply the absence of an active subscription.
+
+### `GET /billing/entitlements`
+
+**Requires auth.** Same `entitlements` object `GET /me` returns, on its own — use this instead of `/me` when all you need is a fresh entitlements read (e.g. a "manage subscription" screen refresh) and don't want the rest of `/me`'s payload (feature flags, topup catalogs, content blocks).
+
+```json
+{ "success": true, "message": null, "data": {
+  "plan": "pro", "limits": { "...": "..." }, "subscription_status": "active",
+  "trial_ends_at": null, "sms_balance": 42, "ai_questions_remaining": 148
+} }
+```
+
+**Errors:** `422` (`"Complete profile setup first."`) if called before `/profile/setup` — shouldn't happen if you gate billing screens behind `needs_profile_setup` like everything else.
+
+### `POST /billing/sync`
+
+**Requires auth.** Links this device's RevenueCat identity to the team's subscription and pulls its *current* state directly from RevenueCat's servers — call it right after a purchase completes and as the second half of "Restore Purchases" (see above).
+
+**Request body:**
+```json
+{ "rc_app_user_id": "42" }
+```
+| Field | Rules |
+|---|---|
+| `rc_app_user_id` | required, string, max 255 — pass the RevenueCat SDK's own `appUserID` (which per step 1 above is this user's numeric `id`, but send whatever the SDK actually reports rather than assuming — e.g. `Purchases.getAppUserID()`) |
+
+**Success — 200:** same shape as `GET /billing/entitlements` — the response already reflects whatever this call just reconciled, no need to re-fetch entitlements separately afterward.
+
+**Important — this only reconciles the subscription, never SMS/AI top-ups:** Apple/Google's own restore-purchases rules explicitly exclude consumables, so a top-up pack purchase is never "restored" here — those stay webhook-only and are credited exactly once at time of purchase. Don't call this expecting a lost SMS/AI top-up to reappear; there's nothing to restore there by design.
+
+**Fails open — always check for a 200, but don't assume a 200 means something changed:** if RevenueCat itself is unreachable, or this environment doesn't have it configured, the call still returns `200` with whatever entitlements were already on file (Plan §17.5 — never block/error out a paying user over a RevenueCat outage). There's no distinct "sync failed, nothing changed" signal in the response — if you need to confirm a specific purchase actually landed, compare `plan`/`subscription_status` before and after, or fall back to polling.
+
+**Errors:** `422` validation (missing `rc_app_user_id`) or the same `"Complete profile setup first."` as above.
 
 ### `GET /me`'s billing-relevant fields (full shape in `auth-api-reference.md`)
 

@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "1f7c8f8c-400e-4fb4-8be1-e1aa072fc3bf",
+        "_postman_id": "73edc58c-1290-43a6-8c6f-44326317c6f9",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -41,7 +41,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"data\"}"
+                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"help\"}"
                         },
                         "description": ""
                     },
@@ -512,7 +512,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"etsy\"],\"timezone\":\"Europe\\\/Kyiv\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"ebay\"],\"timezone\":\"America\\\/La_Paz\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -642,6 +642,91 @@
                             "code": 422,
                             "body": "{\n  \"success\": false,\n  \"message\": \"This sign-in token is invalid or has expired.\",\n  \"errors\": {\n    \"id_token\": [\"This sign-in token is invalid or has expired.\"]\n  }\n}",
                             "name": "invalid token"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Billing",
+            "description": "\nEntitlements are also available embedded in `GET \/me` \u2014 these are dedicated, lighter-weight\nendpoints for after a purchase completes, without re-fetching the rest of `\/me`'s payload.",
+            "item": [
+                {
+                    "name": "Get current entitlements.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/billing\/entitlements",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/billing\/entitlements"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Same `entitlements` shape as `GET \/me`. The backend is the single source of truth\n(Plan \u00a76.1) \u2014 the app should check its RevenueCat SDK locally for an instant unlock\nright after a purchase, then call this (or `POST \/billing\/sync`) to reconcile."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"plan\": \"pro\",\n    \"limits\": { \"max_stores\": 10, \"sms_monthly\": 100 },\n    \"subscription_status\": \"active\",\n    \"trial_ends_at\": null,\n    \"sms_balance\": 42,\n    \"ai_questions_remaining\": 148\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Complete profile setup first.\",\n  \"errors\": null\n}",
+                            "name": "profile setup not complete"
+                        }
+                    ]
+                },
+                {
+                    "name": "Sync with RevenueCat and get fresh entitlements.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/billing\/sync",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/billing\/sync"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"rc_app_user_id\":\"b\"}"
+                        },
+                        "description": "Call this after a purchase completes locally (StoreKit\/Play Billing via the RevenueCat\nSDK) or when the merchant taps \"Restore Purchases\" \u2014 links this device's RevenueCat\nidentity to the team's subscription and pulls the subscriber's current state directly\nfrom RevenueCat rather than waiting for a webhook, which is the only reliable way to\nsupport restore on a new device (a restore doesn't always fire a webhook). Fails open:\nif RevenueCat itself is unreachable, existing entitlements are returned unchanged rather\nthan erroring (Plan \u00a717.5 \u2014 never lock out a paying user over a RevenueCat outage).\n\nOnly reconciles the renewing subscription, never SMS\/AI top-ups \u2014 Apple\/Google's own\nrestore-purchases rules don't cover consumables, so those stay webhook-only."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"plan\": \"pro\",\n    \"limits\": { \"max_stores\": 10, \"sms_monthly\": 100 },\n    \"subscription_status\": \"active\",\n    \"trial_ends_at\": null,\n    \"sms_balance\": 42,\n    \"ai_questions_remaining\": 148\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Complete profile setup first.\",\n  \"errors\": null\n}",
+                            "name": "profile setup not complete"
                         }
                     ]
                 }
@@ -1355,7 +1440,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"shopify\",\"store\":16,\"status\":\"unfulfilled\",\"date_from\":\"2026-07-22T14:44:29\",\"date_to\":\"2026-07-22T14:44:29\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":true}"
+                            "raw": "{\"channel\":\"amazon\",\"store\":16,\"status\":\"unfulfilled\",\"date_from\":\"2026-07-22T15:00:59\",\"date_to\":\"2026-07-22T15:00:59\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":false}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -1903,7 +1988,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"high_value_order\",\"actions\":[{\"type\":\"email\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"default\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"14:44\",\"end\":\"14:44\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"daily\",\"digest_time\":\"14:44\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"tag\",\"operator\":\"in\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"eq\",\"value\":\"architecto\"}]}}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"ai_insight\",\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"15:00\",\"end\":\"15:00\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"15:00\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"tag\",\"operator\":\"neq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"channel\",\"operator\":\"in\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -1952,7 +2037,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"ship_by_deadline\",\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"14:44\",\"end\":\"14:44\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"14:44\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"total\",\"operator\":\"in\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"gt\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"push\",\"tag\":\"n\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"high_value_order\",\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"15:00\",\"end\":\"15:00\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"15:00\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"channel\",\"operator\":\"lte\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"product\",\"operator\":\"lt\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"email\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -2105,7 +2190,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":false,\"email_enabled\":true,\"sms_enabled\":true,\"quiet_hours_start\":\"14:44\",\"quiet_hours_end\":\"14:44\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"default\"}"
+                            "raw": "{\"push_enabled\":false,\"email_enabled\":true,\"sms_enabled\":false,\"quiet_hours_start\":\"15:00\",\"quiet_hours_end\":\"15:00\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"chime\"}"
                         },
                         "description": ""
                     },
@@ -2213,7 +2298,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"rating\":1}"
+                            "raw": "{\"rating\":0}"
                         },
                         "description": ""
                     },
@@ -2329,7 +2414,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"role\":\"agent\",\"store_visibility\":[16]}"
+                            "raw": "{\"role\":\"manager\",\"store_visibility\":[16]}"
                         },
                         "description": ""
                     },

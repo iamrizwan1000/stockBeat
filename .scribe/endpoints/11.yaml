@@ -1,90 +1,28 @@
-name: Rules
+name: Orders
 description: |-
 
-  Custom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,
-  and an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.
-  `new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).
+  The unified order feed across all connected channels, plus quick actions
+  (fulfill/tracking, refund, cancel, notes/tags, packing slip).
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/rules
+    uri: api/v1/orders
     metadata:
       custom: []
-      groupName: Rules
+      groupName: Orders
       groupDescription: |-
 
-        Custom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,
-        and an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.
-        `new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
       subgroup: ''
       subgroupDescription: ''
-      title: 'List rules.'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "rules": [
-                {
-                  "id": 1,
-                  "name": "High-value order alert",
-                  "trigger": "high_value_order",
-                  "conditions": { "all": [{ "field": "total", "operator": ">=", "value": 200 }] },
-                  "actions": [{ "type": "push" }, { "type": "email" }],
-                  "controls": { "quiet_hours": true },
-                  "enabled": true,
-                  "created_at": "2026-07-10T00:00:00.000000Z"
-                }
-              ]
-            }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/v1/rules
-    metadata:
-      custom: []
-      groupName: Rules
-      groupDescription: |-
-
-        Custom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,
-        and an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.
-        `new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Create a rule.'
-      description: ''
+      title: 'List orders.'
+      description: |-
+        Cursor-paginated, filterable by channel/store/status/date/value/tag, with global search
+        across order number, customer name/email, and item SKU/title. `history_days` is plan-gated
+        server-side; test orders are excluded unless the team is viewing in test mode.
       authenticated: true
       deprecated: false
     headers:
@@ -96,260 +34,119 @@ endpoints:
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
-      name:
+      channel:
         custom: []
-        name: name
-        description: 'Must not be greater than 255 characters.'
-        required: true
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      trigger:
-        custom: []
-        name: trigger
+        name: channel
         description: ''
-        required: true
-        example: high_value_order
+        required: false
+        example: amazon
         type: string
         enumValues:
-          - new_order
-          - high_value_order
-          - unfulfilled_after_x
-          - ship_by_deadline
-          - refund_requested
-          - order_cancelled
-          - payment_failed
-          - negative_review
-          - low_stock
-          - order_spike
-          - refund_spike
-          - digest
-          - ai_insight
+          - shopify
+          - woo
+          - ebay
+          - etsy
+          - amazon
+          - tiktok
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      conditions:
+      store:
         custom: []
-        name: conditions
+        name: store
         description: ''
         required: false
-        example: null
-        type: object
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      conditions.all:
+      status:
         custom: []
-        name: conditions.all
+        name: status
         description: ''
         required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      conditions.any:
-        custom: []
-        name: conditions.any
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      actions:
-        custom: []
-        name: actions
-        description: 'Must have at least 1 items.'
-        required: true
-        example:
-          - []
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      sound:
-        custom: []
-        name: sound
-        description: ''
-        required: false
-        example: default
+        example: unfulfilled
         type: string
         enumValues:
-          - default
-          - cha_ching
-          - alert
-          - chime
+          - new
+          - unfulfilled
+          - shipped
+          - refunded
+          - cancelled
         exampleWasSpecified: false
-        nullable: true
+        nullable: false
         deprecated: false
-      controls:
+      date_from:
         custom: []
-        name: controls
+        name: date_from
+        description: 'Must be a valid date.'
+        required: false
+        example: '2026-07-22T15:00:59'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      date_to:
+        custom: []
+        name: date_to
+        description: 'Must be a valid date.'
+        required: false
+        example: '2026-07-22T15:00:59'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      value_min:
+        custom: []
+        name: value_min
         description: ''
         required: false
-        example: null
-        type: object
+        example: 4326.41688
+        type: number
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      controls.cooldown_minutes:
+      value_max:
         custom: []
-        name: controls.cooldown_minutes
-        description: 'Must be at least 0.'
-        required: false
-        example: 27
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours:
-        custom: []
-        name: controls.quiet_hours
+        name: value_max
         description: ''
         required: false
-        example: []
-        type: object
+        example: 4326.41688
+        type: number
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      controls.quiet_hours.start:
+      tag:
         custom: []
-        name: controls.quiet_hours.start
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '14:44'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours.end:
-        custom: []
-        name: controls.quiet_hours.end
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '14:44'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours.timezone:
-        custom: []
-        name: controls.quiet_hours.timezone
-        description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
-        required: false
-        example: Asia/Ulaanbaatar
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.threshold_hours:
-        custom: []
-        name: controls.threshold_hours
-        description: 'Must be at least 1.'
-        required: false
-        example: 67
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.digest_frequency:
-        custom: []
-        name: controls.digest_frequency
+        name: tag
         description: ''
         required: false
-        example: daily
-        type: string
-        enumValues:
-          - daily
-          - weekly
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.digest_time:
-        custom: []
-        name: controls.digest_time
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '14:44'
+        example: architecto
         type: string
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      controls.digest_day_of_week:
+      q:
         custom: []
-        name: controls.digest_day_of_week
-        description: 'Must be between 0 and 6.'
+        name: q
+        description: ''
         required: false
-        example: 1
-        type: integer
+        example: architecto
+        type: string
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      controls.spike_count:
+      include_snoozed:
         custom: []
-        name: controls.spike_count
-        description: 'Must be at least 1.'
-        required: false
-        example: 27
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.spike_window_minutes:
-        custom: []
-        name: controls.spike_window_minutes
-        description: 'Must be at least 1.'
-        required: false
-        example: 35
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.low_stock_threshold:
-        custom: []
-        name: controls.low_stock_threshold
-        description: 'Must be at least 0.'
-        required: false
-        example: 76
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.negative_review_max_rating:
-        custom: []
-        name: controls.negative_review_max_rating
-        description: 'Must be between 1 and 5.'
-        required: false
-        example: 2
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      enabled:
-        custom: []
-        name: enabled
+        name: include_snoozed
         description: ''
         required: false
         example: false
@@ -358,213 +155,56 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-      'conditions.all[].field':
-        custom: []
-        name: 'conditions.all[].field'
-        description: ''
-        required: true
-        example: tag
-        type: string
-        enumValues:
-          - channel
-          - store
-          - total
-          - sku
-          - product
-          - quantity
-          - customer_country
-          - repeat_buyer
-          - shipping_method
-          - tag
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.all[].operator':
-        custom: []
-        name: 'conditions.all[].operator'
-        description: ''
-        required: true
-        example: in
-        type: string
-        enumValues:
-          - eq
-          - neq
-          - gt
-          - gte
-          - lt
-          - lte
-          - in
-          - between
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.all[].value':
-        custom: []
-        name: 'conditions.all[].value'
-        description: ''
-        required: true
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.any[].field':
-        custom: []
-        name: 'conditions.any[].field'
-        description: ''
-        required: true
-        example: tag
-        type: string
-        enumValues:
-          - channel
-          - store
-          - total
-          - sku
-          - product
-          - quantity
-          - customer_country
-          - repeat_buyer
-          - shipping_method
-          - tag
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.any[].operator':
-        custom: []
-        name: 'conditions.any[].operator'
-        description: ''
-        required: true
-        example: eq
-        type: string
-        enumValues:
-          - eq
-          - neq
-          - gt
-          - gte
-          - lt
-          - lte
-          - in
-          - between
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.any[].value':
-        custom: []
-        name: 'conditions.any[].value'
-        description: ''
-        required: true
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'actions[].type':
-        custom: []
-        name: 'actions[].type'
-        description: ''
-        required: true
-        example: email
-        type: string
-        enumValues:
-          - push
-          - email
-          - sms
-          - notify_member
-          - auto_tag
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'actions[].tag':
-        custom: []
-        name: 'actions[].tag'
-        description: 'This field is required when <code>actions.*.type</code> is <code>auto_tag</code>. Must not be greater than 50 characters.'
-        required: false
-        example: 'n'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'actions[].user_id':
-        custom: []
-        name: 'actions[].user_id'
-        description: 'This field is required when <code>actions.*.type</code> is <code>notify_member</code>.'
-        required: false
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
     cleanBodyParameters:
-      name: b
-      trigger: high_value_order
-      actions:
-        - type: email
-          tag: 'n'
-          user_id: 16
-      sound: default
-      controls:
-        cooldown_minutes: 27
-        quiet_hours:
-          start: '14:44'
-          end: '14:44'
-          timezone: Asia/Ulaanbaatar
-        threshold_hours: 67
-        digest_frequency: daily
-        digest_time: '14:44'
-        digest_day_of_week: 1
-        spike_count: 27
-        spike_window_minutes: 35
-        low_stock_threshold: 76
-        negative_review_max_rating: 2
-      enabled: false
-      conditions:
-        all:
-          - field: tag
-            operator: in
-            value: architecto
-        any:
-          - field: tag
-            operator: eq
-            value: architecto
+      channel: amazon
+      store: 16
+      status: unfulfilled
+      date_from: '2026-07-22T15:00:59'
+      date_to: '2026-07-22T15:00:59'
+      value_min: 4326.41688
+      value_max: 4326.41688
+      tag: architecto
+      q: architecto
+      include_snoozed: false
     fileParameters: []
     responses:
       -
         custom: []
-        status: 201
+        status: 200
         content: |-
           {
             "success": true,
             "message": null,
             "data": {
-              "rule": {
-                "id": 2,
-                "name": "Order spike alert",
-                "trigger": "order_spike",
-                "conditions": null,
-                "actions": [{ "type": "push" }],
-                "controls": { "spike_count": 10, "spike_window_minutes": 30 },
-                "enabled": true,
-                "created_at": "2026-07-16T02:00:00.000000Z"
-              }
+              "orders": [
+                {
+                  "id": 1,
+                  "platform": "woo",
+                  "connection_id": 1,
+                  "order_number": "#1042",
+                  "status": "unfulfilled",
+                  "fulfillment_status": "unfulfilled",
+                  "payment_status": "paid",
+                  "currency": "AUD",
+                  "total": "84.00",
+                  "total_base_currency": "84.00",
+                  "customer_name": "Alex Chen",
+                  "customer_email": "alex@example.com",
+                  "shipping_address": { "line1": "1 Example St", "city": "Sydney", "postcode": "2000", "country": "AU" },
+                  "placed_at": "2026-07-16T00:30:00.000000Z",
+                  "ship_by_at": "2026-07-18T00:30:00.000000Z",
+                  "ship_by_hours_remaining": 46.5,
+                  "is_ship_by_urgent": false,
+                  "tags": ["gift"],
+                  "is_test": false,
+                  "snoozed_until": null
+                }
+              ],
+              "next_cursor": "eyJpZCI6MSwiX3BvaW50c1RvTmV4dEl0ZW1zIjp0cnVlfQ"
             }
           }
         headers: []
         description: success
-      -
-        custom: []
-        status: 422
-        content: |-
-          {
-            "success": false,
-            "message": "Complete profile setup before creating rules.",
-            "errors": null
-          }
-        headers: []
-        description: 'profile setup incomplete'
     responseFields: []
     auth:
       - headers
@@ -576,20 +216,21 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - PUT
-    uri: 'api/v1/rules/{id}'
+      - GET
+    uri: 'api/v1/orders/{id}'
     metadata:
       custom: []
-      groupName: Rules
+      groupName: Orders
       groupDescription: |-
 
-        Custom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,
-        and an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.
-        `new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
       subgroup: ''
       subgroupDescription: ''
-      title: 'Update a rule.'
-      description: ''
+      title: 'Get an order.'
+      description: |-
+        Includes items and notes. 404s if the order isn't in the caller's team, or outside the
+        caller's `store_visibility` restriction.
       authenticated: true
       deprecated: false
     headers:
@@ -600,452 +241,20 @@ endpoints:
       id:
         custom: []
         name: id
-        description: 'The ID of the rule.'
+        description: 'The ID of the order.'
         required: true
-        example: 16
+        example: 4
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 16
+      id: 4
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters:
-      name:
-        custom: []
-        name: name
-        description: 'Must not be greater than 255 characters.'
-        required: false
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      trigger:
-        custom: []
-        name: trigger
-        description: ''
-        required: false
-        example: ship_by_deadline
-        type: string
-        enumValues:
-          - new_order
-          - high_value_order
-          - unfulfilled_after_x
-          - ship_by_deadline
-          - refund_requested
-          - order_cancelled
-          - payment_failed
-          - negative_review
-          - low_stock
-          - order_spike
-          - refund_spike
-          - digest
-          - ai_insight
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      conditions:
-        custom: []
-        name: conditions
-        description: ''
-        required: false
-        example: null
-        type: object
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      conditions.all:
-        custom: []
-        name: conditions.all
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      conditions.any:
-        custom: []
-        name: conditions.any
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      actions:
-        custom: []
-        name: actions
-        description: 'Must have at least 1 items.'
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      sound:
-        custom: []
-        name: sound
-        description: ''
-        required: false
-        example: chime
-        type: string
-        enumValues:
-          - default
-          - cha_ching
-          - alert
-          - chime
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      controls:
-        custom: []
-        name: controls
-        description: ''
-        required: false
-        example: null
-        type: object
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.cooldown_minutes:
-        custom: []
-        name: controls.cooldown_minutes
-        description: 'Must be at least 0.'
-        required: false
-        example: 39
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours:
-        custom: []
-        name: controls.quiet_hours
-        description: ''
-        required: false
-        example: []
-        type: object
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours.start:
-        custom: []
-        name: controls.quiet_hours.start
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '14:44'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours.end:
-        custom: []
-        name: controls.quiet_hours.end
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '14:44'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.quiet_hours.timezone:
-        custom: []
-        name: controls.quiet_hours.timezone
-        description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
-        required: false
-        example: Antarctica/Rothera
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.threshold_hours:
-        custom: []
-        name: controls.threshold_hours
-        description: 'Must be at least 1.'
-        required: false
-        example: 66
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.digest_frequency:
-        custom: []
-        name: controls.digest_frequency
-        description: ''
-        required: false
-        example: weekly
-        type: string
-        enumValues:
-          - daily
-          - weekly
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.digest_time:
-        custom: []
-        name: controls.digest_time
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '14:44'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.digest_day_of_week:
-        custom: []
-        name: controls.digest_day_of_week
-        description: 'Must be between 0 and 6.'
-        required: false
-        example: 0
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.spike_count:
-        custom: []
-        name: controls.spike_count
-        description: 'Must be at least 1.'
-        required: false
-        example: 35
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.spike_window_minutes:
-        custom: []
-        name: controls.spike_window_minutes
-        description: 'Must be at least 1.'
-        required: false
-        example: 43
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.low_stock_threshold:
-        custom: []
-        name: controls.low_stock_threshold
-        description: 'Must be at least 0.'
-        required: false
-        example: 60
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      controls.negative_review_max_rating:
-        custom: []
-        name: controls.negative_review_max_rating
-        description: 'Must be between 1 and 5.'
-        required: false
-        example: 2
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      enabled:
-        custom: []
-        name: enabled
-        description: ''
-        required: false
-        example: true
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.all[].field':
-        custom: []
-        name: 'conditions.all[].field'
-        description: ''
-        required: true
-        example: total
-        type: string
-        enumValues:
-          - channel
-          - store
-          - total
-          - sku
-          - product
-          - quantity
-          - customer_country
-          - repeat_buyer
-          - shipping_method
-          - tag
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.all[].operator':
-        custom: []
-        name: 'conditions.all[].operator'
-        description: ''
-        required: true
-        example: in
-        type: string
-        enumValues:
-          - eq
-          - neq
-          - gt
-          - gte
-          - lt
-          - lte
-          - in
-          - between
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.all[].value':
-        custom: []
-        name: 'conditions.all[].value'
-        description: ''
-        required: true
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.any[].field':
-        custom: []
-        name: 'conditions.any[].field'
-        description: ''
-        required: true
-        example: tag
-        type: string
-        enumValues:
-          - channel
-          - store
-          - total
-          - sku
-          - product
-          - quantity
-          - customer_country
-          - repeat_buyer
-          - shipping_method
-          - tag
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.any[].operator':
-        custom: []
-        name: 'conditions.any[].operator'
-        description: ''
-        required: true
-        example: gt
-        type: string
-        enumValues:
-          - eq
-          - neq
-          - gt
-          - gte
-          - lt
-          - lte
-          - in
-          - between
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'conditions.any[].value':
-        custom: []
-        name: 'conditions.any[].value'
-        description: ''
-        required: true
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'actions[].type':
-        custom: []
-        name: 'actions[].type'
-        description: 'This field is required when <code>actions</code> is present.'
-        required: false
-        example: push
-        type: string
-        enumValues:
-          - push
-          - email
-          - sms
-          - notify_member
-          - auto_tag
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'actions[].tag':
-        custom: []
-        name: 'actions[].tag'
-        description: 'This field is required when <code>actions.*.type</code> is <code>auto_tag</code>. Must not be greater than 50 characters.'
-        required: false
-        example: 'n'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'actions[].user_id':
-        custom: []
-        name: 'actions[].user_id'
-        description: 'This field is required when <code>actions.*.type</code> is <code>notify_member</code>.'
-        required: false
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      name: b
-      trigger: ship_by_deadline
-      sound: chime
-      controls:
-        cooldown_minutes: 39
-        quiet_hours:
-          start: '14:44'
-          end: '14:44'
-          timezone: Antarctica/Rothera
-        threshold_hours: 66
-        digest_frequency: weekly
-        digest_time: '14:44'
-        digest_day_of_week: 0
-        spike_count: 35
-        spike_window_minutes: 43
-        low_stock_threshold: 60
-        negative_review_max_rating: 2
-      enabled: true
-      conditions:
-        all:
-          - field: total
-            operator: in
-            value: architecto
-        any:
-          - field: tag
-            operator: gt
-            value: architecto
-      actions:
-        - type: push
-          tag: 'n'
-          user_id: 16
+    bodyParameters: []
+    cleanBodyParameters: []
     fileParameters: []
     responses:
       -
@@ -1056,15 +265,31 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "rule": {
+              "order": {
                 "id": 1,
-                "name": "High-value order alert",
-                "trigger": "high_value_order",
-                "conditions": { "all": [{ "field": "total", "operator": ">=", "value": 250 }] },
-                "actions": [{ "type": "push" }],
-                "controls": { "quiet_hours": true },
-                "enabled": true,
-                "created_at": "2026-07-10T00:00:00.000000Z"
+                "platform": "woo",
+                "connection_id": 1,
+                "order_number": "#1042",
+                "status": "unfulfilled",
+                "fulfillment_status": "unfulfilled",
+                "payment_status": "paid",
+                "currency": "AUD",
+                "total": "84.00",
+                "total_base_currency": "84.00",
+                "customer_name": "Alex Chen",
+                "customer_email": "alex@example.com",
+                "shipping_address": { "line1": "1 Example St", "city": "Sydney", "postcode": "2000", "country": "AU" },
+                "placed_at": "2026-07-16T00:30:00.000000Z",
+                "ship_by_at": "2026-07-18T00:30:00.000000Z",
+                "ship_by_hours_remaining": 46.5,
+                "is_ship_by_urgent": false,
+                "tags": ["gift"],
+                "is_test": false,
+                "snoozed_until": null,
+                "items": [
+                  { "id": 1, "sku": "VNT-014", "title": "Vintage Denim Jacket", "image_url": "https://example.com/img/vnt-014.jpg", "qty": 1, "price": "84.00" }
+                ],
+                "notes": []
               }
             }
           }
@@ -1082,21 +307,18 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: 'api/v1/rules/{rule_id}/test'
+    uri: 'api/v1/orders/{order_id}/notes'
     metadata:
       custom: []
-      groupName: Rules
+      groupName: Orders
       groupDescription: |-
 
-        Custom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,
-        and an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.
-        `new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
       subgroup: ''
       subgroupDescription: ''
-      title: 'Test-fire a rule.'
-      description: |-
-        Evaluates the rule immediately against real state (not a dry run) and logs the execution —
-        lets a merchant confirm a rule works before waiting for it to trigger naturally.
+      title: 'Add a note to an order.'
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -1104,40 +326,46 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      rule_id:
+      order_id:
         custom: []
-        name: rule_id
-        description: 'The ID of the rule.'
+        name: order_id
+        description: 'The ID of the order.'
         required: true
-        example: 16
+        example: 4
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      rule_id: 16
+      order_id: 4
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    bodyParameters:
+      body:
+        custom: []
+        name: body
+        description: 'Must not be greater than 2000 characters.'
+        required: true
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      body: b
     fileParameters: []
     responses:
       -
         custom: []
-        status: 200
+        status: 201
         content: |-
           {
             "success": true,
             "message": null,
             "data": {
-              "execution": {
-                "id": 10,
-                "order_id": null,
-                "trigger": "high_value_order",
-                "actions_result": [{ "type": "push", "status": "sent" }],
-                "fired_at": "2026-07-16T02:00:00.000000Z"
-              }
+              "note": { "id": 1, "body": "Customer asked to hold for pickup.", "user_id": 1, "created_at": "2026-07-16T02:00:00.000000Z" }
             }
           }
         headers: []
@@ -1153,20 +381,19 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - GET
-    uri: 'api/v1/rules/{rule_id}/executions'
+      - POST
+    uri: 'api/v1/orders/{order_id}/tags'
     metadata:
       custom: []
-      groupName: Rules
+      groupName: Orders
       groupDescription: |-
 
-        Custom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,
-        and an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.
-        `new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`).
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
       subgroup: ''
       subgroupDescription: ''
-      title: "List a rule's execution log."
-      description: 'Most recent 50 firings, newest first.'
+      title: "Replace an order's tags."
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -1174,23 +401,37 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      rule_id:
+      order_id:
         custom: []
-        name: rule_id
-        description: 'The ID of the rule.'
+        name: order_id
+        description: 'The ID of the order.'
         required: true
-        example: 16
+        example: 4
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      rule_id: 16
+      order_id: 4
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    bodyParameters:
+      tags:
+        custom: []
+        name: tags
+        description: 'Must not be greater than 50 characters.'
+        required: false
+        example:
+          - b
+        type: 'string[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      tags:
+        - b
     fileParameters: []
     responses:
       -
@@ -1200,16 +441,477 @@ endpoints:
           {
             "success": true,
             "message": null,
+            "data": { "order": { "id": 1, "order_number": "#1042", "tags": ["gift", "priority"] } }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/orders/{order_id}/snooze'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Snooze or unsnooze an order.'
+      description: 'Pass `until` as an ISO-8601 datetime to snooze, or omit/null it to clear the snooze.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 4
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 4
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      until:
+        custom: []
+        name: until
+        description: 'Must be a valid date. Must be a date after <code>now</code>.'
+        required: false
+        example: '2052-08-15'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      until: '2052-08-15'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": { "order": { "id": 1, "order_number": "#1042", "snoozed_until": "2026-07-18T00:00:00.000000Z" } }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/orders/{order_id}/fulfill'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Fulfill an order with tracking info.'
+      description: |-
+        Calls through to the real channel adapter where available (WooCommerce today); capability-checked
+        server-side, so this 422s with a plain-language message on platforms/actions that aren't supported yet.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 4
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 4
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      tracking_number:
+        custom: []
+        name: tracking_number
+        description: 'Must not be greater than 100 characters.'
+        required: true
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      carrier:
+        custom: []
+        name: carrier
+        description: 'Must not be greater than 100 characters.'
+        required: false
+        example: 'n'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      tracking_number: b
+      carrier: 'n'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "Order marked as fulfilled.",
+            "data": { "order": { "id": 1, "order_number": "#1042", "status": "shipped", "fulfillment_status": "fulfilled" } }
+          }
+        headers: []
+        description: success
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "order": ["This channel doesn't support marking orders fulfilled from here."] }
+          }
+        headers: []
+        description: 'capability not supported'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/orders/{order_id}/refund'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Refund an order.'
+      description: |-
+        `amount` defaults to a full refund when omitted. Calls through to the real channel adapter
+        where available (WooCommerce today).
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 4
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 4
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      amount:
+        custom: []
+        name: amount
+        description: 'Must be at least 0.01.'
+        required: false
+        example: 27
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      reason:
+        custom: []
+        name: reason
+        description: 'Must not be greater than 500 characters.'
+        required: false
+        example: 'n'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      amount: 27
+      reason: 'n'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "Order refunded.",
+            "data": { "order": { "id": 1, "order_number": "#1042", "status": "refunded", "payment_status": "refunded" } }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/orders/{order_id}/cancel'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Cancel an order.'
+      description: 'Calls through to the real channel adapter where available (WooCommerce today).'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 4
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 4
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      reason:
+        custom: []
+        name: reason
+        description: 'Must not be greater than 500 characters.'
+        required: false
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      reason: b
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": "Order cancelled.",
+            "data": { "order": { "id": 1, "order_number": "#1042", "status": "cancelled" } }
+          }
+        headers: []
+        description: success
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/v1/orders/{order_id}/packing-slip'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get a packing slip PDF.'
+      description: 'Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 4
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 4
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/v1/orders/{order_id}/message'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Message the customer (Plan §4.3: "opens inbox thread").'
+      description: |-
+        Gets or creates the order's unified-inbox thread (Plan §4.5, Shopify/Woo
+        order-linked email threading) and sends the first (or next) message —
+        a repeat call to the same order always continues the same thread.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 4
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 4
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      body:
+        custom: []
+        name: body
+        description: 'This field is required when <code>reply_template_id</code> is not present. Must not be greater than 4000 characters.'
+        required: false
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      reply_template_id:
+        custom: []
+        name: reply_template_id
+        description: 'Must match an existing stored value.'
+        required: false
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      body: b
+      reply_template_id: 16
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 201
+        content: |-
+          {
+            "success": true,
+            "message": null,
             "data": {
-              "executions": [
-                {
-                  "id": 10,
-                  "order_id": 1,
-                  "trigger": "high_value_order",
-                  "actions_result": [{ "type": "push", "status": "sent" }],
-                  "fired_at": "2026-07-16T01:00:00.000000Z"
-                }
-              ]
+              "message": { "id": 1, "direction": "out", "body": "Hi! Just checking in on your order.", "status": "sent", "created_at": "2026-07-17T02:00:00.000000Z" }
             }
           }
         headers: []

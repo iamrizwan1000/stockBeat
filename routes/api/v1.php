@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
 use App\Http\Controllers\Api\V1\Auth\SocialAuthController;
+use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\ConfigController;
 use App\Http\Controllers\Api\V1\ConnectionController;
 use App\Http\Controllers\Api\V1\DeviceController;
@@ -48,6 +49,9 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
     Route::post('profile/setup', [ProfileController::class, 'setup'])->name('profile.setup');
     Route::get('me', [MeController::class, 'show'])->name('me');
     Route::post('devices', [DeviceController::class, 'store'])->name('devices.store');
+
+    Route::get('billing/entitlements', [BillingController::class, 'entitlements'])->name('billing.entitlements');
+    Route::post('billing/sync', [BillingController::class, 'sync'])->name('billing.sync');
 
     Route::get('settings/notifications', [SettingsController::class, 'showNotificationPreferences'])->name('settings.notifications.show');
     Route::put('settings/notifications', [SettingsController::class, 'updateNotificationPreferences'])->name('settings.notifications.update');

@@ -52,7 +52,12 @@ use Illuminate\Support\Carbon;
  */
 class ProcessRevenueCatEventAction
 {
-    private const SUBSCRIPTION_PLAN_PRODUCTS = [
+    /**
+     * Public so SyncRevenueCatSubscriberAction (POST /billing/sync's pull-based
+     * reconciliation) can map product ids to plan tiers the same way this
+     * webhook-driven, push-based path does — one whitelist, not two.
+     */
+    public const SUBSCRIPTION_PLAN_PRODUCTS = [
         'starter_monthly' => Plan::STARTER,
         'pro_monthly' => Plan::PRO,
         'pro_yearly' => Plan::PRO,

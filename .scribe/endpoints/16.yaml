@@ -1,21 +1,115 @@
-name: Announcements
-description: ''
+name: 'AI Assistant'
+description: |-
+
+  Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
+  is grounded in real tool-call results over the team's own data
+  (`AssistantToolRegistry`) — never a raw guess.
 endpoints:
   -
     custom: []
     httpMethods:
-      - GET
-    uri: api/v1/announcements
+      - POST
+    uri: api/v1/assistant/ask
     metadata:
       custom: []
-      groupName: Announcements
-      groupDescription: ''
+      groupName: 'AI Assistant'
+      groupDescription: |-
+
+        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
+        is grounded in real tool-call results over the team's own data
+        (`AssistantToolRegistry`) — never a raw guess.
       subgroup: ''
       subgroupDescription: ''
-      title: 'List active announcements.'
-      description: |-
-        In-app banners currently active (within `starts_at`/`ends_at`) and matching the caller's
-        audience rules, newest first.
+      title: 'Ask the assistant a question.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      question:
+        custom: []
+        name: question
+        description: 'Must not be greater than 1000 characters.'
+        required: true
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      conversation_id:
+        custom: []
+        name: conversation_id
+        description: 'Must match an existing stored value.'
+        required: false
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      mode:
+        custom: []
+        name: mode
+        description: ''
+        required: false
+        example: help
+        type: string
+        enumValues:
+          - data
+          - help
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      question: b
+      conversation_id: 16
+      mode: help
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset.",
+            "errors": { "question": ["You've used all 30 AI questions included in your plan this month. Upgrade or wait for next month's reset."] }
+          }
+        headers: []
+        description: 'quota exhausted'
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/v1/assistant/conversations
+    metadata:
+      custom: []
+      groupName: 'AI Assistant'
+      groupDescription: |-
+
+        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
+        is grounded in real tool-call results over the team's own data
+        (`AssistantToolRegistry`) — never a raw guess.
+      subgroup: ''
+      subgroupDescription: ''
+      title: "List this team's AI Assistant conversations, most recent first."
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -29,22 +123,58 @@ endpoints:
     bodyParameters: []
     cleanBodyParameters: []
     fileParameters: []
-    responses:
-      -
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/v1/assistant/conversations/{id}'
+    metadata:
+      custom: []
+      groupName: 'AI Assistant'
+      groupDescription: |-
+
+        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
+        is grounded in real tool-call results over the team's own data
+        (`AssistantToolRegistry`) — never a raw guess.
+      subgroup: ''
+      subgroupDescription: ''
+      title: "Show one conversation's full message history."
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
         custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "announcements": [
-                { "id": 1, "title": "New: order-spike alerts", "body": "Premium now includes order and refund spike alerts.", "dismissible": true }
-              ]
-            }
-          }
-        headers: []
-        description: success
+        name: id
+        description: 'The ID of the conversation.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
     responseFields: []
     auth:
       - headers
@@ -57,65 +187,47 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: 'api/v1/announcements/{announcement_id}/dismiss'
+    uri: api/v1/assistant/rule-draft
     metadata:
       custom: []
-      groupName: Announcements
-      groupDescription: ''
+      groupName: 'AI Assistant'
+      groupDescription: |-
+
+        Data Copilot + natural-language Rule Builder (Plan §4.12). Every answer
+        is grounded in real tool-call results over the team's own data
+        (`AssistantToolRegistry`) — never a raw guess.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Dismiss an announcement.'
+      title: 'Generate a structured rule draft from a plain-English prompt (Pro+).'
       description: |-
-        Per-user — other users targeted by the same announcement are unaffected.
-        Idempotent: dismissing twice is not an error.
+        Never persists — the client must POST the returned draft to
+        `POST /rules` after the seller confirms it.
       authenticated: true
       deprecated: false
     headers:
       Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
       Content-Type: application/json
       Accept: application/json
-    urlParameters:
-      announcement_id:
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      prompt:
         custom: []
-        name: announcement_id
-        description: 'The ID of the announcement.'
+        name: prompt
+        description: 'Must not be greater than 500 characters.'
         required: true
-        example: 16
-        type: integer
+        example: b
+        type: string
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
-    cleanUrlParameters:
-      announcement_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    cleanBodyParameters:
+      prompt: b
     fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": "Announcement dismissed.",
-            "data": null
-          }
-        headers: []
-        description: success
-      -
-        custom: []
-        status: 422
-        content: |-
-          {
-            "success": false,
-            "message": "The given data was invalid.",
-            "errors": { "announcement": ["This announcement can't be dismissed."] }
-          }
-        headers: []
-        description: 'not dismissible'
+    responses: []
     responseFields: []
     auth:
       - headers

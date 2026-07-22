@@ -22,6 +22,8 @@ tags:
     description: ''
   - name: 'Auth — Social sign-in'
     description: "\nApple/Google one-tap, an alternative to email OTP. Both providers converge on the same\nuser record as OTP by verified email — signing in with a different method never creates\na second account."
+  - name: Billing
+    description: "\nEntitlements are also available embedded in `GET /me` — these are dedicated, lighter-weight\nendpoints for after a purchase completes, without re-fetching the rest of `/me`'s payload."
   - name: Config
     description: "\nRemote app config (Plan §10/§17.7) — deliberately unauthenticated so a\nkilled app version or a maintenance banner can be checked before the\nuser has signed in."
   - name: Connections
@@ -112,7 +114,7 @@ paths:
                 mode:
                   type: string
                   description: ''
-                  example: data
+                  example: help
                   enum:
                     - data
                     - help
@@ -950,7 +952,7 @@ paths:
                   type: array
                   description: ''
                   example:
-                    - etsy
+                    - ebay
                   items:
                     type: string
                     enum:
@@ -963,7 +965,7 @@ paths:
                 timezone:
                   type: string
                   description: ''
-                  example: Europe/Kyiv
+                  example: America/La_Paz
                   enum:
                     - Africa/Abidjan
                     - Africa/Accra
@@ -1576,6 +1578,187 @@ paths:
                 - provider
                 - id_token
       security: []
+  /api/v1/billing/entitlements:
+    get:
+      summary: 'Get current entitlements.'
+      operationId: getCurrentEntitlements
+      description: "Same `entitlements` shape as `GET /me`. The backend is the single source of truth\n(Plan §6.1) — the app should check its RevenueCat SDK locally for an instant unlock\nright after a purchase, then call this (or `POST /billing/sync`) to reconcile."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    plan: pro
+                    limits:
+                      max_stores: 10
+                      sms_monthly: 100
+                    subscription_status: active
+                    trial_ends_at: null
+                    sms_balance: 42
+                    ai_questions_remaining: 148
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      plan:
+                        type: string
+                        example: pro
+                      limits:
+                        type: object
+                        properties:
+                          max_stores:
+                            type: integer
+                            example: 10
+                          sms_monthly:
+                            type: integer
+                            example: 100
+                      subscription_status:
+                        type: string
+                        example: active
+                      trial_ends_at:
+                        type: string
+                        example: null
+                        nullable: true
+                      sms_balance:
+                        type: integer
+                        example: 42
+                      ai_questions_remaining:
+                        type: integer
+                        example: 148
+        422:
+          description: 'profile setup not complete'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Complete profile setup first.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Complete profile setup first.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Billing
+  /api/v1/billing/sync:
+    post:
+      summary: 'Sync with RevenueCat and get fresh entitlements.'
+      operationId: syncWithRevenueCatAndGetFreshEntitlements
+      description: "Call this after a purchase completes locally (StoreKit/Play Billing via the RevenueCat\nSDK) or when the merchant taps \"Restore Purchases\" — links this device's RevenueCat\nidentity to the team's subscription and pulls the subscriber's current state directly\nfrom RevenueCat rather than waiting for a webhook, which is the only reliable way to\nsupport restore on a new device (a restore doesn't always fire a webhook). Fails open:\nif RevenueCat itself is unreachable, existing entitlements are returned unchanged rather\nthan erroring (Plan §17.5 — never lock out a paying user over a RevenueCat outage).\n\nOnly reconciles the renewing subscription, never SMS/AI top-ups — Apple/Google's own\nrestore-purchases rules don't cover consumables, so those stay webhook-only."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    plan: pro
+                    limits:
+                      max_stores: 10
+                      sms_monthly: 100
+                    subscription_status: active
+                    trial_ends_at: null
+                    sms_balance: 42
+                    ai_questions_remaining: 148
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      plan:
+                        type: string
+                        example: pro
+                      limits:
+                        type: object
+                        properties:
+                          max_stores:
+                            type: integer
+                            example: 10
+                          sms_monthly:
+                            type: integer
+                            example: 100
+                      subscription_status:
+                        type: string
+                        example: active
+                      trial_ends_at:
+                        type: string
+                        example: null
+                        nullable: true
+                      sms_balance:
+                        type: integer
+                        example: 42
+                      ai_questions_remaining:
+                        type: integer
+                        example: 148
+        422:
+          description: 'profile setup not complete'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Complete profile setup first.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Complete profile setup first.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Billing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rc_app_user_id:
+                  type: string
+                  description: 'Must not be greater than 255 characters.'
+                  example: b
+              required:
+                - rc_app_user_id
   /api/v1/config:
     get:
       summary: 'Get remote config.'
@@ -3079,7 +3262,7 @@ paths:
                 channel:
                   type: string
                   description: ''
-                  example: shopify
+                  example: amazon
                   enum:
                     - shopify
                     - woo
@@ -3104,11 +3287,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-22T14:44:29'
+                  example: '2026-07-22T15:00:59'
                 date_to:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-22T14:44:29'
+                  example: '2026-07-22T15:00:59'
                 value_min:
                   type: number
                   description: ''
@@ -3128,7 +3311,7 @@ paths:
                 include_snoozed:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
   '/api/v1/orders/{id}':
     get:
       summary: 'Get an order.'
@@ -4185,7 +4368,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: high_value_order
+                  example: ai_insight
                   enum:
                     - new_order
                     - high_value_order
@@ -4230,7 +4413,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: in
+                            example: neq
                             enum:
                               - eq
                               - neq
@@ -4258,7 +4441,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: tag
+                            example: channel
                             enum:
                               - channel
                               - store
@@ -4273,7 +4456,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: eq
+                            example: in
                             enum:
                               - eq
                               - neq
@@ -4302,7 +4485,7 @@ paths:
                       type:
                         type: string
                         description: ''
-                        example: email
+                        example: notify_member
                         enum:
                           - push
                           - email
@@ -4322,7 +4505,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: default
+                  example: alert
                   enum:
                     - default
                     - cha_ching
@@ -4346,11 +4529,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '14:44'
+                          example: '15:00'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '14:44'
+                          example: '15:00'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4362,14 +4545,14 @@ paths:
                     digest_frequency:
                       type: string
                       description: ''
-                      example: daily
+                      example: weekly
                       enum:
                         - daily
                         - weekly
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '14:44'
+                      example: '15:00'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4393,7 +4576,7 @@ paths:
                 enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
               required:
                 - name
                 - trigger
@@ -4514,7 +4697,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: ship_by_deadline
+                  example: high_value_order
                   enum:
                     - new_order
                     - high_value_order
@@ -4544,7 +4727,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: total
+                            example: channel
                             enum:
                               - channel
                               - store
@@ -4559,7 +4742,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: in
+                            example: lte
                             enum:
                               - eq
                               - neq
@@ -4587,7 +4770,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: tag
+                            example: product
                             enum:
                               - channel
                               - store
@@ -4602,7 +4785,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: gt
+                            example: lt
                             enum:
                               - eq
                               - neq
@@ -4630,7 +4813,7 @@ paths:
                       type:
                         type: string
                         description: 'This field is required when <code>actions</code> is present.'
-                        example: push
+                        example: email
                         enum:
                           - push
                           - email
@@ -4648,7 +4831,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: chime
+                  example: alert
                   enum:
                     - default
                     - cha_ching
@@ -4672,11 +4855,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '14:44'
+                          example: '15:00'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '14:44'
+                          example: '15:00'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4695,7 +4878,7 @@ paths:
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '14:44'
+                      example: '15:00'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -5037,16 +5220,16 @@ paths:
                 sms_enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                 quiet_hours_start:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '14:44'
+                  example: '15:00'
                   nullable: true
                 quiet_hours_end:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '14:44'
+                  example: '15:00'
                   nullable: true
                 quiet_hours_timezone:
                   type: string
@@ -5056,7 +5239,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: default
+                  example: chime
                   enum:
                     - default
                     - cha_ching
@@ -5258,7 +5441,7 @@ paths:
                 rating:
                   type: integer
                   description: ''
-                  example: 1
+                  example: 0
                   enum:
                     - 0
                     - 1
@@ -5531,7 +5714,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: agent
+                  example: manager
                   enum:
                     - manager
                     - agent

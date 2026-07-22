@@ -37,6 +37,14 @@ return [
 
     'revenuecat' => [
         'webhook_secret' => env('REVENUECAT_WEBHOOK_SECRET'),
+
+        // RevenueCat's own "Secret API key" (dashboard: Project Settings ->
+        // API Keys), distinct from webhook_secret above (that one's a value
+        // *we* generate; this one RevenueCat issues). Used only by
+        // POST /billing/sync to pull a subscriber's current entitlement
+        // state directly (Plan §17.5 restore-purchases / "Purchase while
+        // offline" reconciliation) — the webhook path above never needs it.
+        'secret_api_key' => env('REVENUECAT_SECRET_API_KEY'),
     ],
 
     'inbound_email' => [

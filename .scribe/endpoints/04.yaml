@@ -66,7 +66,7 @@ endpoints:
         description: ''
         required: false
         example:
-          - etsy
+          - ebay
         type: 'string[]'
         enumValues:
           - shopify
@@ -83,7 +83,7 @@ endpoints:
         name: timezone
         description: ''
         required: false
-        example: Europe/Kyiv
+        example: America/La_Paz
         type: string
         enumValues:
           - Africa/Abidjan
@@ -524,8 +524,8 @@ endpoints:
       business_name: 'n'
       phone: '+36'
       sells_on:
-        - etsy
-      timezone: Europe/Kyiv
+        - ebay
+      timezone: America/La_Paz
       base_currency: iyv
     fileParameters: []
     responses:
