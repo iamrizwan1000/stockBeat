@@ -68,7 +68,7 @@ Depends on the Auth flow completing first (`auth-flow-screens.md`, Screen 3 `Pro
 - Open `authorization_url` in an **in-app browser session** (`expo-web-browser`'s `openAuthSessionAsync`/`openBrowserAsync`, or platform-native `SFSafariViewController`/Chrome Custom Tabs) — not the system browser app, and not a plain in-app `WebView` (platforms increasingly reject WebView-based OAuth for security reasons).
 - Show a loading/transition state while the browser sheet opens.
 
-**Critical — read `connections-api-reference.md`'s OAuth callback section before writing this:** there is **no deep link back into the app**. The merchant approves on the platform's page, gets redirected to a plain result webpage saying "you can return to the app now," and then has to manually dismiss the browser sheet themselves.
+**Critical — read `connections-api-reference.md`'s OAuth callback section before writing this:** the merchant approves on the platform's page, gets redirected to a result webpage that now also fires a `stockbeat://oauth-callback` deep link — but that only auto-dismisses the sheet if the client has registered the scheme and wired up a `Linking` listener (see that doc). Build the poll-and-diff fallback regardless; treat the deep link as a nicer-but-optional fast path, not something to rely on exclusively.
 
 **What to actually build:**
 1. Open the browser session.

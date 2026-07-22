@@ -97,11 +97,10 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
 - Creates the `StoreConnection` row.
 - Renders a **plain HTML result page** — "Rivera Vintage Co is connected. You can return to the app now." (or a failure message) — and stops there.
 
-**There is currently no deep link back into the app.** The merchant has to manually switch back to StockBeat themselves. Practical implications for the client:
-- Use an **in-app browser** (e.g. `expo-web-browser`'s `openAuthSessionAsync`, or `SFSafariViewController`/Custom Tabs) rather than the system browser, so returning to the app is at least a natural "close this sheet" gesture rather than an app-switch.
-- **Don't wait for a redirect/callback URL scheme — there isn't one.** Instead, when the browser sheet closes (user dismissed it, or your library resolves its promise), immediately call `GET /connections` and diff against what you had before opening the sheet. A new row with the right `platform` = success; nothing new = the merchant backed out or it failed.
-- If you want a tighter loop, poll `GET /connections` every few seconds while the browser sheet is open (cheap, team-scoped, no rate limit documented on this endpoint) rather than only checking once on dismissal — covers the case where the OS doesn't reliably fire a dismissal event.
-- This is a real, known gap (not a mobile-side workaround you're inventing) — see the `docs/mobile` maintainers if you want a proper deep link added; it wasn't built because there was no app to deep-link to yet.
+**As of 2026-07-22, that result page also redirects to a custom URL scheme** — `stockbeat://oauth-callback?platform=<platform>&success=<true|false>&message=<url-encoded string>` — so the app can catch it and dismiss the browser sheet automatically instead of the merchant doing it by hand. This is **best-effort, not guaranteed**: it only works once the client side is wired up (see below), and even then a platform/OS edge case could still leave the sheet open. Practical implications for the client:
+- Use an **in-app browser** (e.g. `expo-web-browser`'s `openAuthSessionAsync`, or `SFSafariViewController`/Custom Tabs) rather than the system browser — both because it's the better UX regardless of the deep link, and because `openAuthSessionAsync` specifically is what makes the redirect back to your registered scheme actually resolve the browser session's promise.
+- **Register the `stockbeat://` scheme** in the app (Expo: the `"scheme"` key in `app.json`/`app.config`; bare RN: `Info.plist`/`AndroidManifest.xml`) and add a `Linking` listener for the `oauth-callback` host that reads `platform`/`success`/`message` off the query string.
+- **Still keep the poll-and-diff fallback — don't remove it.** The redirect silently no-ops if the scheme isn't registered, if the OS blocks it, or on an older app build that hasn't shipped the scheme yet. When the browser sheet closes (deep-link-triggered or user-dismissed), call `GET /connections` and diff against what you had before opening the sheet as the reliability net; polling every few seconds while the sheet is open covers the case where neither the deep link nor a dismissal event fires.
 
 ---
 
@@ -209,6 +208,5 @@ Treat any *other* non-null value defensively (show the `message` text, no button
 | 422 | Validation failure, store limit reached, or Amazon (always) |
 
 ## Not implemented yet — do not build UI for these
-- A deep link back into the app after the OAuth browser step (see callback section above) — polling `GET /connections` is the real, current pattern.
 - Amazon connecting at all.
 - Editing an existing connection's credentials in place (WooCommerce key rotation, etc.) — disconnect and reconnect is the only path today.
