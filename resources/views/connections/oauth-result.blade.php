@@ -18,5 +18,8 @@
         <h1>{{ $success ? 'Store connected' : 'Connection failed' }}</h1>
         <p>{{ $message }}</p>
     </div>
+    <script>
+        window.location.href = {{ Js::from($deepLink) }};
+    </script>
 </body>
 </html>

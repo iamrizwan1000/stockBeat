@@ -55,13 +55,13 @@ class OAuthCallbackController extends Controller
         $state = OAuthState::decode($rawState);
 
         if ($state === null || $state->platform !== $platform) {
-            return view('connections.oauth-result', ['success' => false, 'message' => 'This connection link is invalid or expired. Please try connecting again from the app.']);
+            return $this->result($platform, false, 'This connection link is invalid or expired. Please try connecting again from the app.');
         }
 
         $team = Team::query()->find($state->teamId);
 
         if ($team === null) {
-            return view('connections.oauth-result', ['success' => false, 'message' => 'We could not find your account. Please try connecting again from the app.']);
+            return $this->result($platform, false, 'We could not find your account. Please try connecting again from the app.');
         }
 
         /** @var OAuthChannelAdapter $adapter */
@@ -72,7 +72,7 @@ class OAuthCallbackController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return view('connections.oauth-result', ['success' => false, 'message' => 'We could not complete the connection. Please try again from the app.']);
+            return $this->result($platform, false, 'We could not complete the connection. Please try again from the app.');
         }
 
         $fingerprintValue = $fingerprintAction->handle($platform, $connection->credentials ?? []);
@@ -81,6 +81,26 @@ class OAuthCallbackController extends Controller
             $connection->update(['fingerprint' => $fingerprintValue]);
         }
 
-        return view('connections.oauth-result', ['success' => true, 'message' => "{$connection->name} is connected. You can return to the app now."]);
+        return $this->result($platform, true, "{$connection->name} is connected. You can return to the app now.");
+    }
+
+    /**
+     * Best-effort auto-return to the app via a custom URL scheme (mobile
+     * docs §connections gap — there was no app to deep-link to when this
+     * controller was first written). If the scheme isn't registered on the
+     * client, the redirect silently no-ops and the merchant just sees this
+     * page's own confirmation text and switches back manually, same as
+     * before — so this is purely additive, not a replacement for the
+     * existing `GET /connections` poll-and-diff fallback.
+     */
+    private function result(string $platform, bool $success, string $message): View
+    {
+        $deepLink = 'stockbeat://oauth-callback?'.http_build_query([
+            'platform' => $platform,
+            'success' => $success ? 'true' : 'false',
+            'message' => $message,
+        ]);
+
+        return view('connections.oauth-result', compact('success', 'message', 'deepLink'));
     }
 }
