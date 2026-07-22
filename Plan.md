@@ -1,10 +1,11 @@
-# OrderPulse — Product & Technical Specification
+# StockBeat — Product & Technical Specification
 
 **Multi-Channel Order Monitoring, Notifications & Quick Actions — Mobile App for E-commerce Sellers**
 
 | | |
 |---|---|
-| Working name | OrderPulse (placeholder — rename before launch) |
+| Working name | # StockBeat — Product & Technical Specification
+ (placeholder — rename before launch) |
 | Version | 1.0 Draft |
 | Date | July 2026 |
 | Backend | Laravel (PHP) — REST API |
@@ -15,9 +16,9 @@
 
 ## 1. Executive Summary
 
-OrderPulse is a mobile-first application for e-commerce sellers who sell on multiple channels — Shopify, WooCommerce, eBay, Etsy, and Amazon. It aggregates orders from all connected stores into a single real-time feed, notifies the seller through push, email, and SMS based on **custom user-defined rules**, and lets them perform routine order actions (fulfill, add tracking, refund, reply to customer) directly from their phone.
+StockBeat is a mobile-first application for e-commerce sellers who sell on multiple channels — Shopify, WooCommerce, eBay, Etsy, and Amazon. It aggregates orders from all connected stores into a single real-time feed, notifies the seller through push, email, and SMS based on **custom user-defined rules**, and lets them perform routine order actions (fulfill, add tracking, refund, reply to customer) directly from their phone.
 
-**Positioning:** OrderPulse is the seller's *mission control* — not a full order management system (OMS). It deliberately avoids the saturated desktop OMS market (listing sync, inventory sync engines, shipping labels) and instead owns the underserved mobile niche: *see everything, know instantly, act fast.*
+**Positioning:** StockBeat is the seller's *mission control* — not a full order management system (OMS). It deliberately avoids the saturated desktop OMS market (listing sync, inventory sync engines, shipping labels) and instead owns the underserved mobile niche: *see everything, know instantly, act fast.*
 
 **The four jobs of the app:**
 
@@ -137,7 +138,7 @@ Screen 2: OTP entry
   - Mark fulfilled / partially fulfilled + add tracking number & carrier
   - Issue full or partial refund (with confirmation + optional reason)
   - Cancel order
-  - Add internal notes and tags (stored in OrderPulse, synced to platform where supported)
+  - Add internal notes and tags (stored in StockBeat, synced to platform where supported)
   - Message the customer (opens inbox thread)
   - Share packing slip as PDF (generated server-side, shared via native share sheet)
 - Actions are queued server-side with optimistic UI + failure rollback and retry.
