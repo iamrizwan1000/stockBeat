@@ -447,7 +447,19 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         unset($params['hmac'], $params['signature']);
         ksort($params);
 
-        $computed = hash_hmac('sha256', http_build_query($params), (string) config('services.shopify.client_secret'));
+        // Shopify signs the raw decoded key=value pairs with no re-encoding —
+        // http_build_query() re-encodes values using PHP's own URL-encoding
+        // rules (e.g. spaces as `+`, different treatment of `/`, `=`, `+`
+        // inside base64 params like `state`/`host`), producing a different
+        // byte string than what Shopify hashed and failing verification on
+        // every real callback.
+        $message = implode('&', array_map(
+            fn (string $key, mixed $value): string => "{$key}={$value}",
+            array_keys($params),
+            $params,
+        ));
+
+        $computed = hash_hmac('sha256', $message, (string) config('services.shopify.client_secret'));
 
         return hash_equals($computed, $hmac);
     }
