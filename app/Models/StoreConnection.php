@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $credentials
  * @property string|null $fingerprint
  * @property string $status
+ * @property bool $notifications_muted
  * @property Carbon|null $paused_at
  * @property Carbon|null $last_sync_at
  * @property Carbon|null $last_message_sync_at
@@ -27,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'platform', 'name', 'credentials', 'fingerprint', 'status', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'last_message_sync_at'])]
+#[Fillable(['team_id', 'platform', 'name', 'credentials', 'fingerprint', 'status', 'notifications_muted', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'last_message_sync_at'])]
 #[Hidden(['credentials'])]
 class StoreConnection extends Model
 {
@@ -64,6 +65,18 @@ class StoreConnection extends Model
     public const STATUS_PAUSED = 'paused';
 
     /**
+     * Mirrors the migration's column default so a freshly `create()`d
+     * instance reports `false` immediately, without needing a `fresh()`
+     * round-trip — Eloquent only applies DB defaults on INSERT, same
+     * reasoning as `NotificationPreference::$attributes`.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'notifications_muted' => false,
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -73,6 +86,7 @@ class StoreConnection extends Model
         return [
             'credentials' => 'encrypted:array',
             'settings' => 'array',
+            'notifications_muted' => 'boolean',
             'last_sync_at' => 'datetime',
             'last_message_sync_at' => 'datetime',
             'paused_at' => 'datetime',

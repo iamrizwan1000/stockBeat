@@ -35,7 +35,8 @@ class BillingController extends Controller
      *     "subscription_status": "active",
      *     "trial_ends_at": null,
      *     "sms_balance": 42,
-     *     "ai_questions_remaining": 148
+     *     "ai_questions_remaining": 148,
+     *     "emails_remaining": 660
      *   }
      * }
      * @response 422 scenario="profile setup not complete" {
@@ -80,7 +81,8 @@ class BillingController extends Controller
      *     "subscription_status": "active",
      *     "trial_ends_at": null,
      *     "sms_balance": 42,
-     *     "ai_questions_remaining": 148
+     *     "ai_questions_remaining": 148,
+     *     "emails_remaining": 660
      *   }
      * }
      * @response 422 scenario="profile setup not complete" {

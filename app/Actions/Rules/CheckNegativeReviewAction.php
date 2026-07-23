@@ -39,6 +39,7 @@ class CheckNegativeReviewAction
                 'rating' => $review->rating,
                 'product_title' => $review->product_title,
                 'excerpt' => Str::limit(strip_tags((string) $review->content), 140),
+                'connection_id' => $review->connection_id,
             ]);
         }
     }

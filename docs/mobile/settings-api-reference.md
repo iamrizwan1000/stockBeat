@@ -52,6 +52,12 @@ Personal, per-user (not per-team) delivery gate — this is separate from a *rul
 
 **Building the picker UI:** since this list is a small fixed set shared with the Rules module's sound picker (`rules-api-reference.md`), consider a single shared component rather than two separate hardcoded lists that could drift apart — there's no `GET /sounds` endpoint, this catalog is baked into both docs from the same server-side source (`Rule::sounds()`).
 
+**Two things that live on this same screen but come from other endpoints, not `/settings/notifications`:**
+- **Per-store mute** — a toggle per connected store ("mute alerts from this store without disconnecting it"). This is `notifications_muted` on the connection resource itself, not a notification-preferences field — see `PATCH /connections/{id}` in `connections-api-reference.md`. Fetch via the same `GET /connections` call already used elsewhere in the app; no new list endpoint.
+- **"Manage what triggers alerts"** — a link-out row to the Rules tab, not a field on this screen at all. Alert-category logic (which trigger types fire, for which channel) lives entirely in Rules (`rules-api-reference.md`); don't build a parallel category-toggle UI here — two places deciding "does a new-order alert fire" will drift out of sync with each other.
+
+**Usage summary (email/SMS/AI quotas) is deliberately NOT part of this screen** — see `emails_remaining`/`sms_balance`/`ai_questions_remaining` in the Billing & subscription section below; that's where quota-against-plan figures belong.
+
 ---
 
 ## Team & roles (Pro+)
@@ -178,7 +184,7 @@ There is no Free product — Free is simply the absence of an active subscriptio
 ```json
 { "success": true, "message": null, "data": {
   "plan": "pro", "limits": { "...": "..." }, "subscription_status": "active",
-  "trial_ends_at": null, "sms_balance": 42, "ai_questions_remaining": 148
+  "trial_ends_at": null, "sms_balance": 42, "ai_questions_remaining": 148, "emails_remaining": 660
 } }
 ```
 
@@ -207,11 +213,13 @@ There is no Free product — Free is simply the absence of an active subscriptio
 ### `GET /me`'s billing-relevant fields (full shape in `auth-api-reference.md`)
 
 ```json
-"entitlements": { "plan": "pro", "limits": { "...": "..." }, "subscription_status": "active", "trial_ends_at": null, "sms_balance": 42, "ai_questions_remaining": 148 }
+"entitlements": { "plan": "pro", "limits": { "...": "..." }, "subscription_status": "active", "trial_ends_at": null, "sms_balance": 42, "ai_questions_remaining": 148, "emails_remaining": 660 }
 ```
 `subscription_status`: `"trial"` | `"active"` | `"grace"` | `"expired"` | `null` (no subscription row yet — a brand-new Free account). `"grace"` means a renewal payment failed but access hasn't been cut yet — worth a soft in-app banner ("update your payment method") rather than treating it like `"expired"`. `trial_ends_at` is only non-null during an active 7-day trial (Plan §6.3).
 
 `ai_questions_remaining` (added 2026-07-22, closing a previous gap — there used to be no way to know your quota standing short of hitting a 422): the Data Copilot's remaining question budget for **this calendar month**, already netting the plan's `ai_questions_monthly` against questions asked so far and any top-up credit purchased this month. `null` means unlimited (a plan with no monthly cap). This resets to the plan's base allotment on the 1st of each month — a purchased top-up only raises *that month's* cap, it doesn't roll over or bank for future months (same deliberate simplification `ai-api-reference.md`'s quota section describes). Use this instead of client-side counting for a "questions remaining" indicator in the AI Assistant UI (`ai-flow-screens.md`).
+
+`emails_remaining` (added 2026-07-23, same pattern as `ai_questions_remaining` — previously `limits.email_monthly` was enforced server-side but nothing told the client how much of it was left): rule/digest emails remaining for **this calendar month**, netting `limits.email_monthly` against emails already sent to any team member this month. `null` means unlimited. No top-up pack exists for email (unlike SMS/AI) — this resets on the 1st, and the only way to raise it mid-month is a plan upgrade. **This is the field for the "Usage this month" section on the Billing/Subscription screen** (`settings-flow-screens.md` Screen 4) alongside `sms_balance` and `ai_questions_remaining` — deliberately not surfaced on the Notification Preferences screen, to keep "usage against my plan" (a billing concern) separate from "how alerts are delivered to me" (a notification-preferences concern).
 
 ### SMS & AI question top-up packs (consumable IAP)
 
@@ -230,7 +238,7 @@ Same purchase mechanics as SMS packs — pass `key` to the RevenueCat SDK's purc
 
 Both catalogs: empty array is a real, valid state (no active packs configured) — hide the relevant top-up section entirely rather than showing a blank list.
 
-**There is no SMS or AI-question usage history/ledger endpoint** — `entitlements.sms_balance`/`ai_questions_remaining` (current standing only) is all that's available. Don't build a "usage history" screen against this API; it isn't there.
+**There is no SMS, AI-question, or email usage history/ledger endpoint** — `entitlements.sms_balance`/`ai_questions_remaining`/`emails_remaining` (current standing only) is all that's available. Don't build a "usage history" screen against this API; it isn't there.
 
 ---
 

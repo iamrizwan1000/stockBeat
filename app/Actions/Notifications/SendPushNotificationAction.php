@@ -4,6 +4,7 @@ namespace App\Actions\Notifications;
 
 use App\Models\Device;
 use App\Models\Notification;
+use App\Models\StoreConnection;
 use App\Models\User;
 use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Exception\Messaging\NotFound;
@@ -44,6 +45,20 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  * (`notification_id`) so a later "mark read" on that notification can stamp
  * the delivery's `opened_at` (Plan §8.7.5 open/read tracking). Optional and
  * appended last so every existing caller is unaffected.
+ *
+ * `$connection`, when given, gates the FCM send on that store's
+ * `notifications_muted` flag (added 2026-07-23) — muting a store stops
+ * alerts sourced from it without touching sync or `status`. Only
+ * `DispatchRuleActionsAction` passes a real one (a rule firing always
+ * traces back to a store, when there is one); every other caller (support
+ * replies, trial reminders, admin broadcasts) has no store to mute against,
+ * so it's optional and defaults to `null` — no behavior change for them.
+ *
+ * That same `$connection` also stamps `data.platform` (added 2026-07-24) —
+ * "where did this alert come from" for the Notification Center — before the
+ * row is even created, so it's present regardless of mute/quiet-hours/
+ * delivery outcome. `null` connection (order-less triggers with no single
+ * store, e.g. `digest`/`ai_insight`) simply leaves `platform` absent.
  */
 class SendPushNotificationAction
 {
@@ -54,8 +69,12 @@ class SendPushNotificationAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null): string
+    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null, ?StoreConnection $connection = null): string
     {
+        if ($connection !== null) {
+            $data['platform'] ??= $connection->platform;
+        }
+
         $notification = Notification::query()->create([
             'user_id' => $user->id,
             'type' => $type,
@@ -70,6 +89,10 @@ class SendPushNotificationAction
 
         if (! $deliver) {
             return 'bundled_suppressed';
+        }
+
+        if ($connection !== null && $connection->notifications_muted) {
+            return 'muted_by_store';
         }
 
         $preference = $user->notificationPreference;

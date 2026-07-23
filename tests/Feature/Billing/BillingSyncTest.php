@@ -38,7 +38,7 @@ test('GET billing/entitlements returns the same shape as /me entitlements', func
     $response = test()->getJson('/api/v1/billing/entitlements');
 
     $response->assertOk();
-    $response->assertJsonStructure(['data' => ['plan', 'limits', 'subscription_status', 'trial_ends_at', 'sms_balance', 'ai_questions_remaining']]);
+    $response->assertJsonStructure(['data' => ['plan', 'limits', 'subscription_status', 'trial_ends_at', 'sms_balance', 'ai_questions_remaining', 'emails_remaining']]);
     $response->assertJsonPath('data.subscription_status', Subscription::STATUS_TRIAL);
 });
 

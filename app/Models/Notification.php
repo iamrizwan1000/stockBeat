@@ -62,4 +62,24 @@ class Notification extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Counts real `rule_email` sends across every member of the team this
+     * calendar month — the same query `SendEmailNotificationAction` already
+     * used privately to enforce `plan_limits.email_monthly` (Plan §5.1),
+     * pulled out here so `ResolveFullEntitlementsAction` can expose the
+     * count too (`emails_remaining`, mirroring `AiUsageLedger`'s
+     * `questionsUsedThisMonth`) without a second, drifting copy of the
+     * query.
+     */
+    public static function emailsSentThisMonth(Team $team): int
+    {
+        $memberUserIds = $team->members()->pluck('user_id');
+
+        return static::query()
+            ->whereIn('user_id', $memberUserIds)
+            ->where('type', self::TYPE_RULE_EMAIL)
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->count();
+    }
 }

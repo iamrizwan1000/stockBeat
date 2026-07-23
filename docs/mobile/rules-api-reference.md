@@ -150,9 +150,13 @@ Repeatable — calling it again always works (order-less test fires are exempt f
 ```
 `actions_result[].status` varies by action type — real values include `sent`, `quota_exceeded` (email/SMS monthly cap hit), `muted_by_preference`, `quiet_hours`, `insufficient_credit` (SMS), `no_phone_number` (SMS), `missing_user_id`/`skipped_no_order` (misconfigured action). Show these plainly in a test-fire result screen rather than just "success"/"failure" — they're genuinely informative.
 
+**`muted_by_store` (added 2026-07-23) never appears here** — test-fire has no order/subject behind it, so there's no store connection to check, regardless of any store's mute setting (`connections-api-reference.md`'s `PATCH /connections/{id}`). It's a real value only in `GET /rules/{id}/executions` below, for genuine firings.
+
 ## `GET /rules/{id}/executions`
 
 **Requires auth.** Most recent 50 firings, newest first, same shape as the `test` response's `execution` object. `order_id` is `null` for order-less triggers (`digest`, `low_stock`, `negative_review`, `ai_insight`).
+
+**`actions_result[].status` can also be `muted_by_store` here** (added 2026-07-23) — the firing's store connection has `notifications_muted: true` (`connections-api-reference.md`). Applies to every trigger that resolves to a real store — every order-scoped trigger, plus `low_stock`/`negative_review` — but never `digest`/`ai_insight`, which summarize across every connected store at once and so have no single store to mute against.
 
 ---
 

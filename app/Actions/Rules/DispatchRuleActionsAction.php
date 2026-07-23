@@ -11,6 +11,7 @@ use App\Actions\Notifications\SendSmsNotificationAction;
 use App\Models\DailyStat;
 use App\Models\Order;
 use App\Models\Rule;
+use App\Models\StoreConnection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,6 +19,21 @@ use Illuminate\Support\Facades\DB;
  * replaces the earlier "logged_only" placeholder once the Notifications
  * module exists. Each action's real outcome (sent/quota_exceeded/failed/
  * etc.) is returned so `rule_executions.actions_result` stays honest.
+ *
+ * The single place per-store mute (`StoreConnection.notifications_muted`,
+ * added 2026-07-23) is resolved and threaded into every channel action —
+ * deliberately not duplicated inside each `Send*NotificationAction`'s
+ * caller. `digest`/`ai_insight` fire with no resolvable store (team-wide by
+ * nature) and so are never muted by this mechanism, which is correct, not
+ * an oversight — there's no single store to mute a cross-store summary
+ * against.
+ *
+ * Also the single place `data.trigger` (added 2026-07-24) is stamped onto
+ * every push/email Notification Center row — "where did this alert come
+ * from" (a store's platform, gated on `$connection` inside `SendPush.../
+ * SendEmail...NotificationAction` themselves, or `ai_insight` for a
+ * Proactive AI Insight, which has no store) — so the client can label a row
+ * without guessing from its body text.
  */
 class DispatchRuleActionsAction
 {
@@ -36,7 +52,10 @@ class DispatchRuleActionsAction
      *                                         triggers that need more than the
      *                                         rule itself to describe what
      *                                         fired (e.g. low_stock's product,
-     *                                         negative_review's review).
+     *                                         negative_review's review) — also
+     *                                         where `connection_id` travels for
+     *                                         those triggers, since there's no
+     *                                         `$order` to derive it from.
      * @return array<int, array<string, mixed>>
      */
     public function handle(Rule $rule, array $actions, ?Order $order, array $context = []): array
@@ -45,19 +64,21 @@ class DispatchRuleActionsAction
         $creator = $rule->creator;
         $title = $rule->name;
         $body = $order !== null ? $this->describeOrder($order) : $this->describeRuleWithoutOrder($rule, $context);
+        $connection = $this->resolveConnection($order, $context);
+        $sourceData = ['trigger' => $rule->trigger];
 
         return collect($actions)
-            ->map(function (array $action) use ($team, $creator, $title, $body, $order, $rule) {
+            ->map(function (array $action) use ($team, $creator, $title, $body, $order, $rule, $connection, $sourceData) {
                 $type = $action['type'] ?? 'unknown';
 
                 $status = match ($type) {
                     'push' => $order !== null
-                        ? $this->sendOrderPush->handle($creator, $order, $title, $body, $rule->sound)
-                        : $this->sendPush->handle($creator, $title, $body, sound: $rule->sound),
-                    'email' => $this->sendEmail->handle($team, $creator, $title, $body),
-                    'sms' => $this->sendSms->handle($team, $creator, $body),
+                        ? $this->sendOrderPush->handle($creator, $order, $title, $body, $rule->sound, connection: $connection, extraData: $sourceData)
+                        : $this->sendPush->handle($creator, $title, $body, $sourceData, sound: $rule->sound, connection: $connection),
+                    'email' => $this->sendEmail->handle($team, $creator, $title, $body, $connection, $sourceData),
+                    'sms' => $this->sendSms->handle($team, $creator, $body, $connection),
                     'notify_member' => isset($action['user_id'])
-                        ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body, $rule->sound)
+                        ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body, $rule->sound, $connection, $sourceData)
                         : 'missing_user_id',
                     'auto_tag' => $order !== null && isset($action['tag'])
                         ? $this->autoTag->handle($order, (string) $action['tag'])
@@ -68,6 +89,22 @@ class DispatchRuleActionsAction
                 return ['type' => $type, 'status' => $status];
             })
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function resolveConnection(?Order $order, array $context): ?StoreConnection
+    {
+        if ($order !== null) {
+            return $order->connection;
+        }
+
+        if (isset($context['connection_id'])) {
+            return StoreConnection::query()->find($context['connection_id']);
+        }
+
+        return null;
     }
 
     private function describeOrder(Order $order): string

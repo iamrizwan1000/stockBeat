@@ -5,6 +5,7 @@ namespace App\Actions\Notifications;
 use App\Actions\Content\GetActiveContentBlocksAction;
 use App\Models\Order;
 use App\Models\Plan;
+use App\Models\Rule;
 
 /**
  * The Free-tier "new order push" preset (Plan §4.4: "Free tier: preset
@@ -77,12 +78,12 @@ class SendFreeTierNewOrderAlertAction
         if ($this->isHighValue($order)) {
             $body = $this->getActiveContentBlocks->handle()[self::TEASER_CONTENT_BLOCK_KEY] ?? self::FALLBACK_TEASER_BODY;
 
-            return $this->sendOrderPush->handle($owner, $order, 'High-value order', $body);
+            return $this->sendOrderPush->handle($owner, $order, 'High-value order', $body, connection: $order->connection, extraData: ['trigger' => Rule::TRIGGER_HIGH_VALUE_ORDER]);
         }
 
         $body = "{$order->order_number} · {$order->currency} ".number_format((float) $order->total, 2);
 
-        return $this->sendOrderPush->handle($owner, $order, 'New order', $body);
+        return $this->sendOrderPush->handle($owner, $order, 'New order', $body, connection: $order->connection, extraData: ['trigger' => Rule::TRIGGER_NEW_ORDER]);
     }
 
     private function isHighValue(Order $order): bool

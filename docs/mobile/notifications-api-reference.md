@@ -8,7 +8,7 @@ Two small, cross-cutting surfaces, not a bottom-nav tab — both are usually a b
 
 ## Notification Center (the bell icon)
 
-This is the **in-app record of everything that's been sent to this user** — distinct from an actual push arriving on the device. A push can fail to deliver (muted, quiet hours, no devices — `settings-api-reference.md`) while still being logged here; conversely, **not everything that reaches the device has a row here** (see the SMS gap below). Treat this screen as "history of what fired for me," not "proof of what I actually received."
+This is the **in-app record of everything that's been sent to this user** — distinct from an actual push arriving on the device. A push can fail to deliver (muted, quiet hours, no devices — `settings-api-reference.md`; or its store connection is muted — `connections-api-reference.md`'s `notifications_muted`, added 2026-07-23) while still being logged here; conversely, **not everything that reaches the device has a row here** (see the SMS gap below). Treat this screen as "history of what fired for me," not "proof of what I actually received."
 
 ### `GET /notifications`
 
@@ -18,7 +18,7 @@ This is the **in-app record of everything that's been sent to this user** — di
 { "success": true, "message": null, "data": { "notifications": [
   {
     "id": 1, "type": "rule_push", "title": "High-value order",
-    "body": "Order #1042 — $84.00", "data": { "order_id": "1" },
+    "body": "Order #1042 — $84.00", "data": { "order_id": "1", "trigger": "high_value_order", "platform": "shopify" },
     "read_at": null, "created_at": "2026-07-16T01:00:00.000000Z"
   }
 ] } }
@@ -28,13 +28,21 @@ This is the **in-app record of everything that's been sent to this user** — di
 
 | `type` | When it's created | `data` shape | Tap navigates to |
 |---|---|---|---|
-| `rule_push` | A rule fired and delivered (or attempted) push | `{order_id: "123"}` **if** the trigger is order-scoped (most triggers); **empty `{}`** for order-less triggers (`digest`, `low_stock`, `negative_review`, `ai_insight` rules — `rules-api-reference.md`'s trigger catalogue) | Order detail if `order_id` present, otherwise the Rules tab (there's no `rule_id` in the payload — you can't deep-link to "which rule fired," only to the order if there is one) |
-| `rule_email` | A rule fired and delivered (or attempted) email | Always `{}` — no data | No sensible deep link; tapping can just mark it read, or go to Feed |
-| `digest` | The daily/weekly digest sent | Always `{}` | Feed tab (the digest is a summary, not tied to one order) |
+| `rule_push` | A rule fired and delivered (or attempted) push | `{trigger: "..."}` **always** (added 2026-07-24 — see below), plus `order_id: "123"` if the trigger is order-scoped, plus `platform: "shopify"` **if** the firing resolved to a real store (order-scoped triggers, plus `low_stock`/`negative_review`) | Order detail if `order_id` present, otherwise the Rules tab (there's no `rule_id` in the payload — you can't deep-link to "which rule fired," only to the order if there is one) |
+| `rule_email` | A rule fired and delivered (or attempted) email | Same as `rule_push` minus `order_id` — email never carries it | No sensible deep link; tapping can just mark it read, or go to Feed |
+| `digest` | The **free-tier** daily/weekly digest sent (`SendMorningDigestAction`) | Always `{}` | Feed tab (the digest is a summary, not tied to one order) |
 | `admin_broadcast` | An admin-sent broadcast (push or in-app banner channel only — see below) | `{broadcast_id: 5}` | No merchant-facing screen shows a single broadcast by id — treat as informational only, no navigation |
 | `support_reply` | Staff replied in your support chat | `{thread_id: 3}` | `SupportChatScreen` (`settings-flow-screens.md`) — **this `thread_id` is a support thread, not an inbox thread** (see the warning below) |
 | `trial_reminder` | Day 3/10 trial win-back (Plan §6.3) | `{trial_days_remaining: "4"}` | Subscription screen (`settings-flow-screens.md`) |
 | `inbox_message` | A new customer message arrived (eBay member message, inbound email reply) | `{thread_id: 7}` | `ThreadDetailScreen` (`inbox-flow-screens.md`) — **a different `thread_id` namespace than `support_reply`'s** |
+
+### `data.trigger` and `data.platform` — "where did this alert come from" (added 2026-07-24)
+
+Every `rule_push`/`rule_email` row now carries `data.trigger` — the rule's trigger key verbatim from the 13-value catalogue in `rules-api-reference.md` (`"new_order"`, `"low_stock"`, `"ai_insight"`, `"digest"` — yes, a **Pro custom digest rule** produces `type: "rule_push"`/`"rule_email"` with `trigger: "digest"`, a genuinely different thing from the free-tier `type: "digest"` row above; don't conflate the two). Use this to render a badge/label per row (e.g. "AI Insight", "Low stock", "Ship-by deadline") instead of guessing from the body text.
+
+`data.platform` is present **only** when the firing resolved to a real store connection — one of `shopify`/`woo`/`ebay`/`etsy`/`amazon`/`tiktok` (`connections-api-reference.md`'s `platform` values). This covers every order-scoped trigger plus `low_stock`/`negative_review` and the Free-tier preset new-order push. It's **absent** for `digest` and `ai_insight` triggers, since both summarize across every connected store at once — there's no single platform to attribute them to; show a generic "AI"/team-wide treatment for those rather than a blank or placeholder platform badge.
+
+Both fields are **added directly to the FCM push data payload too** (for push), not just the REST response — so a native tap handler reading the OS push payload has them available without an extra `GET /notifications` round-trip.
 
 ### ⚠️ `thread_id` means two different things depending on `type`
 

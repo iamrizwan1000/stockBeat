@@ -2,6 +2,7 @@
 
 use App\Actions\Notifications\SendSmsNotificationAction;
 use App\Models\SmsLedger;
+use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,6 +62,18 @@ test('a real send debits exactly one credit', function () {
     expect(SmsLedger::currentBalance($team->id))->toBe(99);
 
     Http::assertSent(fn ($request) => $request['To'] === '+15551234567' && $request['Body'] === 'Your order shipped!');
+});
+
+test('sms is muted when its store connection has notifications muted, and credit is untouched', function () {
+    $team = Team::factory()->create();
+    SmsLedger::factory()->create(['team_id' => $team->id, 'delta' => 100, 'balance_after' => 100]);
+    $recipient = User::factory()->create(['phone' => '+15551234567']);
+    $connection = StoreConnection::factory()->create(['team_id' => $team->id, 'notifications_muted' => true]);
+
+    $status = app(SendSmsNotificationAction::class)->handle($team, $recipient, 'Hello', $connection);
+
+    expect($status)->toBe('muted_by_store');
+    expect(SmsLedger::currentBalance($team->id))->toBe(100);
 });
 
 test('a failed Twilio response does not debit credit', function () {

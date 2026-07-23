@@ -2,6 +2,7 @@
 
 namespace App\Actions\Notifications;
 
+use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -16,7 +17,10 @@ class NotifyMemberAction
         private readonly SendPushNotificationAction $sendPush,
     ) {}
 
-    public function handle(Team $team, int $targetUserId, string $title, string $body, ?string $sound = null): string
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function handle(Team $team, int $targetUserId, string $title, string $body, ?string $sound = null, ?StoreConnection $connection = null, array $data = []): string
     {
         $isMember = TeamMember::query()
             ->where('team_id', $team->id)
@@ -33,6 +37,6 @@ class NotifyMemberAction
             return 'not_a_team_member';
         }
 
-        return $this->sendPush->handle($user, $title, $body, sound: $sound);
+        return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection);
     }
 }

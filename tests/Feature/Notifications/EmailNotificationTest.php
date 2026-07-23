@@ -4,6 +4,7 @@ use App\Actions\Notifications\SendEmailNotificationAction;
 use App\Mail\RuleNotificationMail;
 use App\Models\Notification;
 use App\Models\NotificationPreference;
+use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -60,6 +61,17 @@ test('email is muted when the recipient has email disabled, but still logged', f
     $status = app(SendEmailNotificationAction::class)->handle($team, $team->owner, 'Title', 'Body');
 
     expect($status)->toBe('muted_by_preference');
+    Mail::assertNothingQueued();
+    expect(Notification::query()->where('type', Notification::TYPE_RULE_EMAIL)->count())->toBe(1);
+});
+
+test('email is muted when its store connection has notifications muted, but still logged', function () {
+    $team = teamWithOwnerMembership();
+    $connection = StoreConnection::factory()->create(['team_id' => $team->id, 'notifications_muted' => true]);
+
+    $status = app(SendEmailNotificationAction::class)->handle($team, $team->owner, 'Title', 'Body', $connection);
+
+    expect($status)->toBe('muted_by_store');
     Mail::assertNothingQueued();
     expect(Notification::query()->where('type', Notification::TYPE_RULE_EMAIL)->count())->toBe(1);
 });

@@ -4,6 +4,7 @@ use App\Models\AiTopupPack;
 use App\Models\AiUsageLedger;
 use App\Models\ContentBlock;
 use App\Models\FeatureFlag;
+use App\Models\Notification;
 use App\Models\SmsTopupPack;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
@@ -100,6 +101,26 @@ test('me reports ai_questions_remaining and it drops as questions are used, and 
     ]);
 
     test()->getJson('/api/v1/me')->assertJsonPath('data.entitlements.ai_questions_remaining', 549);
+});
+
+test('me reports emails_remaining and it drops as rule emails are sent', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    test()->postJson('/api/v1/profile/setup', [
+        'name' => 'Jamie Seller',
+        'sells_on' => ['shopify'],
+    ])->assertOk();
+
+    // Premium trial grants 5000 email_monthly (PlanSeeder).
+    test()->getJson('/api/v1/me')->assertJsonPath('data.entitlements.emails_remaining', 5000);
+
+    Notification::factory()->create([
+        'user_id' => $user->id,
+        'type' => Notification::TYPE_RULE_EMAIL,
+    ]);
+
+    test()->getJson('/api/v1/me')->assertJsonPath('data.entitlements.emails_remaining', 4999);
 });
 
 test('me includes active content blocks and excludes inactive ones', function () {

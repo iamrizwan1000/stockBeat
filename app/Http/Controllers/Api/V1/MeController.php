@@ -41,7 +41,7 @@ class MeController extends Controller
      *       "sells_on": ["woocommerce"]
      *     },
      *     "team": { "id": 1, "name": "Rivera Vintage Co", "role": "owner" },
-     *     "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42, "ai_questions_remaining": 148 },
+     *     "entitlements": { "plan": "pro", "history_days": 90, "sms_balance": 42, "ai_questions_remaining": 148, "emails_remaining": 660 },
      *     "feature_flags": { "new_rules_ui": true },
      *     "sms_topup_packs": [ { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" } ],
      *     "ai_topup_packs": [ { "key": "ai_50", "name": "50 AI questions", "ai_questions": 50, "price_usd": "4.99" } ],

@@ -22,6 +22,7 @@ class StoreConnectionResource extends JsonResource
             'platform' => $this->platform,
             'name' => $this->name,
             'status' => $this->status,
+            'notifications_muted' => $this->notifications_muted,
             'last_sync_at' => $this->last_sync_at,
             'webhook_status' => $this->webhook_status,
             // Plan §8.3: drives which quick-action buttons the client

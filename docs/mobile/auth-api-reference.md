@@ -257,7 +257,8 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
         "ai_proactive_insights_enabled": false
       },
       "sms_balance": 42,
-      "ai_questions_remaining": 148
+      "ai_questions_remaining": 148,
+      "emails_remaining": 660
     },
     "feature_flags": { "new_rules_ui": true },
     "sms_topup_packs": [
@@ -315,7 +316,7 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
 | `ai_rule_builder_enabled` | bool | Gates the natural-language rule builder entry point. |
 | `ai_proactive_insights_enabled` | bool | Whether unprompted AI insight notifications are possible for this team (nothing to build differently client-side — this only affects whether the *server* ever sends one). |
 
-`entitlements.sms_balance` and `entitlements.ai_questions_remaining` are **not** in `limits` — they're sibling keys, the team's *current* standing (SMS: a running lifetime-ish balance from top-ups minus sends; AI: this calendar month's remaining allowance, resetting monthly), distinct from `limits.sms_monthly`/`limits.ai_questions_monthly` (the *allotments*). Full purchase-flow detail for both (and their top-up catalogs, `sms_topup_packs`/`ai_topup_packs` above) lives in `settings-api-reference.md`'s billing section.
+`entitlements.sms_balance`, `entitlements.ai_questions_remaining`, and `entitlements.emails_remaining` are **not** in `limits` — they're sibling keys, the team's *current* standing (SMS: a running lifetime-ish balance from top-ups minus sends; AI and email: this calendar month's remaining allowance, resetting monthly), distinct from `limits.sms_monthly`/`limits.ai_questions_monthly`/`limits.email_monthly` (the *allotments*). `emails_remaining` (added 2026-07-23, closing the same kind of gap `ai_questions_remaining` closed) nets `limits.email_monthly` against emails already sent this calendar month across every team member — `null` means unlimited. There is no email top-up pack (unlike SMS/AI) — running out means waiting for the monthly reset or upgrading plan. Full purchase-flow detail for SMS/AI (and their top-up catalogs, `sms_topup_packs`/`ai_topup_packs` above) lives in `settings-api-reference.md`'s billing section — that's also where `emails_remaining` is intended to be surfaced (usage summary on the Billing screen, not Notification Preferences).
 
 **Errors:** `401` if the token is invalid/revoked — clear local token and return to `WelcomeScreen`.
 

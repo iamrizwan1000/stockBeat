@@ -4,6 +4,7 @@ use App\Actions\Notifications\SendPushNotificationAction;
 use App\Models\Device;
 use App\Models\Notification;
 use App\Models\NotificationPreference;
+use App\Models\StoreConnection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Kreait\Firebase\Contract\Messaging;
@@ -118,6 +119,35 @@ test('an explicit rule sound wins over the recipient\'s saved sound preference',
     app()->instance(Messaging::class, $messaging);
 
     $status = app(SendPushNotificationAction::class)->handle($user, 'Title', 'Body', sound: 'alert');
+
+    expect($status)->toBe('sent');
+});
+
+test('push is muted when its store connection has notifications muted, but still logged', function () {
+    $user = User::factory()->create();
+    Device::factory()->create(['user_id' => $user->id, 'push_token' => 'valid-token']);
+    $connection = StoreConnection::factory()->create(['notifications_muted' => true]);
+
+    $messaging = Mockery::mock(Messaging::class);
+    $messaging->shouldNotReceive('send');
+    app()->instance(Messaging::class, $messaging);
+
+    $status = app(SendPushNotificationAction::class)->handle($user, 'Title', 'Body', connection: $connection);
+
+    expect($status)->toBe('muted_by_store');
+    expect(Notification::query()->where('user_id', $user->id)->count())->toBe(1);
+});
+
+test('push sends normally when the store connection is not muted', function () {
+    $user = User::factory()->create();
+    Device::factory()->create(['user_id' => $user->id, 'push_token' => 'valid-token']);
+    $connection = StoreConnection::factory()->create(['notifications_muted' => false]);
+
+    $messaging = Mockery::mock(Messaging::class);
+    $messaging->shouldReceive('send')->once()->andReturn([]);
+    app()->instance(Messaging::class, $messaging);
+
+    $status = app(SendPushNotificationAction::class)->handle($user, 'Title', 'Body', connection: $connection);
 
     expect($status)->toBe('sent');
 });

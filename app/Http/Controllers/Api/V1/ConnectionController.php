@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Connections\ConnectStoreAction;
 use App\Actions\Connections\GetConnectionHealthAction;
 use App\Actions\Connections\StartOAuthConnectionAction;
+use App\Actions\Connections\UpdateConnectionNotificationMuteAction;
 use App\Contracts\OAuthChannelAdapter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Connections\ConnectStoreRequest;
+use App\Http\Requests\Connections\UpdateConnectionMuteRequest;
 use App\Http\Resources\StoreConnectionResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\StoreConnection;
@@ -185,6 +187,39 @@ class ConnectionController extends Controller
         $this->authorizeConnectionAccess($request, $connection);
 
         return ApiResponse::success($action->handle($connection));
+    }
+
+    /**
+     * Mute or unmute alerts from this store.
+     *
+     * The only editable field on an existing connection today — syncing continues either way,
+     * this only stops push/email/SMS from rules whose firing traces back to this store. Rule
+     * fires are still logged in the notification center regardless (Plan §4.8/§17.4's "logged
+     * but not delivered" convention).
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": {
+     *     "connection": {
+     *       "id": 1,
+     *       "platform": "woo",
+     *       "name": "Rivera Vintage Co",
+     *       "status": "active",
+     *       "notifications_muted": true,
+     *       "last_sync_at": "2026-07-16T01:45:00.000000Z",
+     *       "webhook_status": "registered"
+     *     }
+     *   }
+     * }
+     */
+    public function mute(UpdateConnectionMuteRequest $request, StoreConnection $connection, UpdateConnectionNotificationMuteAction $action): JsonResponse
+    {
+        $this->authorizeConnectionAccess($request, $connection);
+
+        $connection = $action->handle($connection, $request->boolean('notifications_muted'));
+
+        return ApiResponse::success(['connection' => new StoreConnectionResource($connection)]);
     }
 
     private function authorizeConnectionAccess(Request $request, StoreConnection $connection): void

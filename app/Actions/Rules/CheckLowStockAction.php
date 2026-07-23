@@ -58,6 +58,7 @@ class CheckLowStockAction
                     'title' => $product->title,
                     'sku' => $product->sku,
                     'stock_quantity' => $product->stock_quantity,
+                    'connection_id' => $product->connection_id,
                 ]);
                 $fired = true;
             }

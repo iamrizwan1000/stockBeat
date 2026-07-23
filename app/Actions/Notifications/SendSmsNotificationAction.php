@@ -3,6 +3,7 @@
 namespace App\Actions\Notifications;
 
 use App\Models\SmsLedger;
+use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
@@ -17,11 +18,21 @@ use Illuminate\Support\Facades\Http;
  * Credit is only ever debited on a real confirmed send — never for a
  * missing phone number or a failed API call (§17.4: "don't debit credit on
  * failure").
+ *
+ * `$connection`, when given, gates the send on that store's
+ * `notifications_muted` flag (§4.8 follow-up) — same optional,
+ * defaults-to-null convention as `SendPushNotificationAction`. Checked
+ * before the credit check since a muted store shouldn't cost a credit
+ * either.
  */
 class SendSmsNotificationAction
 {
-    public function handle(Team $team, User $recipient, string $body): string
+    public function handle(Team $team, User $recipient, string $body, ?StoreConnection $connection = null): string
     {
+        if ($connection !== null && $connection->notifications_muted) {
+            return 'muted_by_store';
+        }
+
         $balance = SmsLedger::currentBalance($team->id);
 
         if ($balance < 1) {

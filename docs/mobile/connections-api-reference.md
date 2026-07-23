@@ -50,6 +50,7 @@ For all four OAuth platforms, "real" means the authorization URL generation and 
       "platform": "woo",
       "name": "Rivera Vintage Co",
       "status": "active",
+      "notifications_muted": false,
       "last_sync_at": null,
       "webhook_status": "registered",
       "capabilities": {
@@ -137,6 +138,8 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
 | `disconnected` | The merchant (or an admin) removed it | Shouldn't normally appear in this list — treat as if it doesn't exist if you see it |
 | `paused` | Auto-paused by a plan downgrade freeze (Plan §6.4) — the team had more stores than their new plan allows | Show as read-only/inactive, with an "upgrade to restore" hint — don't offer a manual reconnect action, it comes back automatically on upgrade |
 
+**`notifications_muted`** (added 2026-07-23) — a user-set toggle, **not a `status` value**. Independent of `status`: a muted store keeps syncing orders/inbox normally, it just stops sending push/email/SMS for anything sourced from it (rule fires are still logged in the Notification Center, same "logged but not delivered" treatment `notifications-api-reference.md` describes for quiet hours). Surface this toggle on the Notification Preferences screen (`settings-api-reference.md`), reading the list from this same `GET /connections` call — there's no separate endpoint to fetch it. See `PATCH /connections/{id}` below to change it.
+
 **`capabilities`** — read this per-connection to decide which quick-action buttons to render on that connection's orders (Plan §8.3). Never hardcode the platform-capability matrix client-side — it can change per adapter without an app release.
 | Key | Meaning |
 |---|---|
@@ -161,6 +164,31 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
 Confirm with the merchant before calling this — it's immediate and there's no undo endpoint. Existing orders from this connection stay in the feed (historical record), they just stop syncing.
 
 **Errors:** `404` if the connection doesn't belong to the caller's team (don't leak existence of other teams' connections — same 404-not-403 pattern as elsewhere in this API).
+
+---
+
+## `PATCH /connections/{id}`
+
+**Requires auth**, `owner`/`manager` role only (per `GET /me`'s `team.role` — same gate as `start`/`DELETE` above, since this changes alert behavior for the whole team, not just the caller). Added 2026-07-23. Toggles per-store notification muting — the **only** field this endpoint accepts today; it is not a general connection-edit endpoint (name/credentials still aren't editable in place, see below).
+
+**Request body:**
+```json
+{ "notifications_muted": true }
+```
+| Field | Rules |
+|---|---|
+| `notifications_muted` | required, boolean |
+
+**Success — 200:** same `connection` shape as `GET /connections`' list items, reflecting the new value.
+```json
+{ "success": true, "message": null, "data": { "connection": { "id": 1, "platform": "woo", "name": "Rivera Vintage Co", "status": "active", "notifications_muted": true, "...": "..." } } }
+```
+
+Muting/unmuting takes effect immediately for any rule that fires after this call — there's no propagation delay and nothing to poll for. Muting does **not** pause syncing, and does **not** change `status` — a `paused` (downgrade-frozen) connection can still have its mute flag changed, it just has no practical effect until the connection is active again.
+
+**Errors:** `404` if the connection doesn't belong to the caller's team (same pattern as `DELETE`). `403` if the caller's role isn't `owner`/`manager` (`agent`/`viewer` — same `team.role` gate as elsewhere). `422` if `notifications_muted` is missing or non-boolean.
+
+**Scope — which alerts actually get muted:** any rule firing that traces back to a real store (`new_order`, `high_value_order`, `unfulfilled_after_x`, `ship_by_deadline`, `refund_requested`, `order_cancelled`, `payment_failed`, `order_spike`, `refund_spike`, `low_stock`, `negative_review`, and the Free-tier preset new-order push) is suppressed when its store is muted. `digest` and `ai_insight` are **not** store-scoped — they summarize across every connected store at once, so there's no single store to mute them against; muting one store never silences those two.
 
 ---
 
@@ -201,12 +229,13 @@ Treat any *other* non-null value defensively (show the `message` text, no button
 
 | Status | Meaning here |
 |---|---|
-| 200 | Success (including a "start" call for OAuth platforms — no connection created yet, just a URL) |
+| 200 | Success (including a "start" call for OAuth platforms — no connection created yet, just a URL; and `PATCH /connections/{id}`) |
 | 201 | Success — WooCommerce connected immediately |
 | 401 | Missing/invalid/revoked bearer token |
+| 403 | Caller's role isn't `owner`/`manager` (`start`, `DELETE`, and `PATCH` only — `GET` routes are open to every role) |
 | 404 | Connection doesn't exist or doesn't belong to your team |
-| 422 | Validation failure, store limit reached, or Amazon (always) |
+| 422 | Validation failure, store limit reached, Amazon (always), or bad `notifications_muted` value |
 
 ## Not implemented yet — do not build UI for these
 - Amazon connecting at all.
-- Editing an existing connection's credentials in place (WooCommerce key rotation, etc.) — disconnect and reconnect is the only path today.
+- Editing an existing connection's credentials or `name` in place (WooCommerce key rotation, etc.) — disconnect and reconnect is the only path today. **`notifications_muted` is the one exception** — that field is editable in place via `PATCH /connections/{id}` above.

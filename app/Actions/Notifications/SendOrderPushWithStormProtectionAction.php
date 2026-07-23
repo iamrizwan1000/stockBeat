@@ -4,6 +4,7 @@ namespace App\Actions\Notifications;
 
 use App\Models\Order;
 use App\Models\PushStormWindow;
+use App\Models\StoreConnection;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -33,10 +34,18 @@ class SendOrderPushWithStormProtectionAction
         private readonly SendPushNotificationAction $sendPush,
     ) {}
 
-    public function handle(User $user, Order $order, string $title, string $body, ?string $sound = null): string
+    /**
+     * @param  array<string, mixed>  $extraData  Merged into every `data` payload
+     *                                           built here (e.g. `trigger` —
+     *                                           `DispatchRuleActionsAction`
+     *                                           stamping "where this alert came
+     *                                           from" onto the Notification
+     *                                           Center row, added 2026-07-24).
+     */
+    public function handle(User $user, Order $order, string $title, string $body, ?string $sound = null, ?StoreConnection $connection = null, array $extraData = []): string
     {
         $orderTotal = (float) ($order->total_base_currency ?? $order->total);
-        $data = ['order_id' => (string) $order->id];
+        $data = [...$extraData, 'order_id' => (string) $order->id];
 
         $window = PushStormWindow::query()->firstOrNew(['user_id' => $user->id]);
 
@@ -54,7 +63,7 @@ class SendOrderPushWithStormProtectionAction
                 'bundle_sent_at' => null,
             ])->save();
 
-            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound);
+            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection);
         }
 
         $window->order_count++;
@@ -63,12 +72,12 @@ class SendOrderPushWithStormProtectionAction
         if ($window->order_count <= self::THRESHOLD) {
             $window->save();
 
-            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound);
+            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection);
         }
 
         // Log this order to the in-app center, but never fan out its own
         // FCM push once the window is in storm mode.
-        $this->sendPush->handle($user, $title, $body, $data, deliver: false);
+        $this->sendPush->handle($user, $title, $body, $data, deliver: false, connection: $connection);
 
         if ($window->bundle_sent_at !== null) {
             $window->save();
@@ -81,6 +90,6 @@ class SendOrderPushWithStormProtectionAction
 
         $summary = "{$window->order_count} new orders in the last ".self::WINDOW_MINUTES.' min · $'.number_format((float) $window->revenue_total, 2);
 
-        return $this->sendPush->handle($user, 'Order storm', $summary, ['storm' => 'true'], sound: $sound);
+        return $this->sendPush->handle($user, 'Order storm', $summary, ['storm' => 'true'], sound: $sound, connection: $connection);
     }
 }

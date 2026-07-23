@@ -72,6 +72,9 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
         ->name('connections.start');
     Route::get('connections', [ConnectionController::class, 'index'])->name('connections.index');
     Route::get('connections/{connection}/health', [ConnectionController::class, 'health'])->name('connections.health');
+    Route::patch('connections/{connection}', [ConnectionController::class, 'mute'])
+        ->middleware('team.role:owner,manager')
+        ->name('connections.mute');
     Route::delete('connections/{connection}', [ConnectionController::class, 'destroy'])
         ->middleware('team.role:owner,manager')
         ->name('connections.destroy');
