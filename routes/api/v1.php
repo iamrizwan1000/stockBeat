@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\TeamController;
 use App\Http\Controllers\Api\V1\ThreadController;
+use App\Http\Controllers\Api\V1\UsageController;
 use App\Models\StoreConnection;
 use Illuminate\Support\Facades\Route;
 
@@ -52,6 +53,8 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
 
     Route::get('billing/entitlements', [BillingController::class, 'entitlements'])->name('billing.entitlements');
     Route::post('billing/sync', [BillingController::class, 'sync'])->name('billing.sync');
+
+    Route::get('usage/summary', [UsageController::class, 'summary'])->name('usage.summary');
 
     Route::get('settings/notifications', [SettingsController::class, 'showNotificationPreferences'])->name('settings.notifications.show');
     Route::put('settings/notifications', [SettingsController::class, 'updateNotificationPreferences'])->name('settings.notifications.update');

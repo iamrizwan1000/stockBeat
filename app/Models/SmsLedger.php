@@ -59,4 +59,34 @@ class SmsLedger extends Model
     {
         return (int) (static::query()->where('team_id', $teamId)->latest('id')->value('balance_after') ?? 0);
     }
+
+    public static function sentThisMonth(int $teamId): int
+    {
+        return (int) static::query()
+            ->where('team_id', $teamId)
+            ->where('reason', self::REASON_SEND)
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->count();
+    }
+
+    /**
+     * Daily send counts for the last `$days` days (today inclusive), keyed
+     * by `Y-m-d` — used to render a usage-history graph. Days with zero
+     * sends are simply absent; the caller fills gaps to build a continuous
+     * series (`GetUsageSummaryAction::fillDailySeries()`).
+     *
+     * @return array<string, int>
+     */
+    public static function dailySendCounts(int $teamId, int $days): array
+    {
+        return static::query()
+            ->where('team_id', $teamId)
+            ->where('reason', self::REASON_SEND)
+            ->where('created_at', '>=', now()->subDays($days - 1)->startOfDay())
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
 }

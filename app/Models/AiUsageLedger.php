@@ -82,6 +82,25 @@ class AiUsageLedger extends Model
             ->count();
     }
 
+    /**
+     * Daily question counts for the last `$days` days (today inclusive),
+     * keyed by `Y-m-d` — same shape/purpose as `SmsLedger::dailySendCounts()`.
+     *
+     * @return array<string, int>
+     */
+    public static function dailyQuestionCounts(int $teamId, int $days): array
+    {
+        return static::query()
+            ->where('team_id', $teamId)
+            ->where('reason', self::REASON_QUESTION)
+            ->where('created_at', '>=', now()->subDays($days - 1)->startOfDay())
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
+
     public static function bonusGrantedThisMonth(int $teamId): int
     {
         return (int) static::query()

@@ -82,4 +82,27 @@ class Notification extends Model
             ->where('created_at', '>=', now()->startOfMonth())
             ->count();
     }
+
+    /**
+     * Daily `rule_email` counts across every team member for the last
+     * `$days` days (today inclusive), keyed by `Y-m-d` — same shape/purpose
+     * as `SmsLedger::dailySendCounts()`/`AiUsageLedger::dailyQuestionCounts()`,
+     * kept here since email usage has no dedicated ledger table of its own.
+     *
+     * @return array<string, int>
+     */
+    public static function dailyEmailCounts(Team $team, int $days): array
+    {
+        $memberUserIds = $team->members()->pluck('user_id');
+
+        return static::query()
+            ->whereIn('user_id', $memberUserIds)
+            ->where('type', self::TYPE_RULE_EMAIL)
+            ->where('created_at', '>=', now()->subDays($days - 1)->startOfDay())
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
 }
