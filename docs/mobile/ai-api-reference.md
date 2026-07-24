@@ -144,7 +144,7 @@ Every answer is grounded in a real tool call over the team's own data — never 
   "valid": true,
   "errors": null,
   "trigger_is_advanced": false
-} } }
+} }
 ```
 
 **This never saves anything** — it's pure text-to-structure translation. The response `draft` is in the **exact same shape** `POST /rules` expects (`rules-api-reference.md`). The intended flow: show the draft pre-filled into the ordinary rule-creation form fields (name/trigger/conditions/actions/controls, all editable), let the merchant review and adjust, then submit through the normal `POST /rules` — **treat this as a form-prefill helper for the same create-rule screen, not a separate "AI rules" flow with its own save button.**

@@ -166,45 +166,9 @@ Returns a rendered **PDF directly** (`Content-Type: application/pdf`), not a JSO
 
 ---
 
-## `GET /analytics/summary` — the Feed header numbers
+## Feed header analytics — see `analytics-api-reference.md`
 
-**Requires auth.** `?range=today|7d|30d` (required).
-
-**Success — 200 (Free/Starter — `range=today` or `7d` only):**
-```json
-{
-  "success": true,
-  "message": null,
-  "data": {
-    "range": "today",
-    "total": { "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 },
-    "by_channel": [
-      { "connection_id": 1, "platform": "woo", "name": "Rivera Vintage Co", "revenue": 240.0, "revenue_base": 240.0, "orders_count": 3, "aov": 80.0 }
-    ]
-  }
-}
-```
-
-**Success — 200 (Pro/Premium — `analytics_level: "full"`, adds `comparison` + `goal`):**
-```json
-{
-  "range": "7d",
-  "total": { "revenue": 1840.0, "revenue_base": 1840.0, "orders_count": 23, "aov": 80.0 },
-  "by_channel": [ "..." ],
-  "comparison": { "previous_period_revenue": 1500.0, "change_pct": 22.7 },
-  "goal": { "current_month_revenue": 4200.0, "best_month_revenue": 6100.0, "pct_of_best_month": 68.9 }
-}
-```
-**Only request a `range` your plan allows** — check `entitlements.limits.analytics_level` from `GET /me` (`"today"` allows only `range=today`; `"7d"` allows `today`/`7d`; `"full"` allows all three). Requesting a disallowed range 422s with `errors.range[0]` = `"Upgrade your plan for more analytics history."` — this is your paywall trigger, don't just show a raw error, open the upgrade sheet.
-
-`comparison`/`goal` keys are **entirely absent** (not `null`) on Free/Starter — check with an existence check, not a null check, when deciding whether to render that part of the header.
-
-## `GET /analytics/products` — top products
-
-Same `range` param and plan gating as above.
-```json
-{ "products": [ { "sku": "VNT-014", "title": "Vintage Denim Jacket", "units": 12, "revenue": 1008.0 } ] }
-```
+`GET /analytics/summary?range=today` powers the Feed header's "Today: $240.00 · 3 orders" line (with `range=7d`/`30d` available at higher plan tiers). That endpoint, its sibling `GET /analytics/products`, and the deeper `BusinessOverviewScreen` they also power (`business-overview-flow-screens.md`) are a **separate reference doc**, not covered here — see `analytics-api-reference.md` for the full shape, plan gating, and multi-currency (`revenue_base`) semantics.
 
 ---
 

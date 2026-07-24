@@ -238,7 +238,9 @@ Same purchase mechanics as SMS packs — pass `key` to the RevenueCat SDK's purc
 
 Both catalogs: empty array is a real, valid state (no active packs configured) — hide the relevant top-up section entirely rather than showing a blank list.
 
-**There is no SMS, AI-question, or email usage history/ledger endpoint** — `entitlements.sms_balance`/`ai_questions_remaining`/`emails_remaining` (current standing only) is all that's available. Don't build a "usage history" screen against this API; it isn't there.
+### Usage history — see `usage-api-reference.md`
+
+`GET /usage/summary` (added 2026-07-24) is a **separate reference doc**, not covered here — it's the companion endpoint that adds monthly-quota percentages, the 80% `quota_warning` flag, and a 30-day daily breakdown per channel (SMS/AI questions/email) on top of the current-standing balance fields above. See `usage-api-reference.md` for the full shape, and `usage-flow-screens.md` for the `UsageSummaryScreen`/`UsageDetailScreen` pair it powers (reached from this screen's "Usage this month" section via a "View usage details →" link).
 
 ---
 
