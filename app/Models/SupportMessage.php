@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $delivered_via
  * @property Carbon|null $created_at
  */
-#[Fillable(['thread_id', 'direction', 'admin_id', 'body', 'attachments', 'delivered_via'])]
+#[Fillable(['thread_id', 'direction', 'admin_id', 'body', 'attachments', 'delivered_via', 'created_at'])]
 class SupportMessage extends Model
 {
     /** @use HasFactory<SupportMessageFactory> */

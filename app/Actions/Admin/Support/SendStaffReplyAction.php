@@ -24,7 +24,6 @@ use Illuminate\Support\Str;
 class SendStaffReplyAction
 {
     public function __construct(
-        private readonly SendPushNotificationAction $sendPush,
         private readonly AuditLogAction $auditLog,
     ) {}
 
@@ -41,13 +40,22 @@ class SendStaffReplyAction
         $thread->update(['status' => SupportThread::STATUS_AWAITING_USER, 'last_message_at' => $message->created_at]);
 
         $user = $thread->user;
-        $pushStatus = $this->sendPush->handle(
-            $user,
-            'New reply from support',
-            Str::limit($body, 100),
-            ['thread_id' => $thread->id],
-            Notification::TYPE_SUPPORT_REPLY,
-        );
+
+        // Resolved lazily (rather than constructor-injected) so a broken FCM
+        // credential can't throw during container resolution of this action
+        // itself, before the try/catch below ever gets a chance to run.
+        try {
+            $pushStatus = app(SendPushNotificationAction::class)->handle(
+                $user,
+                'New reply from support',
+                Str::limit($body, 100),
+                ['thread_id' => $thread->id],
+                Notification::TYPE_SUPPORT_REPLY,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+            $pushStatus = 'failed';
+        }
 
         Mail::to($user->email)->queue(new SupportReplyMail($body));
 
