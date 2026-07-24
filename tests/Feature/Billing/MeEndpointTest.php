@@ -154,7 +154,10 @@ test('a freshly onboarded team is on the premium trial', function () {
         ->assertJsonPath('data.entitlements.plan', 'premium')
         ->assertJsonPath('data.entitlements.subscription_status', 'trial')
         ->assertJsonPath('data.entitlements.limits.max_stores', null)
-        ->assertJsonPath('data.entitlements.sms_balance', 0);
+        // Premium's 500/mo SMS allotment is granted immediately at trial
+        // start (GrantMonthlySmsCreditsAction, called from
+        // GrantTrialSubscriptionAction) — not 0, which was the pre-fix bug.
+        ->assertJsonPath('data.entitlements.sms_balance', 500);
 
     expect($response->json('data.entitlements.trial_ends_at'))->not->toBeNull();
 });

@@ -29,7 +29,7 @@ All of these are real, load-bearing integrations (verified in code, not placehol
 | Firebase (FCM) | `FIREBASE_CREDENTIALS` — a real service-account JSON file, **not committed to git**, must be uploaded to the server at the exact path this env var points to (`/var/www/html/storage/app/private/firebase/service-account.json` in `.env.example`) | Push notifications — every `SendPushNotificationAction` call needs this or it throws |
 | Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` | SMS rule actions |
 | Resend (or any SMTP) | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | All outbound email (rule emails, invites, support replies, data export) |
-| RevenueCat | `REVENUECAT_WEBHOOK_SECRET`, `REVENUECAT_SECRET_API_KEY` | Subscription billing webhook + `POST /billing/sync` |
+| RevenueCat | `REVENUECAT_WEBHOOK_SECRET`, `REVENUECAT_SECRET_API_KEY` | Subscription billing webhook + `POST /billing/sync` — see `revenuecat-playstore-setup.md` for how to obtain these and configure the Google Play Console + RevenueCat dashboard side |
 | Inbound email | `INBOUND_EMAIL_WEBHOOK_SECRET` | Shopify/Woo customer email replies into the Inbox |
 | Reverb | `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT` | Support chat real-time delivery |
 | Shopify / eBay / Etsy / TikTok Partner apps | per-platform OAuth client id/secret (see `connections-api-reference.md`) | Store OAuth connect flows |

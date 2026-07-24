@@ -42,6 +42,8 @@ class Notification extends Model
 
     public const TYPE_INBOX_MESSAGE = 'inbox_message';
 
+    public const TYPE_QUOTA_WARNING = 'quota_warning';
+
     /**
      * Get the attributes that should be cast.
      *

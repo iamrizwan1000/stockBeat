@@ -66,7 +66,7 @@ This tab is a menu hub, not a single screen — each row below opens its own sma
 
 **Upgrade / change plan:** open the RevenueCat SDK's native paywall/purchase sheet directly — do not build a custom pricing table calling any endpoint on this API, there isn't one for subscription products. After a purchase completes in the SDK, **poll `GET /me` for up to ~10–15s** (a few retries) rather than assuming the immediate next call already reflects the new plan — the webhook that actually updates entitlements is asynchronous server-side.
 
-**Restore purchases:** RevenueCat SDK's own restore call, same polling-after pattern.
+**Restore purchases:** RevenueCat SDK's own restore call, then **call `POST /billing/sync`** — not just the polling-after pattern above. This is the one path where polling `GET /me` alone isn't enough: a restore on a brand-new device doesn't reliably fire the RevenueCat webhook on its own, so `/billing/sync`'s direct pull from RevenueCat's API is what actually makes the restored entitlement show up (see `settings-api-reference.md`'s Billing section — skipping this call is a real "restore appears to do nothing" bug, not just a slower path).
 
 **SMS top-up:** a separate section/sheet listing `sms_topup_packs` from `GET /me` (name, credit amount, price) — tapping a pack triggers a RevenueCat purchase for that exact `key` as the product identifier, then the same poll-`/me`-for-balance-update pattern (watch `entitlements.sms_balance`). If `sms_topup_packs` is empty, hide this section rather than showing an empty list.
 

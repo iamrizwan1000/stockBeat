@@ -138,13 +138,17 @@ test('CANCELLATION does not change status — stays active until it actually exp
 
 test('a NON_RENEWING_PURCHASE for sms_100 credits 100 to the sms ledger', function () {
     $user = onboardedRevenueCatUser();
+    // Onboarding already granted the Premium trial's 500/mo SMS allotment
+    // (GrantMonthlySmsCreditsAction) — the top-up adds on top of that, it
+    // doesn't start from a bare 0 balance.
+    $baseline = SmsLedger::currentBalance($user->ownedTeam->id);
 
     postRevenueCatEvent(revenueCatEvent($user->id, [
         'type' => 'NON_RENEWING_PURCHASE',
         'product_id' => 'sms_100',
     ]))->assertOk();
 
-    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe(100);
+    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe($baseline + 100);
 });
 
 test('a NON_RENEWING_PURCHASE for ai_50 credits 50 to the AI usage ledger as a monthly bonus', function () {
@@ -171,13 +175,18 @@ test('an AI top-up event type other than NON_RENEWING_PURCHASE credits nothing',
 
 test('a duplicate event id is processed only once', function () {
     $user = onboardedRevenueCatUser();
+    // Onboarding already granted the Premium trial's SMS allotment as its
+    // own ledger row — the assertions below account for that baseline row
+    // plus exactly one top-up row, not two (the duplicate must be a no-op).
+    $baseline = SmsLedger::currentBalance($user->ownedTeam->id);
+    $baselineRowCount = SmsLedger::query()->where('team_id', $user->ownedTeam->id)->count();
     $event = revenueCatEvent($user->id, ['type' => 'NON_RENEWING_PURCHASE', 'product_id' => 'sms_500']);
 
     postRevenueCatEvent($event)->assertOk();
     postRevenueCatEvent($event)->assertOk()->assertJsonPath('status', 'duplicate');
 
-    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe(500);
-    expect(SmsLedger::query()->where('team_id', $user->ownedTeam->id)->count())->toBe(1);
+    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe($baseline + 500);
+    expect(SmsLedger::query()->where('team_id', $user->ownedTeam->id)->count())->toBe($baselineRowCount + 1);
 });
 
 test('an unknown app_user_id is safely ignored', function () {

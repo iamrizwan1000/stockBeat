@@ -20,6 +20,10 @@ class GrantTrialSubscriptionAction
 {
     private const DEFAULT_TRIAL_DAYS = 7;
 
+    public function __construct(
+        private readonly GrantMonthlySmsCreditsAction $grantSmsCredits,
+    ) {}
+
     public function handle(Team $team): Subscription
     {
         $trialDaysLimit = PlanLimit::query()
@@ -29,11 +33,17 @@ class GrantTrialSubscriptionAction
 
         $trialDays = $trialDaysLimit === null ? self::DEFAULT_TRIAL_DAYS : $trialDaysLimit->value;
 
-        return Subscription::query()->create([
+        $subscription = Subscription::query()->create([
             'team_id' => $team->id,
             'status' => Subscription::STATUS_TRIAL,
             'plan_key' => Plan::PREMIUM,
             'trial_ends_at' => now()->addDays((int) $trialDays),
         ]);
+
+        // A trialing seller gets Premium's full SMS allotment immediately,
+        // not on the next daily reconciliation run (`sms:grant-monthly-credits`).
+        $this->grantSmsCredits->handle($team);
+
+        return $subscription;
     }
 }

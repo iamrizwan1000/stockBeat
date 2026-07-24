@@ -94,5 +94,15 @@ Schedule::command('orders:backfill-base-currency')->dailyAt('00:10');
 Schedule::command('trials:send-reminders')->hourly();
 Schedule::command('subscriptions:expire-trials')->hourly();
 
+// Monthly SMS allotment (Plan §5) — reconciliation safety net; the real-time
+// triggers are trial start (GrantTrialSubscriptionAction) and a RevenueCat
+// purchase/renewal event (ProcessRevenueCatEventAction). Idempotent per
+// team per calendar month, so daily is safe.
+Schedule::command('sms:grant-monthly-credits')->daily();
+
+// 80%-quota upsell push (Plan §5.1) — idempotent per team per channel per
+// calendar month, so daily is safe.
+Schedule::command('usage:check-quota-warnings')->daily();
+
 // Support chat (Plan §4.9) — "auto-nudge and auto-close after 7 days idle."
 Schedule::command('support:auto-close-idle-threads')->daily();

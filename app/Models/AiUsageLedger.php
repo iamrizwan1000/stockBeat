@@ -15,20 +15,22 @@ use Illuminate\Support\Carbon;
  * month's** `question` debits against an *effective* limit — the plan's
  * `ai_questions_monthly` plus any `topup_iap`-reason bonus credited this
  * same calendar month (`effectiveMonthlyLimit()`) — rather than a separate
- * monthly-grant job. `topup_iap` is used both for the still-not-built IAP
- * IAP top-up-pack purchase flow (Plan §5) and, since 2026-07-22, for
- * admin-granted bonus credits (`GrantBonusAiCreditsAction`, mirrors
- * `GrantBonusSmsCreditsAction`'s use of `SmsLedger::REASON_TOPUP_IAP` for
- * the same admin-comp purpose).
+ * monthly-grant job. `topup_iap` is shared by two sources: the real IAP
+ * top-up-pack purchase flow (`AiTopupPack`/`ProcessRevenueCatEventAction`,
+ * added 2026-07-22) and admin-granted bonus credits (`GrantBonusAiCreditsAction`,
+ * mirrors `GrantBonusSmsCreditsAction`'s use of `SmsLedger::REASON_TOPUP_IAP`
+ * for the same admin-comp purpose) — the ledger doesn't distinguish them
+ * beyond `meta`.
  *
  * Deliberate scope simplification, documented rather than hidden: a bonus
  * grant only raises *that calendar month's* cap — it doesn't carry into
  * next month as a true non-expiring wallet would. A real rollover wallet
  * needs bucket-separated accounting (monthly allotment vs. never-expiring
- * top-up balance), which neither this ledger nor `SmsLedger` actually
- * implements yet (`SmsLedger::REASON_MONTHLY_GRANT` is itself still never
- * dispatched anywhere in the app) — not worth building ahead of real
- * top-up-pack usage data justifying it.
+ * top-up balance), which neither this ledger nor `SmsLedger` implements —
+ * `SmsLedger`'s own monthly grant (`GrantMonthlySmsCreditsAction`, fixed
+ * 2026-07-24) has the identical limitation: it adds to the existing balance
+ * rather than tracking separate buckets. Not worth building ahead of real
+ * usage data justifying it.
  *
  * @property int $id
  * @property int $team_id

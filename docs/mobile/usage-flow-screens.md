@@ -61,6 +61,6 @@ This is the only change to `SubscriptionScreen` — nothing else on that screen 
 
 ---
 
-## Edge case: SMS's percentage is against an allotment that isn't actually auto-renewed yet
+## Edge case: SMS's monthly allotment now auto-renews (fixed 2026-07-24)
 
-Per `usage-api-reference.md`'s callout, the monthly SMS grant job isn't dispatched anywhere in the backend yet — `plan_monthly_allotment`/SMS's `pct_used` describe intended behavior, not a number the wallet is currently kept in sync with automatically. Nothing to special-case in the UI for this today (the API still returns valid numbers), but don't be surprised if SMS's monthly percentage behaves differently from AI/Email's once real usage data accumulates — that's a known, separate backend gap, not a client bug.
+Per `usage-api-reference.md`'s callout, the monthly SMS grant (`GrantMonthlySmsCreditsAction`) now actually runs — a team's plan allotment lands in `sms.balance` once per calendar month (immediately at trial start and on purchase/renewal, with a daily job as a safety net). Nothing to build for this specifically — `balance` and `pct_used` already come back correct from `GET /usage/summary`, same as before this was fixed. One thing worth knowing if a support ticket ever asks "why didn't my balance go up exactly on my renewal date": the grant only *adds* the allotment to whatever's already in the wallet rather than tracking "monthly" credit separately from top-up credit, so an unused monthly grant isn't strictly prevented from carrying into next month the way Plan §5's copy describes — not something to explain or surface in the UI, just don't be surprised by a balance that's higher than the plan's stated allotment would suggest on its own.

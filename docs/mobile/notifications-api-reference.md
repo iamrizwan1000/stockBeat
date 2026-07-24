@@ -34,7 +34,12 @@ This is the **in-app record of everything that's been sent to this user** — di
 | `admin_broadcast` | An admin-sent broadcast (push or in-app banner channel only — see below) | `{broadcast_id: 5}` | No merchant-facing screen shows a single broadcast by id — treat as informational only, no navigation |
 | `support_reply` | Staff replied in your support chat | `{thread_id: 3}` | `SupportChatScreen` (`settings-flow-screens.md`) — **this `thread_id` is a support thread, not an inbox thread** (see the warning below) |
 | `trial_reminder` | Day 3/10 trial win-back (Plan §6.3) | `{trial_days_remaining: "4"}` | Subscription screen (`settings-flow-screens.md`) |
+| `quota_warning` | Added 2026-07-24 — a team crossed 80% of its monthly SMS/AI-question/email allotment (`usage-api-reference.md`'s `quota_warning` flag), checked daily, sent once per channel per calendar month | `{channel: "sms"\|"ai_questions"\|"emails", pct_used: "83.3"}` | `UsageDetailScreen` (`usage-flow-screens.md`), pre-selecting the tab matching `data.channel` |
 | `inbox_message` | A new customer message arrived (eBay member message, inbound email reply) | `{thread_id: 7}` | `ThreadDetailScreen` (`inbox-flow-screens.md`) — **a different `thread_id` namespace than `support_reply`'s** |
+
+### `quota_warning` is sent to the team owner only
+
+Same recipient convention as `trial_reminder` — the owner is currently the only person who sees billing/usage state at all, so this never fans out to other team members regardless of role.
 
 ### `data.trigger` and `data.platform` — "where did this alert come from" (added 2026-07-24)
 

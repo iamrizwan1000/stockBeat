@@ -68,6 +68,7 @@ class ProcessRevenueCatEventAction
     public function __construct(
         private readonly ApplyDowngradeFreezeAction $applyFreeze,
         private readonly ReverseDowngradeFreezeAction $reverseFreeze,
+        private readonly GrantMonthlySmsCreditsAction $grantSmsCredits,
     ) {}
 
     /**
@@ -222,6 +223,13 @@ class ProcessRevenueCatEventAction
         $subscription->raw = $event;
         $subscription->save();
 
+        // `$team->subscription` was already resolved (possibly as `null`,
+        // for a first-ever purchase) at the top of this method and Eloquent
+        // caches that resolution — without this, a later `$team->subscription`
+        // read (inside `grantSmsCredits` below, via `ResolveEntitlementsAction`)
+        // would see the stale pre-purchase state instead of what was just saved.
+        $team->setRelation('subscription', $subscription);
+
         // §6.4: "same logic applies to a lapsed Pro subscription" — an
         // expiring paid subscription freezes exactly like an expiring
         // trial; a reactivation (fresh purchase, renewal, tier change, or
@@ -231,6 +239,12 @@ class ProcessRevenueCatEventAction
             'INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION' => $this->reverseFreeze->handle($team),
             default => null,
         };
+
+        // Plan §5: the monthly SMS allotment should be available the moment
+        // a purchase/renewal lands, not on the next daily reconciliation run.
+        if (in_array($type, ['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION'], true)) {
+            $this->grantSmsCredits->handle($team);
+        }
     }
 
     private function mapStore(?string $store): ?string
