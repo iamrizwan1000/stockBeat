@@ -7,6 +7,8 @@ use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Support\Connections\ActionResult;
@@ -313,9 +315,39 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
             refunds: true,
             cancel: false,
             messagingMode: 'approval_gated',
-            inventoryUpdate: true,
-            reviewsFeedback: true,
+            // No real write-back to Etsy's listing inventory API exists yet
+            // (Plan §4.13) — false until built, rather than a capability
+            // with nothing behind it.
+            inventoryUpdate: false,
+            // Etsy has requested the `feedback_r` OAuth scope but no code
+            // calls it yet (Plan §4.15) — previously declared `true` with
+            // nothing behind it. Corrected 2026-07-26.
+            reviewsFeedback: false,
         );
+    }
+
+    /**
+     * `capabilities()->inventoryUpdate` is false — `UpdateProductStockAction`
+     * checks that before ever calling an adapter, so this is reachable only
+     * if that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here (Plan §4.13).
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult
+    {
+        throw new LogicException('EtsyAdapter does not support inventory updates yet.');
+    }
+
+    /**
+     * `capabilities()->reviewReply` is false — `ReplyToReviewAction` checks
+     * that before ever calling an adapter, so this is reachable only if
+     * that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here. Etsy has no real review-fetch code either
+     * (`reviewsFeedback` is also false, Plan §4.15) — there's nothing to
+     * reply to yet.
+     */
+    public function replyToReview(Review $review, string $body): ActionResult
+    {
+        throw new LogicException('EtsyAdapter does not support review replies yet.');
     }
 
     private function deriveCodeVerifier(string $nonce): string

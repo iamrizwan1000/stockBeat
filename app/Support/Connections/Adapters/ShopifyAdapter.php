@@ -9,6 +9,7 @@ use App\Jobs\RuleEvaluationJob;
 use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Review;
 use App\Models\Rule;
 use App\Models\StoreConnection;
 use App\Models\Team;
@@ -429,8 +430,98 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             cancel: true,
             messagingMode: 'email',
             inventoryUpdate: true,
-            reviewsFeedback: true,
+            // No real review/feedback fetch code exists for Shopify (Plan
+            // §4.15) — Shopify has no first-party product-review system at
+            // all (reviews normally come from a third-party app like
+            // Judge.me, not the core Admin API), and this was previously
+            // declared `true` with nothing behind it. Corrected 2026-07-26.
+            reviewsFeedback: false,
+            // Real — Shopify Payments exposes a genuine Payouts API
+            // (Plan §4.14); see fetchPayouts() below.
+            payoutsAvailable: true,
         );
+    }
+
+    /**
+     * Polls Shopify Payments' real Payouts API (Plan §4.14) — no webhook
+     * exists for this, so it's poll-only via `PollShopifyPayoutsJob`. Only
+     * returns data for stores actually using Shopify Payments as their
+     * gateway; other gateways simply return an empty list, not an error.
+     * `status` is passed through exactly as Shopify reports it
+     * (`scheduled`/`in_transit`/`paid`/`failed`/`canceled`) rather than
+     * mapped to an invented vocabulary.
+     *
+     * @return array<int, array{external_id: string, amount: string, currency: string, status: string, arrival_date: ?string, raw: array<string, mixed>}>
+     */
+    public function fetchPayouts(StoreConnection $connection): array
+    {
+        $response = $this->http($connection)->get('/shopify_payments/payouts.json', ['limit' => 100]);
+
+        if ($response->failed()) {
+            return [];
+        }
+
+        /** @var array<int, array<string, mixed>> $payouts */
+        $payouts = (array) $response->json('payouts', []);
+
+        return array_map(fn (array $raw) => [
+            'external_id' => (string) $raw['id'],
+            'amount' => (string) ($raw['amount'] ?? '0.00'),
+            'currency' => (string) ($raw['currency'] ?? 'USD'),
+            'status' => (string) ($raw['status'] ?? 'paid'),
+            'arrival_date' => $raw['date'] ?? null,
+            'raw' => $raw,
+        ], $payouts);
+    }
+
+    /**
+     * `products.external_id` is the variant id (set by `syncInventoryLevel()`
+     * above), not the inventory item id Shopify's inventory API actually
+     * keys on — so this resolves variant → inventory_item_id, then a
+     * location (assumes a single default location, same as `fulfill()`),
+     * before the real `inventory_levels/set.json` call (Plan §4.13).
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult
+    {
+        $connection = $product->connection;
+
+        $variantResponse = $this->http($connection)->get("/variants/{$product->external_id}.json");
+
+        if ($variantResponse->failed()) {
+            return ActionResult::failure('Could not look up the Shopify variant.');
+        }
+
+        $inventoryItemId = $variantResponse->json('variant.inventory_item_id');
+
+        if ($inventoryItemId === null) {
+            return ActionResult::failure('This variant has no inventory item to update.');
+        }
+
+        $locationResponse = $this->http($connection)->get('/locations.json');
+
+        if ($locationResponse->failed()) {
+            return ActionResult::failure('Could not look up a Shopify location.');
+        }
+
+        $locationId = $locationResponse->json('locations.0.id');
+
+        if ($locationId === null) {
+            return ActionResult::failure('This store has no fulfillment location to update stock at.');
+        }
+
+        $response = $this->http($connection)->post('/inventory_levels/set.json', [
+            'location_id' => $locationId,
+            'inventory_item_id' => $inventoryItemId,
+            'available' => $quantity,
+        ]);
+
+        if ($response->failed()) {
+            return ActionResult::failure('Shopify rejected the inventory update.');
+        }
+
+        $product->update(['stock_quantity' => $quantity]);
+
+        return ActionResult::success('Stock quantity updated.');
     }
 
     /**
@@ -443,6 +534,17 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
     public function sendMessage(InboxThread $thread, string $body): ActionResult
     {
         throw new LogicException('ShopifyAdapter is email-only for messaging (Plan §7.7) — use SendInboxMessageAction\'s email path instead of ChannelAdapter::sendMessage().');
+    }
+
+    /**
+     * `capabilities()->reviewReply` is false — `ReplyToReviewAction` checks
+     * that before ever calling an adapter, so this is reachable only if
+     * that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here (Plan §4.15).
+     */
+    public function replyToReview(Review $review, string $body): ActionResult
+    {
+        throw new LogicException('ShopifyAdapter does not support review replies — Shopify has no first-party review system at all.');
     }
 
     private function http(StoreConnection $connection): PendingRequest

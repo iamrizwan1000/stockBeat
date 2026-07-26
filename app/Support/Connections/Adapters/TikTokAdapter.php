@@ -7,6 +7,8 @@ use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Support\Connections\ActionResult;
@@ -533,7 +535,10 @@ class TikTokAdapter implements ChannelAdapter, OAuthChannelAdapter
             // sendMessage(), which throws, exactly like Amazon's 'template'
             // does today).
             messagingMode: 'none',
-            inventoryUpdate: true,
+            // No real write-back to the Product/Inventory API exists yet
+            // (Plan §4.13) — false until built, rather than a capability
+            // with nothing behind it.
+            inventoryUpdate: false,
             // Not confirmed: TikTok Shop's Partner API doesn't document a
             // seller-facing product-reviews/feedback retrieval endpoint as
             // clearly as Shopify/Woo/eBay/Amazon do — rather than assume
@@ -541,6 +546,30 @@ class TikTokAdapter implements ChannelAdapter, OAuthChannelAdapter
             // real endpoint is confirmed to exist.
             reviewsFeedback: false,
         );
+    }
+
+    /**
+     * `capabilities()->inventoryUpdate` is false — `UpdateProductStockAction`
+     * checks that before ever calling an adapter, so this is reachable only
+     * if that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here (Plan §4.13).
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult
+    {
+        throw new LogicException('TikTokAdapter does not support inventory updates yet.');
+    }
+
+    /**
+     * `capabilities()->reviewReply` is false — `ReplyToReviewAction` checks
+     * that before ever calling an adapter, so this is reachable only if
+     * that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here. TikTok has no real review-fetch code either
+     * (`reviewsFeedback` is also false, Plan §4.15) — there's nothing to
+     * reply to yet.
+     */
+    public function replyToReview(Review $review, string $body): ActionResult
+    {
+        throw new LogicException('TikTokAdapter does not support review replies yet.');
     }
 
     private function assertConfigured(): void

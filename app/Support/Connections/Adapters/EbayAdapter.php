@@ -7,6 +7,8 @@ use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Support\Connections\ActionResult;
@@ -458,6 +460,40 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
         return $items;
     }
 
+    /**
+     * Replies to a buyer's negative feedback via eBay's Commerce Feedback
+     * API (Plan §4.15) — `POST /commerce/feedback/v1/respond_to_feedback`,
+     * confirmed via eBay's public API docs 2026-07-26 (not assumed): request
+     * body is `{feedbackId, recipientUserId, responseText}`. `feedbackId` is
+     * `$review->external_id` (the same `FeedbackID` `fetchNegativeFeedback()`
+     * already captures); `recipientUserId` is `$review->reviewer_name`
+     * (`fetchNegativeFeedback()` already stores the buyer's eBay username
+     * there via `CommentingUser`) — no new field needed on `Review`.
+     *
+     * **Operational note, not yet resolved:** this operation likely
+     * requires an OAuth scope beyond the `sell.fulfillment`/`sell.inventory`
+     * pair in `self::SCOPES` above. Adding it means every existing eBay
+     * connection needs to re-consent (an expanded-scope reauth), not just a
+     * code change — confirm the exact scope string against eBay's Commerce
+     * Feedback API docs before enabling this for real merchants.
+     */
+    public function replyToReview(Review $review, string $body): ActionResult
+    {
+        $response = $this->http($review->connection)->post('/commerce/feedback/v1/respond_to_feedback', [
+            'feedbackId' => $review->external_id,
+            'recipientUserId' => $review->reviewer_name,
+            'responseText' => $body,
+        ]);
+
+        ApiQuotaTracker::recordCall(StoreConnection::PLATFORM_EBAY);
+
+        if ($response->failed()) {
+            return ActionResult::failure('eBay rejected the feedback reply.');
+        }
+
+        return ActionResult::success('Reply sent.');
+    }
+
     public function capabilities(): CapabilitySet
     {
         return new CapabilitySet(
@@ -466,9 +502,27 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
             refunds: true,
             cancel: true,
             messagingMode: 'full',
-            inventoryUpdate: true,
+            // `fetchInventoryItems()` above is real, but it's a read/poll
+            // path — no write-back to the Sell Inventory API exists yet, so
+            // this reads false until that's built (Plan §4.13), rather than
+            // declaring a capability with no real implementation behind it.
+            inventoryUpdate: false,
             reviewsFeedback: true,
+            // Real — the Commerce Feedback API's respond_to_feedback
+            // operation (Plan §4.15); see replyToReview() below.
+            reviewReply: true,
         );
+    }
+
+    /**
+     * `capabilities()->inventoryUpdate` is false — `UpdateProductStockAction`
+     * checks that before ever calling an adapter, so this is reachable only
+     * if that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here (Plan §4.13).
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult
+    {
+        throw new LogicException('EbayAdapter does not support inventory updates yet.');
     }
 
     private function isSandbox(): bool

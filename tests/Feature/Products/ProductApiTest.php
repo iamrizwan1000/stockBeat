@@ -5,6 +5,7 @@ use App\Models\StoreConnection;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -127,4 +128,78 @@ test('a viewer role cannot bulk-update cost prices', function () {
     test()->putJson('/api/v1/products/cost-prices', ['updates' => [
         ['id' => $product->id, 'cost_price' => 10],
     ]])->assertForbidden();
+});
+
+test('a seller can update stock on a woo product and it pushes to the real store', function () {
+    Http::fake(['*/wp-json/wc/v3/products/*' => Http::response(['id' => 555], 200)]);
+
+    $user = onboardedProductUser();
+    $team = $user->currentTeam();
+    $connection = StoreConnection::factory()->create([
+        'team_id' => $team->id,
+        'platform' => StoreConnection::PLATFORM_WOO,
+        'credentials' => ['store_url' => 'https://example-shop.test', 'consumer_key' => 'ck', 'consumer_secret' => 'cs'],
+    ]);
+    $product = Product::factory()->create(['team_id' => $team->id, 'connection_id' => $connection->id, 'external_id' => '555', 'stock_quantity' => 3]);
+
+    $response = test()->putJson("/api/v1/products/{$product->id}/stock", ['quantity' => 25]);
+
+    $response->assertOk()->assertJsonPath('data.product.stock_quantity', 25);
+    expect($product->fresh()->stock_quantity)->toBe(25);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/wp-json/wc/v3/products/555')
+        && ($request['stock_quantity'] ?? null) === 25);
+});
+
+test('updating stock on a channel without inventory-update support returns a clear error', function () {
+    $user = onboardedProductUser();
+    $team = $user->currentTeam();
+    $connection = StoreConnection::factory()->create([
+        'team_id' => $team->id,
+        'platform' => StoreConnection::PLATFORM_ETSY,
+        'credentials' => ['access_token' => '1.fake-token', 'shop_id' => 555111],
+    ]);
+    $product = Product::factory()->create(['team_id' => $team->id, 'connection_id' => $connection->id, 'stock_quantity' => 3]);
+
+    test()->putJson("/api/v1/products/{$product->id}/stock", ['quantity' => 25])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('product');
+
+    expect($product->fresh()->stock_quantity)->toBe(3);
+});
+
+test('a negative stock quantity is rejected', function () {
+    $user = onboardedProductUser();
+    $team = $user->currentTeam();
+    $connection = StoreConnection::factory()->create(['team_id' => $team->id, 'platform' => StoreConnection::PLATFORM_WOO]);
+    $product = Product::factory()->create(['team_id' => $team->id, 'connection_id' => $connection->id]);
+
+    test()->putJson("/api/v1/products/{$product->id}/stock", ['quantity' => -1])
+        ->assertStatus(422);
+});
+
+test('a seller cannot update stock on another team\'s product', function () {
+    onboardedProductUser();
+    $otherTeamProduct = Product::factory()->create();
+
+    test()->putJson("/api/v1/products/{$otherTeamProduct->id}/stock", ['quantity' => 10])
+        ->assertNotFound();
+});
+
+test('a viewer role cannot update stock', function () {
+    $user = onboardedProductUser();
+    $team = $user->currentTeam();
+    $connection = StoreConnection::factory()->create(['team_id' => $team->id, 'platform' => StoreConnection::PLATFORM_WOO]);
+    $product = Product::factory()->create(['team_id' => $team->id, 'connection_id' => $connection->id]);
+
+    $viewer = User::factory()->create();
+    TeamMember::factory()->create([
+        'team_id' => $team->id,
+        'user_id' => $viewer->id,
+        'role' => TeamMember::ROLE_VIEWER,
+    ]);
+    Sanctum::actingAs($viewer);
+
+    test()->putJson("/api/v1/products/{$product->id}/stock", ['quantity' => 10])
+        ->assertForbidden();
 });

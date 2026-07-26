@@ -1,26 +1,28 @@
-name: Support
+name: Payouts
 description: |-
 
-  Live support chat (Plan §4.9). One thread per user, resumed across visits —
-  never a fresh thread. Internal staff notes (`direction=note`) are never
-  returned here.
+  Real payout events (Plan §4.14) — what actually landed in the seller's
+  bank account, distinct from order revenue. Read-only end to end: no
+  create/update/delete, this is purely a reconciliation view. Shopify only
+  in v1 — other platforms simply have no rows here yet, not an error.
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/support/thread
+    uri: api/v1/payouts
     metadata:
       custom: []
-      groupName: Support
+      groupName: Payouts
       groupDescription: |-
 
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
+        Real payout events (Plan §4.14) — what actually landed in the seller's
+        bank account, distinct from order revenue. Read-only end to end: no
+        create/update/delete, this is purely a reconciliation view. Shopify only
+        in v1 — other platforms simply have no rows here yet, not an error.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get (or start) the support thread.'
+      title: "List this team's polled payouts, newest first."
       description: ''
       authenticated: true
       deprecated: false
@@ -43,140 +45,9 @@ endpoints:
           {
             "success": true,
             "message": null,
-            "data": {
-              "thread": { "id": 1, "status": "open" },
-              "messages": [
-                { "id": 1, "direction": "user", "body": "My orders stopped syncing", "attachments": null, "created_at": "2026-07-16T02:00:00.000000Z" }
-              ]
-            }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/v1/support/messages
-    metadata:
-      custom: []
-      groupName: Support
-      groupDescription: |-
-
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Send a message.'
-      description: 'Reopens the thread if it was previously resolved.'
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      body:
-        custom: []
-        name: body
-        description: 'Must not be greater than 4000 characters.'
-        required: true
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      body: b
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 201
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "message": { "id": 2, "direction": "user", "body": "Any update?", "attachments": null, "created_at": "2026-07-16T02:05:00.000000Z" }
-            }
-          }
-        headers: []
-        description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/v1/support/csat
-    metadata:
-      custom: []
-      groupName: Support
-      groupDescription: |-
-
-        Live support chat (Plan §4.9). One thread per user, resumed across visits —
-        never a fresh thread. Internal staff notes (`direction=note`) are never
-        returned here.
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Rate the (resolved) support conversation — 👍/👎 (Plan §4.9/§8.7.6).'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      rating:
-        custom: []
-        name: rating
-        description: ''
-        required: true
-        example: 0
-        type: integer
-        enumValues:
-          - 0
-          - 1
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      rating: 0
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": { "thread": { "id": 1, "csat": 1 } }
+            "data": { "payouts": [
+              { "id": 1, "connection_id": 1, "amount": 482.19, "currency": "USD", "status": "paid", "arrival_date": "2026-07-24" }
+            ] }
           }
         headers: []
         description: success

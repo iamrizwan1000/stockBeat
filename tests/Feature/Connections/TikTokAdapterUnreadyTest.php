@@ -131,8 +131,10 @@ test('capabilities reflects the plan even though the adapter is unconfigured', f
     expect($capabilities->refunds)->toBeFalse();
     expect($capabilities->cancel)->toBeTrue();
     expect($capabilities->messagingMode)->toBe('none');
-    expect($capabilities->inventoryUpdate)->toBeTrue();
+    expect($capabilities->inventoryUpdate)->toBeFalse();
     expect($capabilities->reviewsFeedback)->toBeFalse();
+    expect($capabilities->reviewReply)->toBeFalse();
+    expect($capabilities->payoutsAvailable)->toBeFalse();
 });
 
 test('parseWebhook returns null for an unsigned request regardless of configuration', function () {

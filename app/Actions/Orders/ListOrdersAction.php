@@ -82,6 +82,13 @@ class ListOrdersAction
             $query->whereJsonContains('tags', $filters['tag']);
         }
 
+        // Exact match, distinct from `q` below (Plan §4.16's customer detail
+        // screen) — a customer's full history must be exact, not a fuzzy
+        // substring match that could pull in an unrelated order.
+        if (! empty($filters['customer_email'])) {
+            $query->where('customer_email', $filters['customer_email']);
+        }
+
         if (! empty($filters['q'])) {
             $search = $filters['q'];
 

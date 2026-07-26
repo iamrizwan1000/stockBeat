@@ -4,6 +4,8 @@ namespace App\Contracts;
 
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Support\Connections\ActionResult;
 use App\Support\Connections\CapabilitySet;
@@ -78,6 +80,23 @@ interface ChannelAdapter
      *    always throws `AdapterNotReadyException` regardless of config.
      */
     public function sendMessage(InboxThread $thread, string $body): ActionResult;
+
+    /**
+     * Pushes a new stock quantity to the platform, per
+     * `capabilities()->inventoryUpdate` (Plan §4.13). Real for Shopify and
+     * WooCommerce only — eBay/Etsy/Amazon/TikTok declare this `false` and
+     * throw if called directly, same convention as `sendMessage()`'s
+     * email-only channels.
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult;
+
+    /**
+     * Replies to a customer review/feedback on the platform, per
+     * `capabilities()->reviewReply` (Plan §4.15). Real for eBay only —
+     * every other adapter throws if called directly, same convention as
+     * `updateInventory`.
+     */
+    public function replyToReview(Review $review, string $body): ActionResult;
 
     public function capabilities(): CapabilitySet;
 }

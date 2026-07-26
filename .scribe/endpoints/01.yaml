@@ -40,7 +40,7 @@ endpoints:
         name: provider
         description: ''
         required: true
-        example: apple
+        example: google
         type: string
         enumValues:
           - apple
@@ -60,7 +60,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      provider: apple
+      provider: google
       id_token: architecto
     fileParameters: []
     responses:

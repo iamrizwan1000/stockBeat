@@ -140,17 +140,32 @@ Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 
 **Requires auth**, `owner`/`manager` role. Fires the rule for real right now — **not a dry run**, it really sends the push/email/SMS and really logs an execution. Use this for a "Test this rule" button so the merchant can confirm it works before waiting for it to trigger naturally.
 
-Repeatable — calling it again always works (order-less test fires are exempt from the normal per-order dedup).
+Repeatable — calling it again always works (bypasses conditions/cooldown/quiet-hours entirely, not just the per-order dedup).
 
 ```json
 { "success": true, "message": null, "data": { "execution": {
-  "id": 10, "order_id": null, "trigger": "high_value_order",
+  "id": 10, "order_id": null, "trigger": "test_fire",
   "actions_result": [{"type": "push", "status": "sent"}], "fired_at": "2026-07-16T02:00:00.000000Z"
 } } }
 ```
-`actions_result[].status` varies by action type — real values include `sent`, `quota_exceeded` (email/SMS monthly cap hit), `muted_by_preference`, `quiet_hours`, `insufficient_credit` (SMS), `no_phone_number` (SMS), `missing_user_id`/`skipped_no_order` (misconfigured action). Show these plainly in a test-fire result screen rather than just "success"/"failure" — they're genuinely informative.
+**`trigger` is always the literal string `"test_fire"` here, never the rule's own trigger type** — a real, easy assumption to get wrong if you're inferring the icon/label for an execution row from its `trigger` field. Handle `"test_fire"` as its own case in any executions-list rendering, distinct from `"high_value_order"` etc.
 
-**`muted_by_store` (added 2026-07-23) never appears here** — test-fire has no order/subject behind it, so there's no store connection to check, regardless of any store's mute setting (`connections-api-reference.md`'s `PATCH /connections/{id}`). It's a real value only in `GET /rules/{id}/executions` below, for genuine firings.
+**`actions_result[].status` varies by action type — full real vocabulary:**
+| Action type | Possible `status` values |
+|---|---|
+| `push` | `sent`, `failed` (FCM rejected every device), `no_devices` (no registered push tokens), `muted_by_preference` (recipient disabled push in Settings), `quiet_hours` (recipient's own personal quiet hours, Settings-level — **not** the rule's `controls.quiet_hours`, see below), `muted_by_store`, `bundled_suppressed` (storm-protection bundling swallowed an individual ping — order-triggered pushes only) |
+| `email` | `sent`, `quota_exceeded` (team's monthly email cap), `muted_by_preference`, `quiet_hours` (same personal-preference caveat as push), `muted_by_store` |
+| `sms` | `sent`, `failed` (Twilio API call failed), `insufficient_credit`, `no_phone_number`, `not_yet_available` (Twilio not configured for this environment), `muted_by_store` |
+| `notify_member` | Same as `push` above (it delegates to the same send), plus `not_a_team_member` (the `user_id` isn't on this team) or `missing_user_id` (the action itself has no `user_id` at all — a malformed action, shouldn't happen since `POST /rules` validates this) |
+| `auto_tag` | `tagged`, `already_tagged` (idempotent, not an error), `skipped_no_order` (order-less trigger — auto-tag has nothing to tag) |
+
+Show these plainly in a test-fire result screen rather than just "success"/"failure" — they're genuinely informative (e.g. `no_devices` tells the merchant to check their push permissions, not that something's broken server-side).
+
+**Two unrelated "quiet hours" concepts — don't conflate them:**
+1. **Rule-level** (`controls.quiet_hours` on the rule itself) — checked *before* any actions dispatch. If within the window, the **entire execution** is skipped and logged as `actions_result: [{"status": "skipped_quiet_hours"}]` — note this single entry has **no `type` key at all**, unlike every other entry in this array, since no individual action ever ran.
+2. **Per-recipient** (`quiet_hours` as an individual action's `status`, above) — the specific recipient has their *own* personal quiet hours set in `settings-api-reference.md`'s notification preferences. The rule still fired and dispatched normally; this one recipient's push/email just didn't go out to them personally.
+
+**`muted_by_store` (added 2026-07-23) never appears in a test-fire result** — test-fire has no order/subject behind it, so there's no store connection to check, regardless of any store's mute setting (`connections-api-reference.md`'s `PATCH /connections/{id}`). It's a real value only in `GET /rules/{id}/executions` below, for genuine firings.
 
 ## `GET /rules/{id}/executions`
 

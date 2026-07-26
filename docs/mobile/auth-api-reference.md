@@ -149,7 +149,7 @@ Unauthenticated. Sign in with Apple or Google as an alternative to email OTP —
 }
 ```
 
-**Account convergence — important for the "which screen next" decision:** all three sign-in paths (OTP, Apple, Google) resolve to the *same* user record by verified email. Someone who signed up via OTP once and later taps "Continue with Apple" lands back on their existing account (`is_new_user: false`, all their data intact) — this endpoint never creates a second account for an email that already exists. Route purely on `is_new_user`, exactly like the OTP flow — don't add any provider-specific branching to the post-sign-in navigation.
+**Account convergence — important for the "which screen next" decision:** all three sign-in paths (OTP, Apple, Google) resolve to the *same* user record — someone who signed up via OTP once and later taps "Continue with Apple" lands back on their existing account (`is_new_user: false`, all their data intact), this endpoint never creates a second account for them. The actual matching isn't uniformly "by email" though: a *returning* social sign-in is matched first by the provider's own stable subject id (`apple_sub`/`google_sub`, stored on first use) — only a *first-ever* social sign-in for that provider falls back to matching an existing account by verified email (e.g. one created via OTP). This matters in practice because it means a changed email at the provider (including Apple swapping in a new private-relay address) doesn't break convergence for a returning user — the subject id is what's actually stable, not the email. Route purely on `is_new_user`, exactly like the OTP flow — don't add any provider-specific branching to the post-sign-in navigation.
 
 **Errors (all 422, read the message under `errors.id_token[0]` / `errors.provider[0]` / `errors.email[0]`):**
 | Message | Meaning | What the client should do |
@@ -285,13 +285,15 @@ Note: **no `team` or `entitlements` in this response** — call `GET /me` right 
     "team": null,
     "entitlements": null,
     "feature_flags": null,
-    "sms_topup_packs": [],
-    "ai_topup_packs": [],
-    "content": {},
+    "sms_topup_packs": [ { "key": "sms_100", "name": "100 SMS", "sms_credits": 100, "price_usd": "2.99" } ],
+    "ai_topup_packs": [ { "key": "ai_50", "name": "50 AI questions", "ai_questions": 50, "price_usd": "4.99" } ],
+    "content": { "paywall_pro_headline": "..." },
     "needs_profile_setup": true
   }
 }
 ```
+
+**`sms_topup_packs`, `ai_topup_packs`, and `content` are populated here too, not empty** — these three are global admin-managed catalogs with no team dependency at all, so the backend fetches them unconditionally regardless of `needs_profile_setup`. Only `team`, `entitlements`, and `feature_flags` are genuinely `null` while setup is pending (those three do require a team to resolve). Don't build UI logic that assumes the topup/content data is unavailable pre-setup — it's the same live data as the post-setup response.
 
 **Routing rule:** always branch navigation on `needs_profile_setup`, never on whether `team`/`entitlements` are present (they're just null together when setup is pending — same signal, but `needs_profile_setup` is the explicit one to check).
 

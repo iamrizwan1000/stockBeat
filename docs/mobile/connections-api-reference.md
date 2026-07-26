@@ -59,7 +59,7 @@ For all four OAuth platforms, "real" means the authorization URL generation and 
         "refunds": true,
         "cancel": true,
         "messaging_mode": "email",
-        "inventory_update": false,
+        "inventory_update": true,
         "reviews_feedback": true
       }
     }
@@ -123,7 +123,7 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
         "status": "active",
         "last_sync_at": "2026-07-16T01:45:00.000000Z",
         "webhook_status": "registered",
-        "capabilities": { "realtime_orders": true, "fulfill_tracking": true, "refunds": true, "cancel": true, "messaging_mode": "email", "inventory_update": false, "reviews_feedback": true }
+        "capabilities": { "realtime_orders": true, "fulfill_tracking": true, "refunds": true, "cancel": true, "messaging_mode": "email", "inventory_update": true, "reviews_feedback": true }
       }
     ]
   }
@@ -148,7 +148,7 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
 | `refunds` | Show the "Refund" quick action |
 | `cancel` | Show the "Cancel order" quick action |
 | `messaging_mode` | `"full"` (native in-app messaging), `"approval_gated"` (Etsy — may 422 until platform approval lands, handle gracefully), `"email"` (Shopify/Woo — goes through our own email thread, not a native message), `"template"` (Amazon — restricted, not usable yet) |
-| `inventory_update` | Whether stock levels sync in real time vs. poll-only — informational |
+| `inventory_update` | **Added 2026-07-26, no longer just informational.** `true` only for `shopify`/`woo` today — means the seller can actually push a corrected stock quantity to this connection via `PUT /products/{id}/stock` (`products-api-reference.md`). `false` for eBay/Etsy/Amazon/TikTok means that endpoint 422s for products on this connection — use this flag (not the platform name) to decide whether to show the stock-edit stepper on a product row. |
 | `reviews_feedback` | Whether the `negative_review` rule trigger has real data for this connection |
 
 ---

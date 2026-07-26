@@ -15,11 +15,15 @@ This tab is a menu hub, not a single screen — each row below opens its own sma
 1. **Account header** — name, email, plan badge (from `entitlements.plan`; render `subscription_status === "trial"` as a small "Trial ends in N days" chip using `trial_ends_at`, and `"grace"` as a soft warning chip — see Screen 4).
 2. **Notification Preferences** → Screen 2. Every plan.
 3. **Team & Roles** → Screen 3. **Gate on `entitlements.limits.team_seats`** — hide or show locked-with-upgrade-prompt for Free/Starter-without-seats, consistent with how `rules-flow-screens.md`/`inbox-flow-screens.md` gate their own Pro+ rows.
-4. **Subscription / Billing** → Screen 4. Every plan — Free users see it as "Upgrade," paid users see it as "Manage subscription."
-5. **Help & Support** → Screen 5. Every plan, including Free — never gated, never hidden.
-6. **Data & Privacy** (export / delete account) → Screen 6. Every plan.
-7. **Dark Mode** toggle, **Language** picker — client-only, no request, applies immediately.
-8. **Log out** / **Log out of all devices** — already documented in `auth-flow-screens.md`, just cross-reference; reuse that logic here rather than re-implementing it.
+4. **Products** (a.k.a. "Inventory" — one screen, not two rows) → `ProductCostPricesScreen`, fully documented in `products-flow-screens.md` (added 2026-07-22, stock-quantity control added 2026-07-26). Every plan — not plan-gated server-side, no entitlement check needed to show it.
+5. **Customers** → `CustomersScreen`, fully documented in `customers-flow-screens.md` (added 2026-07-26). Every plan — not plan-gated server-side. Read-only; no `customers` table exists, this is an aggregation over orders.
+6. **Payouts** → `PayoutsScreen`, fully documented in `payouts-flow-screens.md` (added 2026-07-26). Every plan — not plan-gated server-side. Read-only reconciliation view; only shows real data for connected Shopify stores.
+7. **Reviews** → `ReviewsScreen`, fully documented in `reviews-flow-screens.md` (added 2026-07-26). Every plan — not plan-gated server-side. Reply control only shows for eBay-sourced reviews.
+8. **Subscription / Billing** → Screen 4. Every plan — Free users see it as "Upgrade," paid users see it as "Manage subscription."
+9. **Help & Support** → Screen 5. Every plan, including Free — never gated, never hidden.
+10. **Data & Privacy** (export / delete account) → Screen 6. Every plan.
+11. **Dark Mode** toggle, **Language** picker — client-only, no request, applies immediately.
+12. **Log out** / **Log out of all devices** — already documented in `auth-flow-screens.md`, just cross-reference; reuse that logic here rather than re-implementing it.
 
 ---
 

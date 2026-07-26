@@ -81,6 +81,9 @@ Schedule::command('reviews:poll-woo')->hourly();
 Schedule::command('products:poll-ebay')->everyThirtyMinutes();
 Schedule::command('reviews:poll-ebay')->hourly();
 
+// Payouts (Plan §4.14) — no payout webhook exists, poll-only, Shopify only in v1.
+Schedule::command('payouts:poll-shopify')->everyThirtyMinutes();
+
 // Admin messaging center (Plan §8.7.5) — dispatches broadcasts once their scheduled_at arrives.
 Schedule::command('messaging:send-scheduled-broadcasts')->everyFiveMinutes();
 

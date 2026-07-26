@@ -1,29 +1,19 @@
-name: Products
-description: |-
-
-  Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-  catalog management feature. The only seller-editable field is
-  `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-  cost-of-goods.
+name: Notifications
+description: ''
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/products
+    uri: api/v1/notifications
     metadata:
       custom: []
-      groupName: Products
-      groupDescription: |-
-
-        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-        catalog management feature. The only seller-editable field is
-        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-        cost-of-goods.
+      groupName: Notifications
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: "List this team's polled products."
-      description: ''
+      title: 'List notifications.'
+      description: 'Most recent 50, newest first.'
       authenticated: true
       deprecated: false
     headers:
@@ -37,7 +27,30 @@ endpoints:
     bodyParameters: []
     cleanBodyParameters: []
     fileParameters: []
-    responses: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": {
+              "notifications": [
+                {
+                  "id": 1,
+                  "type": "rule_fired",
+                  "title": "High-value order",
+                  "body": "Order #1042 — $84.00",
+                  "data": { "order_id": 1, "rule_id": 1 },
+                  "read_at": null,
+                  "created_at": "2026-07-16T01:00:00.000000Z"
+                }
+              ]
+            }
+          }
+        headers: []
+        description: success
     responseFields: []
     auth:
       - headers
@@ -49,84 +62,15 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - PUT
-    uri: 'api/v1/products/{product_id}/cost-price'
+      - POST
+    uri: api/v1/notifications/read
     metadata:
       custom: []
-      groupName: Products
-      groupDescription: |-
-
-        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-        catalog management feature. The only seller-editable field is
-        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-        cost-of-goods.
+      groupName: Notifications
+      groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: "Set (or clear) a product's seller-entered cost price."
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      product_id:
-        custom: []
-        name: product_id
-        description: 'The ID of the product.'
-        required: true
-        example: 16
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      product_id: 16
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      cost_price:
-        custom: []
-        name: cost_price
-        description: 'Must be at least 0. Must not be greater than 999999.99.'
-        required: false
-        example: 1
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      cost_price: 1
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: api/v1/products/cost-prices
-    metadata:
-      custom: []
-      groupName: Products
-      groupDescription: |-
-
-        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
-        catalog management feature. The only seller-editable field is
-        `cost_price` (Plan §4.12 Phase B), since no platform API exposes true
-        cost-of-goods.
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Set (or clear) cost prices on several products in one call.'
+      title: 'Mark notifications as read.'
       description: ''
       authenticated: true
       deprecated: false
@@ -139,46 +83,34 @@ endpoints:
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
-      updates:
+      ids:
         custom: []
-        name: updates
-        description: 'Must have at least 1 items. Must not have more than 500 items.'
-        required: true
-        example:
-          - []
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'updates[].id':
-        custom: []
-        name: 'updates[].id'
+        name: ids
         description: ''
-        required: true
-        example: 16
-        type: integer
+        required: false
+        example:
+          - 16
+        type: 'integer[]'
         enumValues: []
         exampleWasSpecified: false
         nullable: false
-        deprecated: false
-      'updates[].cost_price':
-        custom: []
-        name: 'updates[].cost_price'
-        description: 'Must be at least 0. Must not be greater than 999999.99.'
-        required: false
-        example: 22
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
         deprecated: false
     cleanBodyParameters:
-      updates:
-        - id: 16
-          cost_price: 22
+      ids:
+        - 16
     fileParameters: []
-    responses: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": { "marked_read": 3 }
+          }
+        headers: []
+        description: success
     responseFields: []
     auth:
       - headers

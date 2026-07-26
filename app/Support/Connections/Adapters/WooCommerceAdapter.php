@@ -6,6 +6,8 @@ use App\Contracts\ChannelAdapter;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\Rule;
 use App\Models\StoreConnection;
 use App\Support\Connections\ActionResult;
@@ -279,6 +281,43 @@ class WooCommerceAdapter implements ChannelAdapter
     public function sendMessage(InboxThread $thread, string $body): ActionResult
     {
         throw new LogicException('WooCommerceAdapter is email-only for messaging (Plan §7.7) — use SendInboxMessageAction\'s email path instead of ChannelAdapter::sendMessage().');
+    }
+
+    /**
+     * `capabilities()->reviewReply` is false — `ReplyToReviewAction` checks
+     * that before ever calling an adapter, so this is reachable only if
+     * that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here. WooCommerce reviews are WordPress comments
+     * under the hood; `wc/v3`'s own review-create endpoint hardcodes
+     * `comment_parent` to `0` with no reply mechanism at all, and the real
+     * path (`wp/v2/comments`) needs a different credential (WordPress
+     * Application Passwords, not this adapter's consumer-key/secret) —
+     * explicitly deferred, not attempted (Plan §4.15).
+     */
+    public function replyToReview(Review $review, string $body): ActionResult
+    {
+        throw new LogicException('WooCommerceAdapter does not support review replies yet — see Plan §4.15 for why this is deferred, not just unbuilt.');
+    }
+
+    /**
+     * `products.external_id` is the Woo product's own id (set by
+     * `PollWooProductsJob`), so this is a single direct call, same shape as
+     * `fulfill()`/`refund()`/`cancel()` above (Plan §4.13).
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult
+    {
+        $response = $this->httpFor($product->connection)
+            ->put("{$this->storeUrl($product->connection)}/wp-json/wc/v3/products/{$product->external_id}", [
+                'stock_quantity' => $quantity,
+            ]);
+
+        if ($response->failed()) {
+            return ActionResult::failure('WooCommerce rejected the inventory update.');
+        }
+
+        $product->update(['stock_quantity' => $quantity]);
+
+        return ActionResult::success('Stock quantity updated.');
     }
 
     private function httpFor(StoreConnection $connection): PendingRequest

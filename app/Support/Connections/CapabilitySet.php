@@ -16,6 +16,8 @@ final readonly class CapabilitySet
         public string $messagingMode,
         public bool $inventoryUpdate,
         public bool $reviewsFeedback,
+        public bool $payoutsAvailable = false,
+        public bool $reviewReply = false,
     ) {}
 
     /**
@@ -31,6 +33,8 @@ final readonly class CapabilitySet
             'messaging_mode' => $this->messagingMode,
             'inventory_update' => $this->inventoryUpdate,
             'reviews_feedback' => $this->reviewsFeedback,
+            'payouts_available' => $this->payoutsAvailable,
+            'review_reply' => $this->reviewReply,
         ];
     }
 }

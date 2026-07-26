@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "73edc58c-1290-43a6-8c6f-44326317c6f9",
+        "_postman_id": "0b829a49-ccd3-43f8-be18-3422c60f2053",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -245,7 +245,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"today\"}"
+                            "raw": "{\"range\":\"7d\"}"
                         },
                         "description": "`comparison` and `goal` are only present at the `full` analytics level (Pro\/Premium)."
                     },
@@ -299,7 +299,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"30d\"}"
+                            "raw": "{\"range\":\"7d\"}"
                         },
                         "description": "Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary."
                     },
@@ -512,7 +512,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"ebay\"],\"timezone\":\"America\\\/La_Paz\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"etsy\"],\"timezone\":\"Pacific\\\/Honolulu\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -623,7 +623,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"provider\":\"apple\",\"id_token\":\"architecto\"}"
+                            "raw": "{\"provider\":\"google\",\"id_token\":\"architecto\"}"
                         },
                         "description": "Verifies the client-obtained id_token server-side, then issues a Sanctum bearer token.\nSame response shape as `\/auth\/otp\/verify` \u2014 `is_new_user` tells the client whether to\nroute into `\/profile\/setup` next.",
                         "auth": {
@@ -678,7 +678,7 @@
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"plan\": \"pro\",\n    \"limits\": { \"max_stores\": 10, \"sms_monthly\": 100 },\n    \"subscription_status\": \"active\",\n    \"trial_ends_at\": null,\n    \"sms_balance\": 42,\n    \"ai_questions_remaining\": 148\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"plan\": \"pro\",\n    \"limits\": { \"max_stores\": 10, \"sms_monthly\": 100 },\n    \"subscription_status\": \"active\",\n    \"trial_ends_at\": null,\n    \"sms_balance\": 42,\n    \"ai_questions_remaining\": 148,\n    \"emails_remaining\": 660\n  }\n}",
                             "name": "success"
                         },
                         {
@@ -719,7 +719,7 @@
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"plan\": \"pro\",\n    \"limits\": { \"max_stores\": 10, \"sms_monthly\": 100 },\n    \"subscription_status\": \"active\",\n    \"trial_ends_at\": null,\n    \"sms_balance\": 42,\n    \"ai_questions_remaining\": 148\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"plan\": \"pro\",\n    \"limits\": { \"max_stores\": 10, \"sms_monthly\": 100 },\n    \"subscription_status\": \"active\",\n    \"trial_ends_at\": null,\n    \"sms_balance\": 42,\n    \"ai_questions_remaining\": 148,\n    \"emails_remaining\": 660\n  }\n}",
                             "name": "success"
                         },
                         {
@@ -876,7 +876,7 @@
                                 {
                                     "id": "connection_id",
                                     "key": "connection_id",
-                                    "value": 3,
+                                    "value": 16,
                                     "description": "The ID of the connection."
                                 }
                             ]
@@ -911,6 +911,49 @@
                     ]
                 },
                 {
+                    "name": "Mute or unmute alerts from this store.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/connections\/:connection_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/connections\/:connection_id",
+                            "variable": [
+                                {
+                                    "id": "connection_id",
+                                    "key": "connection_id",
+                                    "value": 16,
+                                    "description": "The ID of the connection."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"notifications_muted\":false}"
+                        },
+                        "description": "The only editable field on an existing connection today \u2014 syncing continues either way,\nthis only stops push\/email\/SMS from rules whose firing traces back to this store. Rule\nfires are still logged in the notification center regardless (Plan \u00a74.8\/\u00a717.4's \"logged\nbut not delivered\" convention)."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"connection\": {\n      \"id\": 1,\n      \"platform\": \"woo\",\n      \"name\": \"Rivera Vintage Co\",\n      \"status\": \"active\",\n      \"notifications_muted\": true,\n      \"last_sync_at\": \"2026-07-16T01:45:00.000000Z\",\n      \"webhook_status\": \"registered\"\n    }\n  }\n}",
+                            "name": "success"
+                        }
+                    ]
+                },
+                {
                     "name": "Disconnect a store.",
                     "request": {
                         "url": {
@@ -922,7 +965,7 @@
                                 {
                                     "id": "id",
                                     "key": "id",
-                                    "value": 3,
+                                    "value": 16,
                                     "description": "The ID of the connection."
                                 }
                             ]
@@ -953,6 +996,37 @@
             ]
         },
         {
+            "name": "Customers",
+            "description": "\nA query-time aggregation over `orders` (Plan \u00a74.16) \u2014 no new table.\nRead-only end to end; for a customer's full order history, use\n`GET \/orders?customer_email=...` (`orders-api-reference.md`), not a\nseparate endpoint here.",
+            "item": [
+                {
+                    "name": "List this team's customers, grouped by email, most recent order first.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/customers",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/customers"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Devices",
             "description": "",
             "item": [
@@ -978,7 +1052,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"platform\":\"ios\",\"push_token\":\"b\"}"
+                            "raw": "{\"platform\":\"android\",\"push_token\":\"b\"}"
                         },
                         "description": "Upserts the device's push token so the backend can deliver notifications to it."
                     },
@@ -1328,7 +1402,7 @@
                         {
                             "header": [],
                             "code": 200,
-                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42, \"ai_questions_remaining\": 148 },\n    \"feature_flags\": { \"new_rules_ui\": true },\n    \"sms_topup_packs\": [ { \"key\": \"sms_100\", \"name\": \"100 SMS\", \"sms_credits\": 100, \"price_usd\": \"2.99\" } ],\n    \"ai_topup_packs\": [ { \"key\": \"ai_50\", \"name\": \"50 AI questions\", \"ai_questions\": 50, \"price_usd\": \"4.99\" } ],\n    \"content\": { \"paywall_pro_headline\": \"...\" },\n    \"needs_profile_setup\": false\n  }\n}",
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"business_name\": \"Rivera Vintage Co\",\n      \"base_currency\": \"AUD\",\n      \"timezone\": \"Australia\/Sydney\",\n      \"sells_on\": [\"woocommerce\"]\n    },\n    \"team\": { \"id\": 1, \"name\": \"Rivera Vintage Co\", \"role\": \"owner\" },\n    \"entitlements\": { \"plan\": \"pro\", \"history_days\": 90, \"sms_balance\": 42, \"ai_questions_remaining\": 148, \"emails_remaining\": 660 },\n    \"feature_flags\": { \"new_rules_ui\": true },\n    \"sms_topup_packs\": [ { \"key\": \"sms_100\", \"name\": \"100 SMS\", \"sms_credits\": 100, \"price_usd\": \"2.99\" } ],\n    \"ai_topup_packs\": [ { \"key\": \"ai_50\", \"name\": \"50 AI questions\", \"ai_questions\": 50, \"price_usd\": \"4.99\" } ],\n    \"content\": { \"paywall_pro_headline\": \"...\" },\n    \"needs_profile_setup\": false\n  }\n}",
                             "name": "profile setup complete"
                         },
                         {
@@ -1440,7 +1514,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"amazon\",\"store\":16,\"status\":\"unfulfilled\",\"date_from\":\"2026-07-22T15:00:59\",\"date_to\":\"2026-07-22T15:00:59\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"include_snoozed\":false}"
+                            "raw": "{\"channel\":\"woo\",\"store\":16,\"status\":\"refunded\",\"date_from\":\"2026-07-26T17:28:08\",\"date_to\":\"2026-07-26T17:28:08\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"customer_email\":\"zbailey@example.net\",\"include_snoozed\":false}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -1465,7 +1539,7 @@
                                 {
                                     "id": "id",
                                     "key": "id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1505,7 +1579,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1548,7 +1622,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1591,7 +1665,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1609,7 +1683,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"until\":\"2052-08-15\"}"
+                            "raw": "{\"until\":\"2052-08-19\"}"
                         },
                         "description": "Pass `until` as an ISO-8601 datetime to snooze, or omit\/null it to clear the snooze."
                     },
@@ -1634,7 +1708,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1683,7 +1757,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1726,7 +1800,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1769,7 +1843,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1802,7 +1876,7 @@
                                 {
                                     "id": "order_id",
                                     "key": "order_id",
-                                    "value": 4,
+                                    "value": 16,
                                     "description": "The ID of the order."
                                 }
                             ]
@@ -1836,8 +1910,46 @@
             ]
         },
         {
+            "name": "Payouts",
+            "description": "\nReal payout events (Plan \u00a74.14) \u2014 what actually landed in the seller's\nbank account, distinct from order revenue. Read-only end to end: no\ncreate\/update\/delete, this is purely a reconciliation view. Shopify only\nin v1 \u2014 other platforms simply have no rows here yet, not an error.",
+            "item": [
+                {
+                    "name": "List this team's polled payouts, newest first.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/payouts",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/payouts"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"payouts\": [\n    { \"id\": 1, \"connection_id\": 1, \"amount\": 482.19, \"currency\": \"USD\", \"status\": \"paid\", \"arrival_date\": \"2026-07-24\" }\n  ] }\n}",
+                            "name": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "Products",
-            "description": "\nPolled product\/stock snapshots (Plan \u00a74.4's `low_stock` trigger) \u2014 not a\ncatalog management feature. The only seller-editable field is\n`cost_price` (Plan \u00a74.12 Phase B), since no platform API exposes true\ncost-of-goods.",
+            "description": "\nPolled product\/stock snapshots (Plan \u00a74.4's `low_stock` trigger) \u2014 not a\ncatalog management feature. Seller-editable fields are `cost_price` (Plan\n\u00a74.12 Phase B, since no platform API exposes true cost-of-goods) and, as\nof \u00a74.13, `stock_quantity` on Shopify\/WooCommerce connections \u2014 a quick\nfix, not full listing\/catalog editing.",
             "item": [
                 {
                     "name": "List this team's polled products.",
@@ -1927,6 +2039,135 @@
                         "description": ""
                     },
                     "response": []
+                },
+                {
+                    "name": "Push a corrected stock quantity to the product's platform.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/products\/:product_id\/stock",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/products\/:product_id\/stock",
+                            "variable": [
+                                {
+                                    "id": "product_id",
+                                    "key": "product_id",
+                                    "value": 16,
+                                    "description": "The ID of the product."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"quantity\":27}"
+                        },
+                        "description": "Calls through to the real channel adapter where available (Shopify\/WooCommerce today); capability-checked\nserver-side, so this 422s with a plain-language message on platforms that aren't supported yet."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Stock quantity updated.\",\n  \"data\": { \"product\": { \"id\": 1, \"connection_id\": 1, \"sku\": \"SKU-1234\", \"title\": \"Blue Widget\", \"stock_quantity\": 25, \"cost_price\": null } }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"product\": [\"This channel doesn't support updating stock from here.\"] }\n}",
+                            "name": "capability not supported"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Reviews",
+            "description": "\nPolled customer reviews (Plan \u00a74.4's `negative_review` trigger) \u2014 the\nonly seller-actionable field is a reply, per \u00a74.15, and only on channels\nwhere `capabilities()->reviewReply` is true (eBay only in v1).",
+            "item": [
+                {
+                    "name": "List this team's polled reviews, newest first.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/reviews",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/reviews"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reply to a review on its platform.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/reviews\/:review_id\/reply",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/reviews\/:review_id\/reply",
+                            "variable": [
+                                {
+                                    "id": "review_id",
+                                    "key": "review_id",
+                                    "value": 16,
+                                    "description": "The ID of the review."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Reply sent.\",\n  \"data\": { \"review\": { \"id\": 1, \"connection_id\": 1, \"rating\": 1, \"content\": \"Item arrived late.\" } }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"review\": [\"This channel doesn't support replying to reviews from here.\"] }\n}",
+                            "name": "capability not supported"
+                        }
+                    ]
                 }
             ]
         },
@@ -1988,7 +2229,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"ai_insight\",\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"15:00\",\"end\":\"15:00\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"15:00\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"tag\",\"operator\":\"neq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"channel\",\"operator\":\"in\",\"value\":\"architecto\"}]}}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"payment_failed\",\"actions\":[{\"type\":\"email\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"17:28\",\"end\":\"17:28\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"daily\",\"digest_time\":\"17:28\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"shipping_method\",\"operator\":\"lte\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"repeat_buyer\",\"operator\":\"eq\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -2037,7 +2278,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"high_value_order\",\"sound\":\"alert\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"15:00\",\"end\":\"15:00\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"15:00\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"channel\",\"operator\":\"lte\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"product\",\"operator\":\"lt\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"email\",\"tag\":\"n\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"digest\",\"sound\":\"cha_ching\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"17:28\",\"end\":\"17:28\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"17:28\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"shipping_method\",\"operator\":\"between\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"lte\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"push\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -2190,7 +2431,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":false,\"email_enabled\":true,\"sms_enabled\":false,\"quiet_hours_start\":\"15:00\",\"quiet_hours_end\":\"15:00\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"chime\"}"
+                            "raw": "{\"push_enabled\":false,\"email_enabled\":false,\"sms_enabled\":true,\"quiet_hours_start\":\"17:28\",\"quiet_hours_end\":\"17:28\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"chime\"}"
                         },
                         "description": ""
                     },
@@ -2298,7 +2539,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"rating\":0}"
+                            "raw": "{\"rating\":1}"
                         },
                         "description": ""
                     },
@@ -2371,7 +2612,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"viewer\",\"store_visibility\":[16]}"
+                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"agent\",\"store_visibility\":[16]}"
                         },
                         "description": "`store_visibility` optionally restricts the invited member to specific connection IDs."
                     },
@@ -2396,7 +2637,7 @@
                                 {
                                     "id": "member_id",
                                     "key": "member_id",
-                                    "value": 3,
+                                    "value": 16,
                                     "description": "The ID of the member."
                                 }
                             ]
@@ -2439,7 +2680,7 @@
                                 {
                                     "id": "member_id",
                                     "key": "member_id",
-                                    "value": 3,
+                                    "value": 16,
                                     "description": "The ID of the member."
                                 }
                             ]
@@ -2470,6 +2711,50 @@
                             "code": 422,
                             "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"member\": [\"The team owner can't be removed.\"] }\n}",
                             "name": "owner"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Usage",
+            "description": "\nUsage-history view over SMS\/AI-question\/email quotas \u2014 a companion to\n`GET \/me`\/`GET \/billing\/entitlements`, which only report the current\nstanding balance. This adds how much of this month's allotment has been\nused (`pct_used`, `quota_warning` once at 80%+) and a 30-day daily\nbreakdown for a usage graph.",
+            "item": [
+                {
+                    "name": "Get the team's usage summary across SMS, AI questions, and email.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/usage\/summary",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/usage\/summary"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"sms\": {\n      \"balance\": 42,\n      \"plan_monthly_allotment\": 100,\n      \"used_this_month\": 8,\n      \"pct_used\": 8.0,\n      \"quota_warning\": false,\n      \"daily\": [{\"date\": \"2026-06-25\", \"count\": 0}, {\"date\": \"2026-07-24\", \"count\": 2}]\n    },\n    \"ai_questions\": {\n      \"limit\": 150,\n      \"used_this_month\": 12,\n      \"remaining\": 138,\n      \"pct_used\": 8.0,\n      \"quota_warning\": false,\n      \"daily\": [{\"date\": \"2026-06-25\", \"count\": 0}, {\"date\": \"2026-07-24\", \"count\": 1}]\n    },\n    \"emails\": {\n      \"limit\": 1000,\n      \"used_this_month\": 220,\n      \"remaining\": 780,\n      \"pct_used\": 22.0,\n      \"quota_warning\": false,\n      \"daily\": [{\"date\": \"2026-06-25\", \"count\": 0}, {\"date\": \"2026-07-24\", \"count\": 6}]\n    }\n  }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Complete profile setup first.\",\n  \"errors\": null\n}",
+                            "name": "profile setup not complete"
                         }
                     ]
                 }

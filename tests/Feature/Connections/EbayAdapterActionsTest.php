@@ -2,6 +2,8 @@
 
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\EbayAdapter;
 use App\Support\Connections\FulfillmentData;
@@ -251,4 +253,56 @@ test('refreshAuth marks needs_reauth when the refresh call fails', function () {
     app(EbayAdapter::class)->refreshAuth($connection);
 
     expect($connection->fresh()->status)->toBe(StoreConnection::STATUS_NEEDS_REAUTH);
+});
+
+test('capabilities report inventory updates as unsupported since only reads are real', function () {
+    expect(app(EbayAdapter::class)->capabilities()->inventoryUpdate)->toBeFalse();
+});
+
+test('updateInventory throws since inventory updates are not supported yet', function () {
+    $product = Product::factory()->create();
+
+    app(EbayAdapter::class)->updateInventory($product, 10);
+})->throws(LogicException::class);
+
+test('capabilities report review reply as supported since a real Commerce Feedback API call exists', function () {
+    expect(app(EbayAdapter::class)->capabilities()->reviewReply)->toBeTrue();
+});
+
+test('replyToReview posts feedbackId, recipientUserId, and responseText to the Commerce Feedback API', function () {
+    Http::fake(['api.sandbox.ebay.com/commerce/feedback/v1/respond_to_feedback' => Http::response([], 200)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_EBAY,
+        'credentials' => ['access_token' => 'fake-token'],
+    ]);
+    $review = Review::factory()->create([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'external_id' => 'fb-9001',
+        'reviewer_name' => 'buyer123',
+    ]);
+
+    $result = app(EbayAdapter::class)->replyToReview($review, 'Sorry about that, we shipped a replacement today.');
+
+    expect($result->success)->toBeTrue();
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/commerce/feedback/v1/respond_to_feedback')
+        && ($request['feedbackId'] ?? null) === 'fb-9001'
+        && ($request['recipientUserId'] ?? null) === 'buyer123'
+        && ($request['responseText'] ?? null) === 'Sorry about that, we shipped a replacement today.');
+});
+
+test('replyToReview fails cleanly when eBay rejects the reply', function () {
+    Http::fake(['api.sandbox.ebay.com/commerce/feedback/v1/respond_to_feedback' => Http::response(['errors' => 'already responded'], 422)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_EBAY,
+        'credentials' => ['access_token' => 'fake-token'],
+    ]);
+    $review = Review::factory()->create(['connection_id' => $connection->id, 'team_id' => $connection->team_id]);
+
+    $result = app(EbayAdapter::class)->replyToReview($review, 'Sorry about that.');
+
+    expect($result->success)->toBeFalse();
 });

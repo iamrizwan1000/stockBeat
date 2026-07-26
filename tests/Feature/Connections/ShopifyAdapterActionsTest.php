@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\ShopifyAdapter;
 use App\Support\Connections\FulfillmentData;
@@ -23,6 +25,21 @@ function shopifyOrderForActions(array $overrides = []): Order
         'platform' => StoreConnection::PLATFORM_SHOPIFY,
         'external_id' => '5551234',
         'total' => 100.00,
+    ], $overrides));
+}
+
+function shopifyProductForActions(array $overrides = []): Product
+{
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_SHOPIFY,
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com', 'access_token' => 'shpat_faketoken'],
+    ]);
+
+    return Product::factory()->create(array_merge([
+        'connection_id' => $connection->id,
+        'team_id' => $connection->team_id,
+        'external_id' => '778899',
+        'stock_quantity' => 3,
     ], $overrides));
 }
 
@@ -135,4 +152,82 @@ test('a failed cancel API call reports failure without changing local status', f
 
     expect($result->success)->toBeFalse();
     expect($order->fresh()->status)->toBe(Order::STATUS_NEW);
+});
+
+test('updateInventory resolves the variant and location then sets availability', function () {
+    Http::fake([
+        '*/variants/778899.json' => Http::response(['variant' => ['id' => 778899, 'inventory_item_id' => 42]], 200),
+        '*/locations.json' => Http::response(['locations' => [['id' => 99]]], 200),
+        '*/inventory_levels/set.json' => Http::response(['inventory_level' => ['available' => 50]], 200),
+    ]);
+
+    $product = shopifyProductForActions();
+
+    $result = app(ShopifyAdapter::class)->updateInventory($product, 50);
+
+    expect($result->success)->toBeTrue();
+    expect($product->fresh()->stock_quantity)->toBe(50);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/inventory_levels/set.json')
+        && ($request['location_id'] ?? null) === 99
+        && ($request['inventory_item_id'] ?? null) === 42
+        && ($request['available'] ?? null) === 50);
+});
+
+test('updateInventory fails cleanly when the variant lookup fails, leaving stock unchanged', function () {
+    Http::fake([
+        '*/variants/778899.json' => Http::response([], 404),
+    ]);
+
+    $product = shopifyProductForActions();
+
+    $result = app(ShopifyAdapter::class)->updateInventory($product, 50);
+
+    expect($result->success)->toBeFalse();
+    expect($product->fresh()->stock_quantity)->toBe(3);
+});
+
+test('capabilities report payouts as supported and reviews feedback as unsupported', function () {
+    $capabilities = app(ShopifyAdapter::class)->capabilities();
+
+    expect($capabilities->payoutsAvailable)->toBeTrue();
+    expect($capabilities->reviewsFeedback)->toBeFalse();
+});
+
+test('replyToReview throws since Shopify has no first-party review system', function () {
+    $review = Review::factory()->create();
+
+    app(ShopifyAdapter::class)->replyToReview($review, 'Thanks for the feedback.');
+})->throws(LogicException::class);
+
+test('fetchPayouts maps the real Shopify Payouts API response', function () {
+    Http::fake([
+        '*/shopify_payments/payouts.json*' => Http::response(['payouts' => [
+            ['id' => 7001, 'status' => 'paid', 'date' => '2026-07-24', 'currency' => 'USD', 'amount' => '482.19'],
+            ['id' => 7002, 'status' => 'in_transit', 'date' => '2026-07-25', 'currency' => 'USD', 'amount' => '120.00'],
+        ]], 200),
+    ]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_SHOPIFY,
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com', 'access_token' => 'shpat_faketoken'],
+    ]);
+
+    $payouts = app(ShopifyAdapter::class)->fetchPayouts($connection);
+
+    expect($payouts)->toHaveCount(2);
+    expect($payouts[0]['external_id'])->toBe('7001');
+    expect($payouts[0]['status'])->toBe('paid');
+    expect($payouts[0]['amount'])->toBe('482.19');
+});
+
+test('fetchPayouts returns an empty list when the request fails, not an exception', function () {
+    Http::fake(['*/shopify_payments/payouts.json*' => Http::response([], 500)]);
+
+    $connection = StoreConnection::factory()->create([
+        'platform' => StoreConnection::PLATFORM_SHOPIFY,
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com', 'access_token' => 'shpat_faketoken'],
+    ]);
+
+    expect(app(ShopifyAdapter::class)->fetchPayouts($connection))->toBe([]);
 });

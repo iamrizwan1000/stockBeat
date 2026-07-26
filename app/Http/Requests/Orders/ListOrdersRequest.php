@@ -42,6 +42,7 @@ class ListOrdersRequest extends FormRequest
             'value_max' => ['sometimes', 'numeric'],
             'tag' => ['sometimes', 'string'],
             'q' => ['sometimes', 'string'],
+            'customer_email' => ['sometimes', 'string', 'email'],
             'include_snoozed' => ['sometimes', 'boolean'],
         ];
     }

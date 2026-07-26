@@ -7,6 +7,8 @@ use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Support\Connections\ActionResult;
@@ -452,9 +454,39 @@ class AmazonAdapter implements ChannelAdapter, OAuthChannelAdapter
             refunds: true, // limited — see refund()'s own docblock.
             cancel: true, // pre-shipment only — see cancel()'s own docblock.
             messagingMode: 'template',
-            inventoryUpdate: true,
-            reviewsFeedback: true,
+            // No real write-back to the SP-API Listings/Inventory feed
+            // exists yet (Plan §4.13) — false until built, rather than a
+            // capability with nothing behind it.
+            inventoryUpdate: false,
+            // No real review/feedback fetch code exists for Amazon (Plan
+            // §4.15) — previously declared `true` with nothing behind it.
+            // Corrected 2026-07-26.
+            reviewsFeedback: false,
         );
+    }
+
+    /**
+     * `capabilities()->inventoryUpdate` is false — `UpdateProductStockAction`
+     * checks that before ever calling an adapter, so this is reachable only
+     * if that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here (Plan §4.13).
+     */
+    public function updateInventory(Product $product, int $quantity): ActionResult
+    {
+        throw new LogicException('AmazonAdapter does not support inventory updates yet.');
+    }
+
+    /**
+     * `capabilities()->reviewReply` is false — `ReplyToReviewAction` checks
+     * that before ever calling an adapter, so this is reachable only if
+     * that check were bypassed, which would itself be the bug worth
+     * surfacing loudly here. Amazon has no real review-fetch code either
+     * (`reviewsFeedback` is also false, Plan §4.15) — there's nothing to
+     * reply to yet.
+     */
+    public function replyToReview(Review $review, string $body): ActionResult
+    {
+        throw new LogicException('AmazonAdapter does not support review replies yet.');
     }
 
     private function assertConfigured(): void

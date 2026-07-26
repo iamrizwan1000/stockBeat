@@ -11,12 +11,15 @@ use App\Http\Controllers\Api\V1\Auth\SocialAuthController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\ConfigController;
 use App\Http\Controllers\Api\V1\ConnectionController;
+use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ReplyTemplateController;
+use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\RuleController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SupportController;
@@ -83,6 +86,7 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
         ->name('connections.destroy');
 
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('orders/{order}/notes', [OrderController::class, 'addNote'])
         ->middleware('team.role:owner,manager')
@@ -132,6 +136,16 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
     Route::put('products/cost-prices', [ProductController::class, 'bulkUpdateCostPrices'])
         ->middleware('team.role:owner,manager')
         ->name('products.cost-prices.bulk-update');
+    Route::put('products/{product}/stock', [ProductController::class, 'updateStock'])
+        ->middleware('team.role:owner,manager')
+        ->name('products.stock.update');
+
+    Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
+
+    Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::post('reviews/{review}/reply', [ReviewController::class, 'reply'])
+        ->middleware('team.role:owner,manager')
+        ->name('reviews.reply');
 
     Route::post('assistant/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
     Route::get('assistant/conversations', [AssistantController::class, 'index'])->name('assistant.conversations.index');

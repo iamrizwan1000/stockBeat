@@ -2,6 +2,8 @@
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\AmazonAdapter;
 use App\Support\Connections\FulfillmentData;
@@ -270,4 +272,17 @@ test('capabilities report cancel and refunds as supported but not realtime order
     expect($capabilities->refunds)->toBeTrue();
     expect($capabilities->cancel)->toBeTrue();
     expect($capabilities->fulfillTracking)->toBeTrue();
+    expect($capabilities->inventoryUpdate)->toBeFalse();
 });
+
+test('updateInventory throws since inventory updates are not supported yet', function () {
+    $product = Product::factory()->create();
+
+    app(AmazonAdapter::class)->updateInventory($product, 10);
+})->throws(LogicException::class);
+
+test('replyToReview throws since Amazon has no real review-fetch or reply support', function () {
+    $review = Review::factory()->create();
+
+    app(AmazonAdapter::class)->replyToReview($review, 'Thanks for the feedback.');
+})->throws(LogicException::class);

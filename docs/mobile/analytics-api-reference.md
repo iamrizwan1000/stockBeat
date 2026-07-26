@@ -71,4 +71,4 @@ Grouped by SKU where present; line items with no SKU are grouped by title instea
 |---|---|
 | 200 | Success |
 | 401 | Missing/invalid/revoked bearer token |
-| 422 | `range` not allowed on the team's current `analytics_level` — upgrade-paywall trigger, not a form-validation error |
+| 422 | `range` not allowed on the team's current `analytics_level` — upgrade-paywall trigger, not a form-validation error; or `"Complete profile setup first."` if the caller has no current team (same guard every other authenticated endpoint uses) |

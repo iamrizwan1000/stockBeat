@@ -1,4 +1,4 @@
-# StockBeat Mobile — Products (Cost Price) API Reference
+# StockBeat Mobile — Products (Cost Price & Stock) API Reference
 
 Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md`.
 
@@ -22,8 +22,10 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 |---|---|---|
 | `connection_id` | int | Which store connection this product came from — cross-reference `GET /connections` (`connections-api-reference.md`) if you want to show the store name per product |
 | `sku` | string\|null | Not every platform/product guarantees a SKU |
-| `stock_quantity` | int\|null | Last polled stock level — **not real-time**, this is whatever the last sync cycle saw, same staleness caveat as anywhere else stock is shown in this app |
-| `cost_price` | float\|null | **The only editable field.** `null` means "not entered yet," not zero — see below |
+| `stock_quantity` | int\|null | Last polled/pushed stock level — otherwise **not real-time**, this is whatever the last sync cycle saw (or the last successful `PUT .../stock` call set it to), same staleness caveat as anywhere else stock is shown in this app |
+| `cost_price` | float\|null | `null` means "not entered yet," not zero — see below |
+
+**Editable fields: `cost_price` (always) and, as of 2026-07-26, `stock_quantity` on Shopify/WooCommerce connections only** — see `PUT /products/{id}/stock` below. This is a quick-fix control, not a catalog editor: there's still no way to create/rename a product or edit anything else about it from this app.
 
 **These are polled/synced products, not a catalog you create from this app** — there's no `POST /products` to add a new one. If a product a seller expects isn't in this list, that's a sync/connection issue (check `GET /connections/{id}/health`, `connections-api-reference.md`), not something fixable by creating it manually here.
 
@@ -72,6 +74,35 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 **Success — 200:** `{products: [...]}` — the full updated set for every id in the batch, same shape as `GET /products`' items, in no particular guaranteed order (match by `id`, don't assume it echoes your input order).
 
 **A duplicate `id` within one batch is allowed, not an error** — the last occurrence for that id wins; avoid sending duplicates on purpose, but a client bug that accidentally does won't 422.
+
+## `PUT /products/{id}/stock` — push a corrected stock quantity
+
+**Requires auth**, `owner`/`manager` role. Added 2026-07-26 to close the "you can see stock is low but can't fix it from the app" gap — this actually pushes the new quantity to the platform, it's not just a local edit.
+
+```json
+{ "quantity": 25 }
+```
+
+| Field | Rules |
+|---|---|
+| `quantity` | required, integer, min 0 — no `null`/clear semantics here, unlike `cost_price`; a stock count is either a real number or you don't call this endpoint |
+
+**Success — 200:**
+```json
+{ "success": true, "message": "Stock quantity updated.", "data": { "product": {
+  "id": 1, "connection_id": 1, "sku": "VNT-014", "title": "Vintage Denim Jacket", "stock_quantity": 25, "cost_price": 22.50
+} } }
+```
+
+**Only real for Shopify and WooCommerce connections today.** Every other channel (eBay/Etsy/Amazon/TikTok) 422s with a plain-language message — **check this before showing the edit control at all**, the same "hide, don't let them tap into a dead end" rule the cost-price screen already follows for role restrictions:
+
+```json
+{ "success": false, "message": "The given data was invalid.", "errors": { "product": ["This channel doesn't support updating stock from here."] } }
+```
+
+There's no capability flag returned on `GET /products` itself to check this client-side up front — cross-reference the product's `connection_id` against `GET /connections` (`connections-api-reference.md`) and only show the stock-edit control when that connection's `platform` is `shopify` or `woo`. If a platform gains real support later, this doc and that connections reference will both be updated together.
+
+**404** if the product doesn't belong to your team, same as the cost-price endpoint.
 
 ---
 

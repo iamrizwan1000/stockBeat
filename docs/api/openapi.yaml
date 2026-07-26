@@ -28,6 +28,8 @@ tags:
     description: "\nRemote app config (Plan §10/§17.7) — deliberately unauthenticated so a\nkilled app version or a maintenance banner can be checked before the\nuser has signed in."
   - name: Connections
     description: "\nConnect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).\nOnly WooCommerce is fully live end-to-end today — the others accept a connection\nrecord but adapter operations are not yet available."
+  - name: Customers
+    description: "\nA query-time aggregation over `orders` (Plan §4.16) — no new table.\nRead-only end to end; for a customer's full order history, use\n`GET /orders?customer_email=...` (`orders-api-reference.md`), not a\nseparate endpoint here."
   - name: Devices
     description: ''
   - name: Inbox
@@ -38,8 +40,12 @@ tags:
     description: ''
   - name: Orders
     description: "\nThe unified order feed across all connected channels, plus quick actions\n(fulfill/tracking, refund, cancel, notes/tags, packing slip)."
+  - name: Payouts
+    description: "\nReal payout events (Plan §4.14) — what actually landed in the seller's\nbank account, distinct from order revenue. Read-only end to end: no\ncreate/update/delete, this is purely a reconciliation view. Shopify only\nin v1 — other platforms simply have no rows here yet, not an error."
   - name: Products
-    description: "\nPolled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a\ncatalog management feature. The only seller-editable field is\n`cost_price` (Plan §4.12 Phase B), since no platform API exposes true\ncost-of-goods."
+    description: "\nPolled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a\ncatalog management feature. Seller-editable fields are `cost_price` (Plan\n§4.12 Phase B, since no platform API exposes true cost-of-goods) and, as\nof §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick\nfix, not full listing/catalog editing."
+  - name: Reviews
+    description: "\nPolled customer reviews (Plan §4.4's `negative_review` trigger) — the\nonly seller-actionable field is a reply, per §4.15, and only on channels\nwhere `capabilities()->reviewReply` is true (eBay only in v1)."
   - name: Rules
     description: "\nCustom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,\nand an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.\n`new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`)."
   - name: Settings
@@ -48,6 +54,8 @@ tags:
     description: "\nLive support chat (Plan §4.9). One thread per user, resumed across visits —\nnever a fresh thread. Internal staff notes (`direction=note`) are never\nreturned here."
   - name: Team
     description: "\nTeam seats and roles (owner/manager/staff), with per-member `store_visibility` restriction."
+  - name: Usage
+    description: "\nUsage-history view over SMS/AI-question/email quotas — a companion to\n`GET /me`/`GET /billing/entitlements`, which only report the current\nstanding balance. This adds how much of this month's allotment has been\nused (`pct_used`, `quota_warning` once at 80%+) and a 30-day daily\nbreakdown for a usage graph."
 components:
   securitySchemes:
     default:
@@ -490,7 +498,7 @@ paths:
                 range:
                   type: string
                   description: ''
-                  example: today
+                  example: 7d
                   enum:
                     - today
                     - 7d
@@ -573,7 +581,7 @@ paths:
                 range:
                   type: string
                   description: ''
-                  example: 30d
+                  example: 7d
                   enum:
                     - today
                     - 7d
@@ -952,7 +960,7 @@ paths:
                   type: array
                   description: ''
                   example:
-                    - ebay
+                    - etsy
                   items:
                     type: string
                     enum:
@@ -965,7 +973,7 @@ paths:
                 timezone:
                   type: string
                   description: ''
-                  example: America/La_Paz
+                  example: Pacific/Honolulu
                   enum:
                     - Africa/Abidjan
                     - Africa/Accra
@@ -1566,7 +1574,7 @@ paths:
                 provider:
                   type: string
                   description: ''
-                  example: apple
+                  example: google
                   enum:
                     - apple
                     - google
@@ -1603,6 +1611,7 @@ paths:
                     trial_ends_at: null
                     sms_balance: 42
                     ai_questions_remaining: 148
+                    emails_remaining: 660
                 properties:
                   success:
                     type: boolean
@@ -1639,6 +1648,9 @@ paths:
                       ai_questions_remaining:
                         type: integer
                         example: 148
+                      emails_remaining:
+                        type: integer
+                        example: 660
         422:
           description: 'profile setup not complete'
           content:
@@ -1687,6 +1699,7 @@ paths:
                     trial_ends_at: null
                     sms_balance: 42
                     ai_questions_remaining: 148
+                    emails_remaining: 660
                 properties:
                   success:
                     type: boolean
@@ -1723,6 +1736,9 @@ paths:
                       ai_questions_remaining:
                         type: integer
                         example: 148
+                      emails_remaining:
+                        type: integer
+                        example: 660
         422:
           description: 'profile setup not complete'
           content:
@@ -2108,7 +2124,91 @@ paths:
         in: path
         name: connection_id
         description: 'The ID of the connection.'
-        example: 3
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/connections/{connection_id}':
+    patch:
+      summary: 'Mute or unmute alerts from this store.'
+      operationId: muteOrUnmuteAlertsFromThisStore
+      description: "The only editable field on an existing connection today — syncing continues either way,\nthis only stops push/email/SMS from rules whose firing traces back to this store. Rule\nfires are still logged in the notification center regardless (Plan §4.8/§17.4's \"logged\nbut not delivered\" convention)."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    connection:
+                      id: 1
+                      platform: woo
+                      name: 'Rivera Vintage Co'
+                      status: active
+                      notifications_muted: true
+                      last_sync_at: '2026-07-16T01:45:00.000000Z'
+                      webhook_status: registered
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      connection:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          platform:
+                            type: string
+                            example: woo
+                          name:
+                            type: string
+                            example: 'Rivera Vintage Co'
+                          status:
+                            type: string
+                            example: active
+                          notifications_muted:
+                            type: boolean
+                            example: true
+                          last_sync_at:
+                            type: string
+                            example: '2026-07-16T01:45:00.000000Z'
+                          webhook_status:
+                            type: string
+                            example: registered
+      tags:
+        - Connections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notifications_muted:
+                  type: boolean
+                  description: ''
+                  example: false
+              required:
+                - notifications_muted
+    parameters:
+      -
+        in: path
+        name: connection_id
+        description: 'The ID of the connection.'
+        example: 16
         required: true
         schema:
           type: integer
@@ -2147,10 +2247,19 @@ paths:
         in: path
         name: id
         description: 'The ID of the connection.'
-        example: 3
+        example: 16
         required: true
         schema:
           type: integer
+  /api/v1/customers:
+    get:
+      summary: "List this team's customers, grouped by email, most recent order first."
+      operationId: listThisTeamsCustomersGroupedByEmailMostRecentOrderFirst
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Customers
   /api/v1/devices:
     post:
       summary: 'Register a push device.'
@@ -2207,7 +2316,7 @@ paths:
                 platform:
                   type: string
                   description: ''
-                  example: ios
+                  example: android
                   enum:
                     - ios
                     - android
@@ -2722,6 +2831,7 @@ paths:
                           history_days: 90
                           sms_balance: 42
                           ai_questions_remaining: 148
+                          emails_remaining: 660
                         feature_flags:
                           new_rules_ui: true
                         sms_topup_packs:
@@ -2804,6 +2914,9 @@ paths:
                               ai_questions_remaining:
                                 type: integer
                                 example: 148
+                              emails_remaining:
+                                type: integer
+                                example: 660
                           feature_flags:
                             type: object
                             properties:
@@ -3262,7 +3375,7 @@ paths:
                 channel:
                   type: string
                   description: ''
-                  example: amazon
+                  example: woo
                   enum:
                     - shopify
                     - woo
@@ -3277,7 +3390,7 @@ paths:
                 status:
                   type: string
                   description: ''
-                  example: unfulfilled
+                  example: refunded
                   enum:
                     - new
                     - unfulfilled
@@ -3287,11 +3400,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-22T15:00:59'
+                  example: '2026-07-26T17:28:08'
                 date_to:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-22T15:00:59'
+                  example: '2026-07-26T17:28:08'
                 value_min:
                   type: number
                   description: ''
@@ -3308,6 +3421,10 @@ paths:
                   type: string
                   description: ''
                   example: architecto
+                customer_email:
+                  type: string
+                  description: 'Must be a valid email address.'
+                  example: zbailey@example.net
                 include_snoozed:
                   type: boolean
                   description: ''
@@ -3494,7 +3611,7 @@ paths:
         in: path
         name: id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3566,7 +3683,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3641,7 +3758,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3701,14 +3818,14 @@ paths:
                 until:
                   type: string
                   description: 'Must be a valid date. Must be a date after <code>now</code>.'
-                  example: '2052-08-15'
+                  example: '2052-08-19'
                   nullable: true
     parameters:
       -
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3812,7 +3929,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3887,7 +4004,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3953,7 +4070,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -3971,7 +4088,7 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
@@ -4051,10 +4168,78 @@ paths:
         in: path
         name: order_id
         description: 'The ID of the order.'
-        example: 4
+        example: 16
         required: true
         schema:
           type: integer
+  /api/v1/payouts:
+    get:
+      summary: "List this team's polled payouts, newest first."
+      operationId: listThisTeamsPolledPayoutsNewestFirst
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    payouts:
+                      -
+                        id: 1
+                        connection_id: 1
+                        amount: 482.19
+                        currency: USD
+                        status: paid
+                        arrival_date: '2026-07-24'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      payouts:
+                        type: array
+                        example:
+                          - id: 1
+                            connection_id: 1
+                            amount: 482.19
+                            currency: USD
+                            status: paid
+                            arrival_date: '2026-07-24'
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            connection_id:
+                              type: integer
+                              example: 1
+                            amount:
+                              type: number
+                              example: 482.19
+                            currency:
+                              type: string
+                              example: USD
+                            status:
+                              type: string
+                              example: paid
+                            arrival_date:
+                              type: string
+                              example: '2026-07-24'
+      tags:
+        - Payouts
   /api/v1/products:
     get:
       summary: "List this team's polled products."
@@ -4131,6 +4316,222 @@ paths:
                       - id
               required:
                 - updates
+  '/api/v1/products/{product_id}/stock':
+    put:
+      summary: "Push a corrected stock quantity to the product's platform."
+      operationId: pushACorrectedStockQuantityToTheProductsPlatform
+      description: "Calls through to the real channel adapter where available (Shopify/WooCommerce today); capability-checked\nserver-side, so this 422s with a plain-language message on platforms that aren't supported yet."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Stock quantity updated.'
+                  data:
+                    product:
+                      id: 1
+                      connection_id: 1
+                      sku: SKU-1234
+                      title: 'Blue Widget'
+                      stock_quantity: 25
+                      cost_price: null
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Stock quantity updated.'
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          connection_id:
+                            type: integer
+                            example: 1
+                          sku:
+                            type: string
+                            example: SKU-1234
+                          title:
+                            type: string
+                            example: 'Blue Widget'
+                          stock_quantity:
+                            type: integer
+                            example: 25
+                          cost_price:
+                            type: string
+                            example: null
+                            nullable: true
+        422:
+          description: 'capability not supported'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    product:
+                      - "This channel doesn't support updating stock from here."
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      product:
+                        type: array
+                        example:
+                          - "This channel doesn't support updating stock from here."
+                        items:
+                          type: string
+      tags:
+        - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                  description: 'Must be at least 0.'
+                  example: 27
+              required:
+                - quantity
+    parameters:
+      -
+        in: path
+        name: product_id
+        description: 'The ID of the product.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  /api/v1/reviews:
+    get:
+      summary: "List this team's polled reviews, newest first."
+      operationId: listThisTeamsPolledReviewsNewestFirst
+      description: ''
+      parameters: []
+      responses: {}
+      tags:
+        - Reviews
+  '/api/v1/reviews/{review_id}/reply':
+    post:
+      summary: 'Reply to a review on its platform.'
+      operationId: replyToAReviewOnItsPlatform
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: 'Reply sent.'
+                  data:
+                    review:
+                      id: 1
+                      connection_id: 1
+                      rating: 1
+                      content: 'Item arrived late.'
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Reply sent.'
+                  data:
+                    type: object
+                    properties:
+                      review:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          connection_id:
+                            type: integer
+                            example: 1
+                          rating:
+                            type: integer
+                            example: 1
+                          content:
+                            type: string
+                            example: 'Item arrived late.'
+        422:
+          description: 'capability not supported'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    review:
+                      - "This channel doesn't support replying to reviews from here."
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      review:
+                        type: array
+                        example:
+                          - "This channel doesn't support replying to reviews from here."
+                        items:
+                          type: string
+      tags:
+        - Reviews
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  description: 'Must not be greater than 2000 characters.'
+                  example: b
+              required:
+                - body
+    parameters:
+      -
+        in: path
+        name: review_id
+        description: 'The ID of the review.'
+        example: 16
+        required: true
+        schema:
+          type: integer
   /api/v1/rules:
     get:
       summary: 'List rules.'
@@ -4368,7 +4769,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: ai_insight
+                  example: payment_failed
                   enum:
                     - new_order
                     - high_value_order
@@ -4398,7 +4799,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: tag
+                            example: shipping_method
                             enum:
                               - channel
                               - store
@@ -4413,7 +4814,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: neq
+                            example: lte
                             enum:
                               - eq
                               - neq
@@ -4441,7 +4842,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: channel
+                            example: repeat_buyer
                             enum:
                               - channel
                               - store
@@ -4456,7 +4857,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: in
+                            example: eq
                             enum:
                               - eq
                               - neq
@@ -4485,7 +4886,7 @@ paths:
                       type:
                         type: string
                         description: ''
-                        example: notify_member
+                        example: email
                         enum:
                           - push
                           - email
@@ -4505,7 +4906,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: alert
+                  example: chime
                   enum:
                     - default
                     - cha_ching
@@ -4529,11 +4930,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '15:00'
+                          example: '17:28'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '15:00'
+                          example: '17:28'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4545,14 +4946,14 @@ paths:
                     digest_frequency:
                       type: string
                       description: ''
-                      example: weekly
+                      example: daily
                       enum:
                         - daily
                         - weekly
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '15:00'
+                      example: '17:28'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4697,7 +5098,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: high_value_order
+                  example: digest
                   enum:
                     - new_order
                     - high_value_order
@@ -4727,7 +5128,50 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: channel
+                            example: shipping_method
+                            enum:
+                              - channel
+                              - store
+                              - total
+                              - sku
+                              - product
+                              - quantity
+                              - customer_country
+                              - repeat_buyer
+                              - shipping_method
+                              - tag
+                          operator:
+                            type: string
+                            description: ''
+                            example: between
+                            enum:
+                              - eq
+                              - neq
+                              - gt
+                              - gte
+                              - lt
+                              - lte
+                              - in
+                              - between
+                          value:
+                            type: string
+                            description: ''
+                            example: architecto
+                        required:
+                          - field
+                          - operator
+                          - value
+                    any:
+                      type: array
+                      description: ''
+                      example: null
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                            description: ''
+                            example: tag
                             enum:
                               - channel
                               - store
@@ -4760,49 +5204,6 @@ paths:
                           - field
                           - operator
                           - value
-                    any:
-                      type: array
-                      description: ''
-                      example: null
-                      items:
-                        type: object
-                        properties:
-                          field:
-                            type: string
-                            description: ''
-                            example: product
-                            enum:
-                              - channel
-                              - store
-                              - total
-                              - sku
-                              - product
-                              - quantity
-                              - customer_country
-                              - repeat_buyer
-                              - shipping_method
-                              - tag
-                          operator:
-                            type: string
-                            description: ''
-                            example: lt
-                            enum:
-                              - eq
-                              - neq
-                              - gt
-                              - gte
-                              - lt
-                              - lte
-                              - in
-                              - between
-                          value:
-                            type: string
-                            description: ''
-                            example: architecto
-                        required:
-                          - field
-                          - operator
-                          - value
                 actions:
                   type: array
                   description: 'Must have at least 1 items.'
@@ -4813,7 +5214,7 @@ paths:
                       type:
                         type: string
                         description: 'This field is required when <code>actions</code> is present.'
-                        example: email
+                        example: push
                         enum:
                           - push
                           - email
@@ -4831,7 +5232,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: alert
+                  example: cha_ching
                   enum:
                     - default
                     - cha_ching
@@ -4855,11 +5256,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '15:00'
+                          example: '17:28'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '15:00'
+                          example: '17:28'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4878,7 +5279,7 @@ paths:
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '15:00'
+                      example: '17:28'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -4902,7 +5303,7 @@ paths:
                 enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
     parameters:
       -
         in: path
@@ -5216,20 +5617,20 @@ paths:
                 email_enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                 sms_enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
                 quiet_hours_start:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '15:00'
+                  example: '17:28'
                   nullable: true
                 quiet_hours_end:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '15:00'
+                  example: '17:28'
                   nullable: true
                 quiet_hours_timezone:
                   type: string
@@ -5441,7 +5842,7 @@ paths:
                 rating:
                   type: integer
                   description: ''
-                  example: 0
+                  example: 1
                   enum:
                     - 0
                     - 1
@@ -5623,7 +6024,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: viewer
+                  example: agent
                   enum:
                     - manager
                     - agent
@@ -5788,7 +6189,199 @@ paths:
         in: path
         name: member_id
         description: 'The ID of the member.'
-        example: 3
+        example: 16
         required: true
         schema:
           type: integer
+  /api/v1/usage/summary:
+    get:
+      summary: "Get the team's usage summary across SMS, AI questions, and email."
+      operationId: getTheTeamsUsageSummaryAcrossSMSAIQuestionsAndEmail
+      description: ''
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    sms:
+                      balance: 42
+                      plan_monthly_allotment: 100
+                      used_this_month: 8
+                      pct_used: 8.0
+                      quota_warning: false
+                      daily:
+                        -
+                          date: '2026-06-25'
+                          count: 0
+                        -
+                          date: '2026-07-24'
+                          count: 2
+                    ai_questions:
+                      limit: 150
+                      used_this_month: 12
+                      remaining: 138
+                      pct_used: 8.0
+                      quota_warning: false
+                      daily:
+                        -
+                          date: '2026-06-25'
+                          count: 0
+                        -
+                          date: '2026-07-24'
+                          count: 1
+                    emails:
+                      limit: 1000
+                      used_this_month: 220
+                      remaining: 780
+                      pct_used: 22.0
+                      quota_warning: false
+                      daily:
+                        -
+                          date: '2026-06-25'
+                          count: 0
+                        -
+                          date: '2026-07-24'
+                          count: 6
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      sms:
+                        type: object
+                        properties:
+                          balance:
+                            type: integer
+                            example: 42
+                          plan_monthly_allotment:
+                            type: integer
+                            example: 100
+                          used_this_month:
+                            type: integer
+                            example: 8
+                          pct_used:
+                            type: number
+                            example: 8.0
+                          quota_warning:
+                            type: boolean
+                            example: false
+                          daily:
+                            type: array
+                            example:
+                              - date: '2026-06-25'
+                                count: 0
+                              - date: '2026-07-24'
+                                count: 2
+                            items:
+                              type: object
+                              properties:
+                                date:
+                                  type: string
+                                  example: '2026-06-25'
+                                count:
+                                  type: integer
+                                  example: 0
+                      ai_questions:
+                        type: object
+                        properties:
+                          limit:
+                            type: integer
+                            example: 150
+                          used_this_month:
+                            type: integer
+                            example: 12
+                          remaining:
+                            type: integer
+                            example: 138
+                          pct_used:
+                            type: number
+                            example: 8.0
+                          quota_warning:
+                            type: boolean
+                            example: false
+                          daily:
+                            type: array
+                            example:
+                              - date: '2026-06-25'
+                                count: 0
+                              - date: '2026-07-24'
+                                count: 1
+                            items:
+                              type: object
+                              properties:
+                                date:
+                                  type: string
+                                  example: '2026-06-25'
+                                count:
+                                  type: integer
+                                  example: 0
+                      emails:
+                        type: object
+                        properties:
+                          limit:
+                            type: integer
+                            example: 1000
+                          used_this_month:
+                            type: integer
+                            example: 220
+                          remaining:
+                            type: integer
+                            example: 780
+                          pct_used:
+                            type: number
+                            example: 22.0
+                          quota_warning:
+                            type: boolean
+                            example: false
+                          daily:
+                            type: array
+                            example:
+                              - date: '2026-06-25'
+                                count: 0
+                              - date: '2026-07-24'
+                                count: 6
+                            items:
+                              type: object
+                              properties:
+                                date:
+                                  type: string
+                                  example: '2026-06-25'
+                                count:
+                                  type: integer
+                                  example: 0
+        422:
+          description: 'profile setup not complete'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Complete profile setup first.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Complete profile setup first.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+      tags:
+        - Usage

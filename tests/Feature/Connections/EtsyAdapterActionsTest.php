@@ -3,6 +3,8 @@
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Models\InboxThread;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\EtsyAdapter;
 use App\Support\Connections\FulfillmentData;
@@ -93,6 +95,22 @@ test('cancel always reports failure — etsy has no direct cancel api', function
 test('capabilities report cancel as unsupported', function () {
     expect(app(EtsyAdapter::class)->capabilities()->cancel)->toBeFalse();
 });
+
+test('capabilities report inventory updates as unsupported', function () {
+    expect(app(EtsyAdapter::class)->capabilities()->inventoryUpdate)->toBeFalse();
+});
+
+test('updateInventory throws since inventory updates are not supported yet', function () {
+    $product = Product::factory()->create();
+
+    app(EtsyAdapter::class)->updateInventory($product, 10);
+})->throws(LogicException::class);
+
+test('replyToReview throws since Etsy has no real review-fetch or reply support', function () {
+    $review = Review::factory()->create();
+
+    app(EtsyAdapter::class)->replyToReview($review, 'Thanks for the feedback.');
+})->throws(LogicException::class);
 
 test('sendMessage throws AdapterNotReadyException when conversations are not approved', function () {
     $connection = StoreConnection::factory()->create([

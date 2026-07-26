@@ -1,21 +1,31 @@
-name: Announcements
-description: ''
+name: Products
+description: |-
+
+  Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+  catalog management feature. Seller-editable fields are `cost_price` (Plan
+  §4.12 Phase B, since no platform API exposes true cost-of-goods) and, as
+  of §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick
+  fix, not full listing/catalog editing.
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/announcements
+    uri: api/v1/products
     metadata:
       custom: []
-      groupName: Announcements
-      groupDescription: ''
+      groupName: Products
+      groupDescription: |-
+
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. Seller-editable fields are `cost_price` (Plan
+        §4.12 Phase B, since no platform API exposes true cost-of-goods) and, as
+        of §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick
+        fix, not full listing/catalog editing.
       subgroup: ''
       subgroupDescription: ''
-      title: 'List active announcements.'
-      description: |-
-        In-app banners currently active (within `starts_at`/`ends_at`) and matching the caller's
-        audience rules, newest first.
+      title: "List this team's polled products."
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -29,22 +39,7 @@ endpoints:
     bodyParameters: []
     cleanBodyParameters: []
     fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "success": true,
-            "message": null,
-            "data": {
-              "announcements": [
-                { "id": 1, "title": "New: order-spike alerts", "body": "Premium now includes order and refund spike alerts.", "dismissible": true }
-              ]
-            }
-          }
-        headers: []
-        description: success
+    responses: []
     responseFields: []
     auth:
       - headers
@@ -56,18 +51,22 @@ endpoints:
   -
     custom: []
     httpMethods:
-      - POST
-    uri: 'api/v1/announcements/{announcement_id}/dismiss'
+      - PUT
+    uri: 'api/v1/products/{product_id}/cost-price'
     metadata:
       custom: []
-      groupName: Announcements
-      groupDescription: ''
+      groupName: Products
+      groupDescription: |-
+
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. Seller-editable fields are `cost_price` (Plan
+        §4.12 Phase B, since no platform API exposes true cost-of-goods) and, as
+        of §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick
+        fix, not full listing/catalog editing.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Dismiss an announcement.'
-      description: |-
-        Per-user — other users targeted by the same announcement are unaffected.
-        Idempotent: dismissing twice is not an error.
+      title: "Set (or clear) a product's seller-entered cost price."
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -75,10 +74,10 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      announcement_id:
+      product_id:
         custom: []
-        name: announcement_id
-        description: 'The ID of the announcement.'
+        name: product_id
+        description: 'The ID of the product.'
         required: true
         example: 16
         type: integer
@@ -87,11 +86,168 @@ endpoints:
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      announcement_id: 16
+      product_id: 16
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    bodyParameters:
+      cost_price:
+        custom: []
+        name: cost_price
+        description: 'Must be at least 0. Must not be greater than 999999.99.'
+        required: false
+        example: 1
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      cost_price: 1
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: api/v1/products/cost-prices
+    metadata:
+      custom: []
+      groupName: Products
+      groupDescription: |-
+
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. Seller-editable fields are `cost_price` (Plan
+        §4.12 Phase B, since no platform API exposes true cost-of-goods) and, as
+        of §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick
+        fix, not full listing/catalog editing.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Set (or clear) cost prices on several products in one call.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      updates:
+        custom: []
+        name: updates
+        description: 'Must have at least 1 items. Must not have more than 500 items.'
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'updates[].id':
+        custom: []
+        name: 'updates[].id'
+        description: ''
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'updates[].cost_price':
+        custom: []
+        name: 'updates[].cost_price'
+        description: 'Must be at least 0. Must not be greater than 999999.99.'
+        required: false
+        example: 22
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      updates:
+        - id: 16
+          cost_price: 22
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/v1/products/{product_id}/stock'
+    metadata:
+      custom: []
+      groupName: Products
+      groupDescription: |-
+
+        Polled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a
+        catalog management feature. Seller-editable fields are `cost_price` (Plan
+        §4.12 Phase B, since no platform API exposes true cost-of-goods) and, as
+        of §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick
+        fix, not full listing/catalog editing.
+      subgroup: ''
+      subgroupDescription: ''
+      title: "Push a corrected stock quantity to the product's platform."
+      description: |-
+        Calls through to the real channel adapter where available (Shopify/WooCommerce today); capability-checked
+        server-side, so this 422s with a plain-language message on platforms that aren't supported yet.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      product_id:
+        custom: []
+        name: product_id
+        description: 'The ID of the product.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      product_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      quantity:
+        custom: []
+        name: quantity
+        description: 'Must be at least 0.'
+        required: true
+        example: 27
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      quantity: 27
     fileParameters: []
     responses:
       -
@@ -100,8 +256,8 @@ endpoints:
         content: |-
           {
             "success": true,
-            "message": "Announcement dismissed.",
-            "data": null
+            "message": "Stock quantity updated.",
+            "data": { "product": { "id": 1, "connection_id": 1, "sku": "SKU-1234", "title": "Blue Widget", "stock_quantity": 25, "cost_price": null } }
           }
         headers: []
         description: success
@@ -112,10 +268,10 @@ endpoints:
           {
             "success": false,
             "message": "The given data was invalid.",
-            "errors": { "announcement": ["This announcement can't be dismissed."] }
+            "errors": { "product": ["This channel doesn't support updating stock from here."] }
           }
         headers: []
-        description: 'not dismissible'
+        description: 'capability not supported'
     responseFields: []
     auth:
       - headers

@@ -19,7 +19,8 @@ This is what renders on the Feed — the main screen, reached once at least one 
 | `date_from` / `date_to` | date | Filters on `placed_at` |
 | `value_min` / `value_max` | numeric | Filters on `total` (the order's own currency, not `total_base_currency`) |
 | `tag` | string | Exact match against one tag |
-| `q` | string | Free-text search across order number, customer name/email, item SKU/title |
+| `q` | string | Free-text search across order number, customer name/email, item SKU/title — **fuzzy, can partial-match**, not what a customer-detail screen should use (see `customer_email` below) |
+| `customer_email` | string | **Added 2026-07-26 (Plan §4.16), exact match only** — the way to build a "this customer's full order history" screen: `GET /orders?customer_email=alex@example.com` returns only that exact address's orders, with the same pagination/`history_days` gating as every other call to this endpoint. Don't use `q` for this — a fuzzy search can pull in an unrelated order that happens to partial-match somewhere else in its text fields. Pair with `GET /customers` (`customers-api-reference.md`) for the list of customers to tap into in the first place. |
 | `include_snoozed` | boolean | Default false — a snoozed order (see `snoozed_until`) is hidden from the default feed until it expires |
 | `cursor` | string | From the previous response's `next_cursor` — **this is not a page number**, it's an opaque token. Append it verbatim; don't try to construct or decode it client-side |
 
@@ -160,9 +161,21 @@ Returns a rendered **PDF directly** (`Content-Type: application/pdf`), not a JSO
 
 ---
 
-## Contacting the customer
+## `POST /orders/{id}/message` — contacting the customer
 
-`POST /orders/{id}/message` exists (gets-or-creates an order-linked inbox thread and sends a message) but is really the entry point into the separate **Unified Inbox** module (Plan §4.5) — thread list, reply templates, assignment, etc. Not covered in this doc; a plain "Message customer" button on the order detail screen calling this endpoint is reasonable to build now, but hold off on a full inbox screen until that module gets its own reference doc.
+**Requires auth**, `owner`/`manager` role. Gets-or-creates the order-linked inbox thread and sends the first (or next) message in one call — this is the entry point into the separate **Unified Inbox** module; full thread list, reply templates, assignment, etc. are covered in `inbox-api-reference.md`, not here. A plain "Message customer" button on the order detail screen calling this endpoint is all this doc needs to support.
+
+Two mutually exclusive ways to send, same as `inbox-api-reference.md`'s `POST /threads/{id}/messages` (this is the same underlying action):
+```json
+{ "body": "It shipped yesterday!" }
+```
+or
+```json
+{ "reply_template_id": 3 }
+```
+`body`: required unless `reply_template_id` is present, max 4000 chars. `reply_template_id`: must belong to your team (a template id from another team 422s as if it doesn't exist).
+
+**Success — 201:** `{message: {...}}`, same shape as `inbox-api-reference.md`'s message objects (`direction: "out"`). **A 201 isn't proof of delivery** — check the returned message's `status`/`failure_reason` (e.g. `"This thread has no customer email on file."` for Shopify/Woo threads), same caveat as the Inbox tab's send endpoint.
 
 ---
 

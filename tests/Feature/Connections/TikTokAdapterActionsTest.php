@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\StoreConnection;
 use App\Support\Connections\Adapters\TikTokAdapter;
 use App\Support\Connections\FulfillmentData;
@@ -221,4 +223,17 @@ test('capabilities report cancel as supported but refunds and messaging as not',
     expect($capabilities->cancel)->toBeTrue();
     expect($capabilities->fulfillTracking)->toBeTrue();
     expect($capabilities->messagingMode)->toBe('none');
+    expect($capabilities->inventoryUpdate)->toBeFalse();
 });
+
+test('updateInventory throws since inventory updates are not supported yet', function () {
+    $product = Product::factory()->create();
+
+    app(TikTokAdapter::class)->updateInventory($product, 10);
+})->throws(LogicException::class);
+
+test('replyToReview throws since TikTok has no real review-fetch or reply support', function () {
+    $review = Review::factory()->create();
+
+    app(TikTokAdapter::class)->replyToReview($review, 'Thanks for the feedback.');
+})->throws(LogicException::class);

@@ -1,19 +1,31 @@
-name: Settings
-description: ''
+name: Usage
+description: |-
+
+  Usage-history view over SMS/AI-question/email quotas — a companion to
+  `GET /me`/`GET /billing/entitlements`, which only report the current
+  standing balance. This adds how much of this month's allotment has been
+  used (`pct_used`, `quota_warning` once at 80%+) and a 30-day daily
+  breakdown for a usage graph.
 endpoints:
   -
     custom: []
     httpMethods:
       - GET
-    uri: api/v1/settings/notifications
+    uri: api/v1/usage/summary
     metadata:
       custom: []
-      groupName: Settings
-      groupDescription: ''
+      groupName: Usage
+      groupDescription: |-
+
+        Usage-history view over SMS/AI-question/email quotas — a companion to
+        `GET /me`/`GET /billing/entitlements`, which only report the current
+        standing balance. This adds how much of this month's allotment has been
+        used (`pct_used`, `quota_warning` once at 80%+) and a 30-day daily
+        breakdown for a usage graph.
       subgroup: ''
       subgroupDescription: ''
-      title: 'Get notification preferences.'
-      description: 'Returns defaults (all channels enabled, no quiet hours) if the user has never saved any.'
+      title: "Get the team's usage summary across SMS, AI questions, and email."
+      description: ''
       authenticated: true
       deprecated: false
     headers:
@@ -36,163 +48,45 @@ endpoints:
             "success": true,
             "message": null,
             "data": {
-              "preferences": {
-                "push_enabled": true,
-                "email_enabled": true,
-                "sms_enabled": false,
-                "quiet_hours_start": "21:00",
-                "quiet_hours_end": "07:00",
-                "quiet_hours_timezone": "Australia/Sydney",
-                "sound": "default"
+              "sms": {
+                "balance": 42,
+                "plan_monthly_allotment": 100,
+                "used_this_month": 8,
+                "pct_used": 8.0,
+                "quota_warning": false,
+                "daily": [{"date": "2026-06-25", "count": 0}, {"date": "2026-07-24", "count": 2}]
+              },
+              "ai_questions": {
+                "limit": 150,
+                "used_this_month": 12,
+                "remaining": 138,
+                "pct_used": 8.0,
+                "quota_warning": false,
+                "daily": [{"date": "2026-06-25", "count": 0}, {"date": "2026-07-24", "count": 1}]
+              },
+              "emails": {
+                "limit": 1000,
+                "used_this_month": 220,
+                "remaining": 780,
+                "pct_used": 22.0,
+                "quota_warning": false,
+                "daily": [{"date": "2026-06-25", "count": 0}, {"date": "2026-07-24", "count": 6}]
               }
             }
           }
         headers: []
         description: success
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: api/v1/settings/notifications
-    metadata:
-      custom: []
-      groupName: Settings
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Update notification preferences.'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      push_enabled:
-        custom: []
-        name: push_enabled
-        description: ''
-        required: false
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      email_enabled:
-        custom: []
-        name: email_enabled
-        description: ''
-        required: false
-        example: true
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      sms_enabled:
-        custom: []
-        name: sms_enabled
-        description: ''
-        required: false
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      quiet_hours_start:
-        custom: []
-        name: quiet_hours_start
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '15:00'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      quiet_hours_end:
-        custom: []
-        name: quiet_hours_end
-        description: 'Must be a valid date in the format <code>H:i</code>.'
-        required: false
-        example: '15:00'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      quiet_hours_timezone:
-        custom: []
-        name: quiet_hours_timezone
-        description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
-        required: false
-        example: Asia/Yekaterinburg
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      sound:
-        custom: []
-        name: sound
-        description: ''
-        required: false
-        example: chime
-        type: string
-        enumValues:
-          - default
-          - cha_ching
-          - alert
-          - chime
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      push_enabled: false
-      email_enabled: true
-      sms_enabled: false
-      quiet_hours_start: '15:00'
-      quiet_hours_end: '15:00'
-      quiet_hours_timezone: Asia/Yekaterinburg
-      sound: chime
-    fileParameters: []
-    responses:
       -
         custom: []
-        status: 200
+        status: 422
         content: |-
           {
-            "success": true,
-            "message": null,
-            "data": {
-              "preferences": {
-                "push_enabled": true,
-                "email_enabled": false,
-                "sms_enabled": false,
-                "quiet_hours_start": "21:00",
-                "quiet_hours_end": "07:00",
-                "quiet_hours_timezone": "Australia/Sydney",
-                "sound": "chime"
-              }
-            }
+            "success": false,
+            "message": "Complete profile setup first.",
+            "errors": null
           }
         headers: []
-        description: success
+        description: 'profile setup not complete'
     responseFields: []
     auth:
       - headers

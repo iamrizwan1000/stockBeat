@@ -248,6 +248,49 @@ Every user (including Free) gets a "Help" entry in Settings opening a **live sup
 - **Explicitly out of scope for v1:** the assistant never messages a customer on the seller's behalf and never executes a write action (refund, cancel, etc.) on its own — the Rule Builder is the one case where it produces something persisted, and only after human confirmation.
 - **Profit, restock, and discount/tax questions (Plan §15's Phase B, built 2026-07-22):** `cost_price` on `products` (seller-entered — no platform exposes true cost-of-goods) powers `get_profit_summary`; a `product_stock_snapshots` history plus real sales velocity from `order_items` powers `get_restock_recommendations`; `discount_amount`/`tax` on `orders` is real for WooCommerce (the only adapter that can connect today) and `null` everywhere else, never fabricated — see §9 and §15's AI Assistant checklist for the exact honest scope (e.g. profit only counts items with a real cost price; that's reported explicitly, not silently dropped).
 
+### 4.13 Inventory management (identified gap, spec'd 2026-07-26)
+
+`products`/`ProductController` already exist (§4.12), but `stock_quantity` is strictly a **read-only polled snapshot** feeding the `low_stock` trigger and AI restock tool — there was no way for a seller to actually fix a low-stock item from the app, only see it. This closes that gap with the smallest possible surface, not a catalog/listing editor.
+
+- **Scope:** a single stock-quantity edit per product from a product list screen. Explicitly **not** full listing/catalog creation or editing — that stays desktop-scoped per §3.2/§12.
+- **Contract:** `ChannelAdapter::updateInventory(Product $product, int $quantity): ActionResult` — same shape and same synchronous, capability-gated-in-the-Action pattern as `fulfill`/`refund`/`cancel` (§8.3): the Action checks `capabilities()->inventoryUpdate` and throws a `ValidationException` before ever calling the adapter if unsupported; no queued job, no new "sync status" column — the HTTP response itself is the success/failure signal, exactly like the existing quick actions.
+- **Platform support v1:** real implementations for **Shopify** (variant → `inventory_item_id` lookup → first location → `POST /inventory_levels/set.json`) and **WooCommerce** (`PUT /products/{id}` with `stock_quantity`) — the two adapters with proven real API integrations elsewhere. eBay/Etsy/Amazon/TikTok's `inventoryUpdate` capability flips to `false` until each gets a real implementation — it was previously declared `true` on all six adapters with zero real code behind it on any of them, the one dishonest capability flag in the codebase; this fixes that rather than building four more untested integrations speculatively.
+- **API:** `PUT /api/v1/products/{product}/stock`, gated `team.role:owner,manager` (matches the existing cost-price endpoint's gate).
+- **Plan gating:** none — available on every tier, same as the existing order quick actions (§4.3, §5's "Quick actions ✅" row).
+
+### 4.14 Payouts (identified gap, spec'd 2026-07-26)
+
+Analytics (§4.6) shows order **revenue** — what a customer paid. It says nothing about what actually **lands in the seller's bank account**, which is a different, smaller number once the platform's own fees and any pending/in-transit holds are netted out. This is genuinely greenfield — no model, capability flag, or Plan.md mention existed before this section; unlike §4.13, there was no partial infrastructure to extend.
+
+- **Scope:** a read-only list of real payout events — date, amount, currency, status (Shopify's own vocabulary: scheduled/in_transit/paid/failed/canceled, stored as-is rather than mapped to an invented enum) — per connected store. No write actions of any kind; this is purely "see what actually hit your bank," never an editable or actionable screen.
+- **Platform support v1: Shopify only.** Shopify Payments exposes a real, single, well-defined Payouts API (`GET /shopify_payments/payouts`). No other platform gets a natural v1 slot: WooCommerce has no native payout concept at all — actual payouts happen through whatever payment gateway plugin (Stripe/PayPal/etc.) the merchant uses, each with its own separate, non-WooCommerce API, so there's no single "WooCommerce payout" endpoint to poll. eBay/Etsy/Amazon each have seller financial/payout APIs but with materially more schema complexity and approval friction than their order APIs — deferred, not attempted speculatively (same reasoning §4.13 used to defer eBay/Etsy/Amazon/TikTok inventory writes).
+- **Data model:** new `payouts` table (§9) — `team_id`, `connection_id`, `external_id`, `amount`, `currency`, `status`, `arrival_date`/`paid_at`, `raw JSON`, `UNIQUE(connection_id, external_id)` — polled on a schedule (`PollShopifyPayoutsJob`, same reconciliation-poller convention as every other platform sync in §7), not pushed via webhook (Shopify's Payouts API doesn't offer one).
+- **New capability flag:** `payoutsAvailable` on `CapabilitySet` (§8.3) — `true` for Shopify only, `false` for every other platform, stated honestly from day one rather than repeating the `inventoryUpdate`/`reviewsFeedback` mistake of declaring a capability before any code backs it.
+- **API:** `GET /api/v1/payouts` (team-scoped, optionally filtered by `connection_id`, ordered newest-first — no pagination in v1, mirroring `GET /products`'s "return the whole team catalog" simplicity since payout volume is naturally low) — no `POST`/`PUT`/`DELETE`, this endpoint set is deliberately read-only end to end.
+- **Plan gating:** reuses the existing `analytics_level: full` entitlement (Pro+, §5) rather than introducing a new plan-limit dimension — this is naturally an analytics extension, not a distinct product surface.
+
+### 4.15 Review-reply (identified gap, spec'd 2026-07-26)
+
+A real `reviews` table and `Review` model already exist (built for the `negative_review` trigger, §4.4) — but the model's own docblock says it plainly: "read-only from our side... no reply/moderation feature." Real review **data** is only fetched for two platforms today (**eBay** via `PollEbayFeedbackJob`/`fetchNegativeFeedback`, **WooCommerce** via `PollWooReviewsJob`) — Shopify, Etsy, and Amazon all currently declare `capabilities()->reviewsFeedback: true` with **zero fetch code behind it**, the same "declared capability, no implementation" bug §4.13 fixed for `inventoryUpdate`. §7.8's matrix is corrected to reflect this as of this section.
+
+- **Step 1 (independent of reply support, do regardless):** flip Shopify/Etsy/Amazon's `reviewsFeedback` to `false` until each gets a real fetch implementation. This is a correctness fix on its own, not conditional on the rest of this section shipping.
+- **Step 2 — reply support, v1 scoped to eBay only.** Verified before writing this (2026-07-26, not assumed): eBay's modern **Commerce Feedback API** (`POST /commerce/feedback/v1/respond_to_feedback`, released 2025-10-15) is real, current, and operates on the same feedback object `fetchNegativeFeedback` already reads — no special approval needed beyond standard API access.
+- **WooCommerce reply support is explicitly deferred, not attempted in v1.** Verified: WooCommerce's own `wc/v3` REST API hardcodes `comment_parent` to `0` on every review-create call — there is **no reply mechanism in that namespace at all**, by design. The only real path is WordPress core's `wp/v2/comments` endpoint, which requires an entirely different credential (WordPress Application Passwords or cookie auth) than the consumer key/secret this app's `WooCommerceAdapter` already collects. Building this means a new credential-collection step during Woo connect (§4.1.1/§7.2) — a real scope and UX change, not an adapter method — and should be scoped as its own separate task if ever pursued, not bundled into this one.
+- **Contract:** `ChannelAdapter::replyToReview(Review $review, string $body): ActionResult` — same synchronous, capability-gated pattern as `updateInventory`/`fulfill`/`refund`/`cancel`. Real implementation for eBay only; WooCommerce/Shopify/Etsy/Amazon/TikTok all throw if called directly, matching the `updateInventory` stub convention.
+- **New capability flag:** `reviewReply` on `CapabilitySet` (§8.3) — `true` for eBay only, `false` everywhere else, stated honestly from day one.
+- **API:** `GET /api/v1/reviews` (team-scoped, no pagination, mirrors `GET /products`) — **a real gap found during build**: no way to list reviews existed anywhere before this, since `reviews` was previously write-only-from-polling and read only by `CheckNegativeReviewAction` internally, never exposed to the mobile app at all. A reply screen needs something to reply *to*, so this list endpoint is added alongside the reply one, not a separate future task. Plus `POST /api/v1/reviews/{review}/reply`, gated `team.role:owner,manager`, capability-checked server-side before ever calling the adapter, same 422-with-plain-message pattern as every other capability-gated action.
+- **Plan gating:** none — available on every tier, consistent with §4.13's reasoning (a quick action, not a premium analytics feature).
+
+### 4.16 Customer view (identified gap, spec'd 2026-07-26)
+
+The app shows orders (§4.2's unified feed), never **customers** — there's no way to see "who is this person, and what's their full history with me" in one place, even though the data to answer that already exists in `orders`. This is the lowest-effort of the four gap modules built this pass: **no new table, model, or migration at all** — it's purely a query-time aggregation over data that's already there, same spirit as `ConditionEvaluator::isRepeatBuyer()` (§8.4), which already does a lighter version of this same lookup to evaluate the `repeat_buyer` rule condition.
+
+- **Scope:** read-only. A customer list (grouped by `orders.customer_email`) with order count, total spent, and last-order date; tapping into one customer shows their full order history. No customer notes, no tags-on-customers, no email campaigns — just "who are my customers and what have they bought."
+- **Customer list — `GET /api/v1/customers`:** team-scoped, groups `orders` by `customer_email`, excluding orders with a `null` `customer_email` (a GDPR-erased customer's remaining orders have this nulled by `ProcessShopifyGdprRequestAction` and can no longer be meaningfully grouped as one identity) and `is_test` orders, same exclusions `ListOrdersAction` already applies. **Respects the plan's `history_days` entitlement and a restricted team member's `store_visibility`** — same two gates `ListOrdersAction` enforces — so a customer's stats never imply access to more data than their plan/role actually grants. Fields: `customer_email`, `customer_name` (most recent non-null name seen for that email), `order_count`, `total_spent` (sum of `total_base_currency`), `last_order_at`. **Honesty caveat, stated plainly in the docs, not hidden:** `total_spent` sums only orders with a resolved `total_base_currency` — an order missing FX conversion data (§9's `fx_rates` gap) contributes `0` to the sum rather than a fabricated guess, so `total_spent` can slightly undercount for a multi-currency customer; `order_count` is always the true, complete count regardless.
+- **Customer detail:** no new endpoint — reuses the existing order feed. `GET /api/v1/orders` (`orders-api-reference.md`) gains a new **exact-match** `customer_email` filter (distinct from its existing fuzzy `q` search param, which can false-positive-match unrelated fields) via `ListOrdersRequest`/`ListOrdersAction`. This means a customer's detail screen is just the familiar order feed, filtered — same pagination, same resource shape, same plan-gating the mobile app already knows how to render, not a parallel screen/endpoint to build and maintain.
+- **API:** `GET /api/v1/customers` only (no pagination — customer counts are bounded by order volume within the plan's history window, same "low enough volume, don't over-engineer" reasoning as §4.14's Payouts list) — no `POST`/`PUT`/`DELETE`, deliberately read-only end to end, same as Payouts.
+- **Plan gating:** none beyond what's inherited from `history_days` (above) — available on every tier, consistent with §4.13/§4.14's reasoning.
+
 ---
 
 ## 5. Subscription Tiers & Pricing
@@ -486,10 +529,10 @@ Since Shopify/Woo lack chat APIs: outbound messages send from `orders@<ourdomain
 | Refunds | ✅ | ✅ | ✅ | ✅ | ⚠️ limited |
 | Cancel | ✅ | ✅ | ✅ | ⚠️ request flow | ⚠️ limited |
 | Messaging | ⚠️ email | ⚠️ email | ✅ full | ✅ approval-gated | ⚠️ templates only |
-| Inventory update | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Reviews/feedback alerts | ✅ | ✅ | ✅ | ⚠️ read-only | ✅ |
+| Inventory update | ✅ real (§4.13) | ✅ real (§4.13) | ❌ not built | ❌ not built | ❌ not built |
+| Reviews/feedback alerts | ❌ no fetch code | ✅ real polling | ✅ real polling | ❌ requested scope, unbuilt | ❌ no fetch code |
 
-\* unreliable hosting → polling fallback required.
+\* unreliable hosting → polling fallback required. **Corrected 2026-07-26** — this row previously showed every platform at ✅/✅ regardless of whether real code backed it (the same "declared true, zero implementation" pattern later found and fixed in `CapabilitySet::$inventoryUpdate`/`$reviewsFeedback` — see §4.13 and §4.15). This table now reflects only what's actually implemented, not what's theoretically possible on each platform's API.
 
 ---
 
@@ -743,6 +786,12 @@ ai_usage_ledger (id, team_id, delta, reason: monthly_grant|topup_iap|question|fr
 --   (discount_total/total_tax), null everywhere else until those adapters
 --   can connect (§15.3), never fabricated.
 product_stock_snapshots (id, product_id, stock_quantity, recorded_at)
+
+-- Payouts (§4.14, spec'd 2026-07-26) --
+payouts (id, team_id, connection_id, external_id, amount, currency,
+         status: scheduled|in_transit|paid|failed|canceled (Shopify's own
+         vocabulary, stored as-is), arrival_date, raw JSON,
+         UNIQUE(connection_id, external_id))   // Shopify only in v1
 --   append-only, written alongside every managed-stock update
 --   (PollWooProductsJob today) — real inventory history, though
 --   get_restock_recommendations actually estimates from real order_items
