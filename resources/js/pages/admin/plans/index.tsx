@@ -159,7 +159,7 @@ function LimitsPanel({ plans }: { plans: Plan[] }) {
                 in App Store Connect / Play Console, not here.
             </Banner>
 
-            <InlineGrid columns={{ xs: 1, sm: 2, xl: 4 }} gap="400">
+            <InlineGrid columns={{ xs: 1, lg: 2 }} gap="400">
                 {plans.map((plan) => (
                     <Card key={plan.id}>
                         <BlockStack gap="300">
