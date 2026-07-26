@@ -8,6 +8,7 @@ import {
     Card,
     Checkbox,
     IndexTable,
+    InlineGrid,
     InlineStack,
     Page,
     Select,
@@ -104,46 +105,48 @@ function LimitRow({ limit }: { limit: PlanLimit }) {
     };
 
     return (
-        <InlineStack gap="300" blockAlign="end" wrap={false}>
-            <div style={{ width: '220px' }}>
-                <Text as="span" variant="bodyMd">
-                    {LABELS[limit.key] ?? limit.key}
-                </Text>
-            </div>
-            <div style={{ width: '200px' }}>
-                {BOOLEAN_KEYS.includes(limit.key) ? (
-                    <Select
-                        label={LABELS[limit.key] ?? limit.key}
-                        labelHidden
-                        options={[
-                            { label: 'Enabled', value: 'true' },
-                            { label: 'Disabled', value: 'false' },
-                        ]}
-                        value={value === 'true' ? 'true' : 'false'}
-                        onChange={setValue}
-                    />
-                ) : ENUM_KEYS[limit.key] ? (
-                    <Select
-                        label={LABELS[limit.key] ?? limit.key}
-                        labelHidden
-                        options={ENUM_KEYS[limit.key]}
-                        value={value}
-                        onChange={setValue}
-                    />
-                ) : (
-                    <TextField
-                        label={LABELS[limit.key] ?? limit.key}
-                        labelHidden
-                        type="number"
-                        value={value}
-                        onChange={setValue}
-                        autoComplete="off"
-                        placeholder={isUnlimitedCapable ? 'blank = unlimited' : undefined}
-                    />
-                )}
-            </div>
-            <Button onClick={save}>Save</Button>
-        </InlineStack>
+        <BlockStack gap="150">
+            <Text as="span" variant="bodySm" tone="subdued">
+                {LABELS[limit.key] ?? limit.key}
+            </Text>
+            <InlineStack gap="200" blockAlign="center" wrap={false}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    {BOOLEAN_KEYS.includes(limit.key) ? (
+                        <Select
+                            label={LABELS[limit.key] ?? limit.key}
+                            labelHidden
+                            options={[
+                                { label: 'Enabled', value: 'true' },
+                                { label: 'Disabled', value: 'false' },
+                            ]}
+                            value={value === 'true' ? 'true' : 'false'}
+                            onChange={setValue}
+                        />
+                    ) : ENUM_KEYS[limit.key] ? (
+                        <Select
+                            label={LABELS[limit.key] ?? limit.key}
+                            labelHidden
+                            options={ENUM_KEYS[limit.key]}
+                            value={value}
+                            onChange={setValue}
+                        />
+                    ) : (
+                        <TextField
+                            label={LABELS[limit.key] ?? limit.key}
+                            labelHidden
+                            type="number"
+                            value={value}
+                            onChange={setValue}
+                            autoComplete="off"
+                            placeholder={isUnlimitedCapable ? 'blank = unlimited' : undefined}
+                        />
+                    )}
+                </div>
+                <Button onClick={save} size="slim">
+                    Save
+                </Button>
+            </InlineStack>
+        </BlockStack>
     );
 }
 
@@ -156,20 +159,22 @@ function LimitsPanel({ plans }: { plans: Plan[] }) {
                 in App Store Connect / Play Console, not here.
             </Banner>
 
-            {plans.map((plan) => (
-                <Card key={plan.id}>
-                    <BlockStack gap="300">
-                        <Text as="h2" variant="headingMd">
-                            {plan.name}
-                        </Text>
-                        <BlockStack gap="200">
-                            {plan.limits.map((limit) => (
-                                <LimitRow key={limit.id} limit={limit} />
-                            ))}
+            <InlineGrid columns={{ xs: 1, sm: 2, xl: 4 }} gap="400">
+                {plans.map((plan) => (
+                    <Card key={plan.id}>
+                        <BlockStack gap="300">
+                            <Text as="h2" variant="headingMd">
+                                {plan.name}
+                            </Text>
+                            <BlockStack gap="300">
+                                {plan.limits.map((limit) => (
+                                    <LimitRow key={limit.id} limit={limit} />
+                                ))}
+                            </BlockStack>
                         </BlockStack>
-                    </BlockStack>
-                </Card>
-            ))}
+                    </Card>
+                ))}
+            </InlineGrid>
         </BlockStack>
     );
 }
