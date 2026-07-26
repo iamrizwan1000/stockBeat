@@ -18,7 +18,11 @@ use Illuminate\Support\Facades\Mail;
  *    plus-addressed Reply-To — not "the merchant's connected email," since
  *    no mailbox-connection flow exists (the spec offers that as an
  *    alternative; this implements the other half, "our sending domain with
- *    reply-to").
+ *    reply-to"). The display name is branded with the store's own name
+ *    (`StoreConnection::$store_display_name`, pulled automatically from the
+ *    platform at connect time) when available, so it reads as "Jane's
+ *    Boutique" rather than the app name — the underlying address stays ours
+ *    either way.
  *  - anything else (eBay `'full'`, Etsy `'approval_gated'`, Amazon
  *    `'template'` once that adapter exists): delegated to the channel's own
  *    `ChannelAdapter::sendMessage()`. `AdapterNotReadyException` (Etsy not
@@ -74,7 +78,7 @@ class SendInboxMessageAction
             $domain = config('services.inbound_email.domain');
             $replyTo = "thread+{$thread->id}@{$domain}";
 
-            Mail::to($thread->customer_email)->queue(new InboxMessageMail($body, $replyTo));
+            Mail::to($thread->customer_email)->queue(new InboxMessageMail($body, $replyTo, $thread->connection?->store_display_name));
             $message->update(['status' => InboxMessage::STATUS_SENT]);
         } else {
             $message->update([

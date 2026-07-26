@@ -53,10 +53,11 @@ test('starting a shopify connection returns a properly formed authorization url'
     expect($url)->toContain('read_orders');
 });
 
-test('a valid callback completes the connection and registers webhooks', function () {
+test('a valid callback completes the connection, fetches store branding, and registers webhooks', function () {
     onboardedShopifyUser();
     Http::fake([
         'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response(['shop' => ['email' => 'owner@my-test-shop.com', 'name' => 'My Test Shop']], 200),
         'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
     ]);
 
@@ -85,9 +86,44 @@ test('a valid callback completes the connection and registers webhooks', functio
     expect($connection->credentials['access_token'])->toBe('shpat_faketoken');
     expect($connection->credentials['shop_domain'])->toBe('my-test-shop.myshopify.com');
     expect($connection->fingerprint)->not->toBeNull();
+    expect($connection->store_contact_email)->toBe('owner@my-test-shop.com');
+    expect($connection->store_display_name)->toBe('My Test Shop');
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'orders/create');
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'inventory_levels/update');
+});
+
+test('a valid callback still completes the connection when the shop.json branding lookup fails', function () {
+    onboardedShopifyUser();
+    Http::fake([
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response([], 500),
+        'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
+    ]);
+
+    $authUrl = test()->postJson('/api/v1/connections/shopify/start', [
+        'name' => 'My Shopify Store',
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+    ])->json('data.authorization_url');
+
+    parse_str((string) parse_url($authUrl, PHP_URL_QUERY), $startParams);
+    $state = $startParams['state'];
+
+    $callbackParams = [
+        'code' => 'fake-auth-code',
+        'shop' => 'my-test-shop.myshopify.com',
+        'state' => $state,
+        'timestamp' => (string) time(),
+    ];
+    $callbackParams['hmac'] = shopifyQueryHmac($callbackParams, 'test-client-secret');
+
+    test()->get('/hooks/shopify/oauth/callback?'.http_build_query($callbackParams))->assertOk();
+
+    $connection = StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->first();
+    expect($connection)->not->toBeNull();
+    expect($connection->status)->toBe(StoreConnection::STATUS_ACTIVE);
+    expect($connection->store_contact_email)->toBeNull();
+    expect($connection->store_display_name)->toBeNull();
 });
 
 test('a callback with an invalid hmac is rejected and no connection is created', function () {

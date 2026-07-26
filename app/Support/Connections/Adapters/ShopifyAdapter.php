@@ -109,9 +109,31 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             'status' => StoreConnection::STATUS_ACTIVE,
         ]);
 
+        $this->fetchStoreBranding($connection);
         $this->registerWebhooks($connection);
 
         return $connection;
+    }
+
+    /**
+     * Pulls the shop's own contact email/name (Plan §7.7's inbox branding)
+     * straight from the Admin API instead of asking the merchant to type it
+     * in — keeps the connect flow a single OAuth round trip. Best-effort:
+     * a failure here never blocks the connection itself, same tolerance as
+     * `registerWebhooks()`.
+     */
+    private function fetchStoreBranding(StoreConnection $connection): void
+    {
+        $response = $this->http($connection)->get('/shop.json');
+
+        if ($response->failed()) {
+            return;
+        }
+
+        $connection->update([
+            'store_contact_email' => $response->json('shop.email'),
+            'store_display_name' => $response->json('shop.name'),
+        ]);
     }
 
     /**

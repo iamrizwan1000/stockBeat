@@ -20,6 +20,7 @@ function fakeWooApiSuccess(): void
     Http::fake([
         '*/wp-json/wc/v3/orders*' => Http::response([], 200),
         '*/wp-json/wc/v3/webhooks*' => Http::response(['id' => 123], 200),
+        '*/wp-json/' => Http::response(['name' => 'Example Shop'], 200),
     ]);
 }
 
@@ -115,6 +116,32 @@ test('connecting a woo store registers real webhooks and stores the secret', fun
     $connection = StoreConnection::query()->find($response->json('data.connection.id'));
     expect($connection->credentials['webhook_secret'])->not->toBeEmpty();
     expect($connection->credentials['webhook_ids'])->toHaveKey('order.created');
+});
+
+test('connecting a woo store fetches the site name from wp-json for inbox branding', function () {
+    fakeWooApiSuccess();
+    onboardedUser();
+
+    $response = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+
+    $connection = StoreConnection::query()->find($response->json('data.connection.id'));
+    expect($connection->store_display_name)->toBe('Example Shop');
+    expect($connection->store_contact_email)->toBeNull();
+});
+
+test('a woo store still connects successfully when the wp-json branding lookup fails', function () {
+    Http::fake([
+        '*/wp-json/wc/v3/orders*' => Http::response([], 200),
+        '*/wp-json/wc/v3/webhooks*' => Http::response(['id' => 123], 200),
+        '*/wp-json/' => Http::response([], 500),
+    ]);
+    onboardedUser();
+
+    $response = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+
+    $response->assertCreated();
+    $connection = StoreConnection::query()->find($response->json('data.connection.id'));
+    expect($connection->store_display_name)->toBeNull();
 });
 
 test('a not-yet-ready platform returns a clear error', function () {

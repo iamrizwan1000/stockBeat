@@ -65,9 +65,40 @@ class WooCommerceAdapter implements ChannelAdapter
             'status' => StoreConnection::STATUS_ACTIVE,
         ]);
 
+        $this->fetchStoreBranding($connection);
         $this->registerWebhooks($connection);
 
         return $connection;
+    }
+
+    /**
+     * Pulls the site's own display name (Plan §7.7's inbox branding) from
+     * WordPress' public, unauthenticated REST index — no extra scope, no
+     * merchant input, keeps the connect flow a single key-entry step.
+     * Unlike Shopify's `shop.json`, this doesn't expose a store contact
+     * email without additional settings-API permissions that vary too much
+     * across merchant hosts (§7.2's "security plugins block REST" gotcha)
+     * to guess at reliably, so `store_contact_email` stays unset for Woo.
+     * Best-effort: a failure here never blocks the connection itself, same
+     * tolerance as `registerWebhooks()`.
+     */
+    private function fetchStoreBranding(StoreConnection $connection): void
+    {
+        try {
+            $response = Http::get($this->storeUrl($connection).'/wp-json/');
+        } catch (\Throwable) {
+            // Merchant hosting is wildly inconsistent (§7.2's "security
+            // plugins block REST" gotcha) — an unreachable host here is a
+            // real possibility, not just a bad status code, and must never
+            // block the connection itself.
+            return;
+        }
+
+        if ($response->failed()) {
+            return;
+        }
+
+        $connection->update(['store_display_name' => $response->json('name')]);
     }
 
     public function refreshAuth(StoreConnection $connection): void

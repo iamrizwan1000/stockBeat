@@ -20,11 +20,13 @@ class InboxMessageMail extends Mailable implements ShouldQueue
     public function __construct(
         public readonly string $body,
         public readonly string $replyToAddress,
+        public readonly ?string $fromName = null,
     ) {}
 
     public function build(): self
     {
-        return $this->subject('New message from the seller')
+        return $this->from(config('mail.from.address'), $this->fromName ?: config('mail.from.name'))
+            ->subject('New message from the seller')
             ->replyTo($this->replyToAddress)
             ->view('emails.inbox-message');
     }

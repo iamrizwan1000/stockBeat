@@ -15,6 +15,8 @@ use Illuminate\Support\Carbon;
  * @property int $team_id
  * @property string $platform
  * @property string $name
+ * @property string|null $store_contact_email
+ * @property string|null $store_display_name
  * @property array<string, mixed>|null $credentials
  * @property string|null $fingerprint
  * @property string $status
@@ -28,7 +30,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'platform', 'name', 'credentials', 'fingerprint', 'status', 'notifications_muted', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'last_message_sync_at'])]
+#[Fillable(['team_id', 'platform', 'name', 'store_contact_email', 'store_display_name', 'credentials', 'fingerprint', 'status', 'notifications_muted', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'last_message_sync_at'])]
 #[Hidden(['credentials'])]
 class StoreConnection extends Model
 {

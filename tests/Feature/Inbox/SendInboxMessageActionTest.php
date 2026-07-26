@@ -30,7 +30,27 @@ test('sending a message with a known customer email queues it and marks it sent'
     expect($message->status)->toBe(InboxMessage::STATUS_SENT);
     expect($message->sent_by)->toBe($owner->id);
     expect($thread->fresh()->last_message_at)->not->toBeNull();
-    Mail::assertQueued(InboxMessageMail::class);
+    Mail::assertQueued(InboxMessageMail::class, fn (InboxMessageMail $mail) => $mail->fromName === null);
+});
+
+test('sending a message brands the mail with the connected store\'s display name when known', function () {
+    $owner = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    $connection = StoreConnection::factory()->create([
+        'team_id' => $team->id,
+        'platform' => StoreConnection::PLATFORM_SHOPIFY,
+        'store_display_name' => "Jane's Boutique",
+    ]);
+    $thread = InboxThread::factory()->create([
+        'team_id' => $team->id,
+        'connection_id' => $connection->id,
+        'channel' => StoreConnection::PLATFORM_SHOPIFY,
+        'customer_email' => 'buyer@example.com',
+    ]);
+
+    app(SendInboxMessageAction::class)->handle($owner, $thread, 'Your order shipped!');
+
+    Mail::assertQueued(InboxMessageMail::class, fn (InboxMessageMail $mail) => $mail->fromName === "Jane's Boutique");
 });
 
 test('sending a message with no customer email on the thread fails without sending mail', function () {
