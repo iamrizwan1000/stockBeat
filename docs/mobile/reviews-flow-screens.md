@@ -1,12 +1,12 @@
 # StockBeat Mobile — Reviews Screen
 
-Pair with `reviews-api-reference.md` — **read its opening note first**: reply support is eBay-only in v1, WooCommerce reviews are read-only, and this whole feature (list + reply) is new as of 2026-07-26 — there was no way to even view reviews from the app before this.
+Pair with `reviews-api-reference.md` — **read its opening note first**: reply support is eBay-only in v1, WooCommerce reviews are read-only, and this whole feature (list + reply) is new as of 2026-07-26 — there was no way to even view reviews from the app before this. **Also Pro+ only** (`entitlements.limits.inbox_enabled`) — same gate as Inbox, since this is the same "communicate with a customer" capability.
 
 ---
 
 ## Entry point: Settings/More
 
-Row 7 in `MoreScreen` (`settings-flow-screens.md`'s Screen 1), right after "Payouts" — same "occasional glance" reasoning as Products/Customers/Payouts, not a primary tab.
+Row 7 in `MoreScreen` (`settings-flow-screens.md`'s Screen 1), right after "Payouts" — **gate this row exactly like the Inbox tab** (locked-with-upgrade-prompt for Free/Starter, per `entitlements.limits.inbox_enabled`), not the ungated "occasional glance" treatment Products/Customers/Payouts get.
 
 **Also worth a contextual entry point:** a `negative_review` rule notification (`notifications-flow-screens.md`) should deep-link straight to the specific review in this list, rather than making the seller hunt for it — same pattern already recommended for low-stock notifications in `products-flow-screens.md`.
 

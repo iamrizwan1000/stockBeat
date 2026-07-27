@@ -10,7 +10,7 @@ Reachable from a bell icon in the app header, visible from any tab — not a bot
 
 **On open:** `GET /notifications`.
 
-**Each row:** `title` + `body`, relative `created_at`, unread visual state (bold/dot) when `read_at` is `null`. Group by day if the list is long enough to benefit — no server-side grouping, purely a client-side date bucket.
+**Each row:** `title` + `body`, relative `created_at`, unread visual state (bold/dot) when `read_at` is `null`. Group by day if the list is long enough to benefit — no server-side grouping, purely a client-side date bucket. **`priority` (added 2026-07-27):** give `high`/`critical` rows a small visual distinction (e.g. a colored left-edge accent or an icon) — `normal` is the overwhelming majority of rows and needs no special treatment, so don't over-decorate the list for it.
 
 **Badge count:** there's no unread-count endpoint — compute it client-side from the last `GET /notifications` response (count of `read_at === null`) and refresh on a reasonable cadence (app foreground, after visiting this screen, after a new push arrives if you're wiring push-received events to a local refresh).
 

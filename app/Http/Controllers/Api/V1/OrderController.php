@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Inbox\GetOrCreateInboxThreadAction;
 use App\Actions\Inbox\RenderReplyTemplateAction;
 use App\Actions\Inbox\SendInboxMessageAction;
 use App\Actions\Orders\AddOrderNoteAction;
+use App\Actions\Orders\BulkCancelOrdersAction;
+use App\Actions\Orders\BulkTagOrdersAction;
 use App\Actions\Orders\CancelOrderAction;
 use App\Actions\Orders\FulfillOrderAction;
+use App\Actions\Orders\GenerateBulkPackingSlipsAction;
+use App\Actions\Orders\GenerateInvoiceAction;
 use App\Actions\Orders\GeneratePackingSlipAction;
 use App\Actions\Orders\ListOrdersAction;
 use App\Actions\Orders\RefundOrderAction;
@@ -16,6 +21,9 @@ use App\Actions\Orders\UpdateOrderTagsAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inbox\SendInboxMessageRequest;
 use App\Http\Requests\Orders\AddOrderNoteRequest;
+use App\Http\Requests\Orders\BulkCancelOrdersRequest;
+use App\Http\Requests\Orders\BulkPackingSlipsRequest;
+use App\Http\Requests\Orders\BulkTagOrdersRequest;
 use App\Http\Requests\Orders\CancelOrderRequest;
 use App\Http\Requests\Orders\FulfillOrderRequest;
 use App\Http\Requests\Orders\ListOrdersRequest;
@@ -28,11 +36,13 @@ use App\Http\Resources\OrderResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Order;
 use App\Models\ReplyTemplate;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @group Orders
@@ -42,6 +52,10 @@ use Illuminate\Support\Carbon;
  */
 class OrderController extends Controller
 {
+    public function __construct(
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
+    ) {}
+
     /**
      * List orders.
      *
@@ -102,8 +116,9 @@ class OrderController extends Controller
     /**
      * Get an order.
      *
-     * Includes items and notes. 404s if the order isn't in the caller's team, or outside the
-     * caller's `store_visibility` restriction.
+     * Includes items, notes, and a chronological event timeline (Plan §4.19, added 2026-07-27).
+     * 404s if the order isn't in the caller's team, or outside the caller's `store_visibility`
+     * restriction.
      *
      * @response 200 scenario="success" {
      *   "success": true,
@@ -133,7 +148,11 @@ class OrderController extends Controller
      *       "items": [
      *         { "id": 1, "sku": "VNT-014", "title": "Vintage Denim Jacket", "image_url": "https://example.com/img/vnt-014.jpg", "qty": 1, "price": "84.00" }
      *       ],
-     *       "notes": []
+     *       "notes": [],
+     *       "events": [
+     *         { "id": 1, "type": "created", "payload": null, "occurred_at": "2026-07-16T00:30:00.000000Z" },
+     *         { "id": 2, "type": "fulfilled", "payload": { "tracking_number": "1Z999AA10123456784", "carrier": "UPS" }, "occurred_at": "2026-07-17T09:00:00.000000Z" }
+     *       ]
      *     }
      *   }
      * }
@@ -142,7 +161,7 @@ class OrderController extends Controller
     {
         $this->authorizeOrderAccess($request, $order);
 
-        $order->load(['items', 'notes']);
+        $order->load(['items', 'notes', 'events' => fn ($query) => $query->orderBy('occurred_at')]);
 
         return ApiResponse::success(['order' => new OrderResource($order)]);
     }
@@ -297,6 +316,86 @@ class OrderController extends Controller
     }
 
     /**
+     * Cancel several orders in one call.
+     *
+     * Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17) — single-order cancel
+     * stays free on every tier. Team ownership across the whole `ids` batch is checked atomically
+     * up front (any id not belonging to the team 422s the entire call, nothing partially applied),
+     * but per-order cancellation itself is not atomic: a channel that doesn't support cancel only
+     * fails that one order, reported in the `results` array rather than blocking the rest.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": { "results": [
+     *     { "id": 1, "success": true, "error": null },
+     *     { "id": 2, "success": false, "error": "This channel doesn't support cancelling orders from here." }
+     *   ] }
+     * }
+     * @response 422 scenario="an id doesn't belong to the team" {
+     *   "success": false,
+     *   "message": "The given data was invalid.",
+     *   "errors": { "ids": ["One or more orders do not belong to your team."] }
+     * }
+     * @response 403 scenario="plan does not include bulk actions" {
+     *   "success": false,
+     *   "message": "Bulk order actions require the Starter plan or higher.",
+     *   "errors": null
+     * }
+     */
+    public function bulkCancel(BulkCancelOrdersRequest $request, BulkCancelOrdersAction $action): JsonResponse
+    {
+        $team = $this->requireBulkActionsTeam($request);
+
+        if ($team instanceof JsonResponse) {
+            return $team;
+        }
+
+        $results = $action->handle(
+            $team,
+            $request->validated('ids'),
+            $request->string('reason')->toString() ?: null,
+        );
+
+        return ApiResponse::success(['results' => $results]);
+    }
+
+    /**
+     * Tag several orders in one call.
+     *
+     * Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17). Appends `tag` to each
+     * order's existing tags (deduped) rather than replacing the list — different from the
+     * single-order `POST /orders/{id}/tags`, which replaces the whole list. Team ownership across
+     * the batch is checked atomically up front, same as bulk-cancel; unlike bulk-cancel, tagging
+     * can never fail per-order once ownership is confirmed, so every id in the batch always succeeds.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": { "orders": [
+     *     { "id": 1, "order_number": "#1042", "tags": ["gift", "urgent"] }
+     *   ] }
+     * }
+     * @response 422 scenario="an id doesn't belong to the team" {
+     *   "success": false,
+     *   "message": "The given data was invalid.",
+     *   "errors": { "ids": ["One or more orders do not belong to your team."] }
+     * }
+     */
+    public function bulkTag(BulkTagOrdersRequest $request, BulkTagOrdersAction $action): JsonResponse
+    {
+        $team = $this->requireBulkActionsTeam($request);
+
+        if ($team instanceof JsonResponse) {
+            return $team;
+        }
+
+        $orders = $action->handle($team, $request->validated('ids'), $request->validated('tag'));
+
+        return ApiResponse::success(['orders' => OrderResource::collection($orders->values())]);
+    }
+
+    /**
      * Get a packing slip PDF.
      *
      * Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.
@@ -306,6 +405,57 @@ class OrderController extends Controller
         $this->authorizeOrderAccess($request, $order);
 
         return $action->handle($order);
+    }
+
+    /**
+     * Get an invoice PDF.
+     *
+     * Distinct from the packing slip (which deliberately omits price): this includes item unit
+     * price, subtotal, discount, tax, and total — the customer-facing priced document. Free on
+     * every plan (Plan §4.18), any team member can fetch it. Returns the rendered PDF directly
+     * (`Content-Type: application/pdf`), not a JSON envelope.
+     */
+    public function invoice(Request $request, Order $order, GenerateInvoiceAction $action): Response
+    {
+        $this->authorizeOrderAccess($request, $order);
+
+        return $action->handle($order);
+    }
+
+    /**
+     * Get packing slips for several orders as one multi-page PDF.
+     *
+     * Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17/§4.22) — same flag as
+     * bulk-cancel/bulk-tag, since this is the same "batch efficiency on an already-free action"
+     * shape, not a new pricing dimension. Team ownership across the whole `ids` batch is checked
+     * atomically up front, same as the other bulk endpoints. Unlike bulk-cancel, there's no
+     * per-order failure mode here — this is a pure read/render, so every id that passes the
+     * ownership check always succeeds. **No `owner`/`manager` role gate** — read-only, matching
+     * the single-order packing-slip/invoice endpoints' own gating (team membership only).
+     * Capped at 100 orders per call to keep PDF generation time reasonable.
+     *
+     * Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.
+     *
+     * @response 422 scenario="an id doesn't belong to the team" {
+     *   "success": false,
+     *   "message": "The given data was invalid.",
+     *   "errors": { "ids": ["One or more orders do not belong to your team."] }
+     * }
+     * @response 403 scenario="plan does not include bulk actions" {
+     *   "success": false,
+     *   "message": "Bulk order actions require the Starter plan or higher.",
+     *   "errors": null
+     * }
+     */
+    public function bulkPackingSlips(BulkPackingSlipsRequest $request, GenerateBulkPackingSlipsAction $action): Response|JsonResponse
+    {
+        $team = $this->requireBulkActionsTeam($request);
+
+        if ($team instanceof JsonResponse) {
+            return $team;
+        }
+
+        return $action->handle($team, $request->validated('ids'));
     }
 
     /**
@@ -344,6 +494,27 @@ class OrderController extends Controller
         $message = $sendMessage->handle($user, $thread, $body);
 
         return ApiResponse::success(['message' => new InboxMessageResource($message)], status: 201);
+    }
+
+    private function requireBulkActionsTeam(Request $request): Team|JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $team = $user->currentTeam();
+
+        if ($team === null) {
+            throw ValidationException::withMessages([
+                'ids' => ['Complete profile setup first.'],
+            ]);
+        }
+
+        $limits = $this->resolveEntitlements->handle($team)['limits'];
+
+        if (! ($limits['bulk_actions_enabled'] ?? false)) {
+            return ApiResponse::error('Bulk order actions require the Starter plan or higher.', status: 403);
+        }
+
+        return $team;
     }
 
     private function authorizeOrderAccess(Request $request, Order $order): void

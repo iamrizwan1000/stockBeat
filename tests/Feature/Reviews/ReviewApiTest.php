@@ -2,13 +2,19 @@
 
 use App\Models\Review;
 use App\Models\StoreConnection;
+use App\Models\Subscription;
 use App\Models\TeamMember;
 use App\Models\User;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->seed(PlanSeeder::class);
+});
 
 function onboardedReviewUser(): User
 {
@@ -25,6 +31,21 @@ function onboardedReviewUser(): User
 
 test('review endpoints require authentication', function () {
     test()->getJson('/api/v1/reviews')->assertUnauthorized();
+});
+
+test('a free-plan team is blocked from reviews with a clear upgrade message', function () {
+    $user = onboardedReviewUser();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_EXPIRED, 'trial_ends_at' => now()->subDay()]);
+
+    test()->getJson('/api/v1/reviews')
+        ->assertForbidden()
+        ->assertJsonPath('message', 'Reviews requires the Pro plan or higher.');
+});
+
+test('a pro-trial team can access reviews', function () {
+    onboardedReviewUser();
+
+    test()->getJson('/api/v1/reviews')->assertOk();
 });
 
 test('a seller can list their own reviews, newest first', function () {

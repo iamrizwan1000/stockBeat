@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Models\Order;
+use App\Models\OrderEvent;
 use App\Support\Connections\ActionResult;
 use App\Support\Connections\ChannelAdapterManager;
 use App\Support\Connections\RefundData;
@@ -34,6 +35,17 @@ class RefundOrderAction
             ]);
         }
 
-        return $adapter->refund($order, new RefundData($amount, $reason));
+        $result = $adapter->refund($order, new RefundData($amount, $reason));
+
+        if ($result->success) {
+            OrderEvent::query()->create([
+                'order_id' => $order->id,
+                'type' => OrderEvent::TYPE_REFUNDED,
+                'payload' => ['amount' => $amount, 'reason' => $reason],
+                'occurred_at' => now(),
+            ]);
+        }
+
+        return $result;
     }
 }

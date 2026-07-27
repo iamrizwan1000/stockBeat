@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Inbox\CreateReplyTemplateAction;
 use App\Actions\Inbox\DeleteReplyTemplateAction;
 use App\Actions\Inbox\UpdateReplyTemplateAction;
@@ -10,15 +11,23 @@ use App\Http\Requests\Inbox\SaveReplyTemplateRequest;
 use App\Http\Resources\ReplyTemplateResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\ReplyTemplate;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * @group Inbox
+ *
+ * **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — same fix as
+ * `ThreadController`, this was never actually enforced until this pass.
  */
 class ReplyTemplateController extends Controller
 {
+    public function __construct(
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
+    ) {}
+
     /**
      * List saved reply templates.
      *
@@ -38,9 +47,15 @@ class ReplyTemplateController extends Controller
         $user = $request->user();
         $team = $user->currentTeam();
 
-        $templates = $team === null
-            ? collect()
-            : ReplyTemplate::query()->where('team_id', $team->id)->orderBy('name')->get();
+        if ($team === null) {
+            return ApiResponse::success(['templates' => []]);
+        }
+
+        if (! $this->inboxEnabled($team)) {
+            return ApiResponse::error('The unified inbox requires the Pro plan or higher.', status: 403);
+        }
+
+        $templates = ReplyTemplate::query()->where('team_id', $team->id)->orderBy('name')->get();
 
         return ApiResponse::success(['templates' => ReplyTemplateResource::collection($templates)]);
     }
@@ -64,6 +79,10 @@ class ReplyTemplateController extends Controller
 
         if ($team === null) {
             return ApiResponse::error('Complete profile setup before creating reply templates.', status: 422);
+        }
+
+        if (! $this->inboxEnabled($team)) {
+            return ApiResponse::error('The unified inbox requires the Pro plan or higher.', status: 403);
         }
 
         $template = $action->handle($team, $request->string('name')->toString(), $request->string('body_with_variables')->toString());
@@ -97,5 +116,14 @@ class ReplyTemplateController extends Controller
         if ($template->team_id !== $user->currentTeam()?->id) {
             abort(404);
         }
+
+        if (! $this->inboxEnabled($template->team)) {
+            abort(403, 'The unified inbox requires the Pro plan or higher.');
+        }
+    }
+
+    private function inboxEnabled(Team $team): bool
+    {
+        return (bool) ($this->resolveEntitlements->handle($team)['limits']['inbox_enabled'] ?? false);
     }
 }

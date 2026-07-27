@@ -66,7 +66,7 @@ endpoints:
         description: ''
         required: false
         example:
-          - etsy
+          - tiktok
         type: 'string[]'
         enumValues:
           - shopify
@@ -83,7 +83,7 @@ endpoints:
         name: timezone
         description: ''
         required: false
-        example: Pacific/Honolulu
+        example: Australia/Brisbane
         type: string
         enumValues:
           - Africa/Abidjan
@@ -524,8 +524,8 @@ endpoints:
       business_name: 'n'
       phone: '+36'
       sells_on:
-        - etsy
-      timezone: Pacific/Honolulu
+        - tiktok
+      timezone: Australia/Brisbane
       base_currency: iyv
     fileParameters: []
     responses:

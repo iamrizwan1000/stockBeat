@@ -4,6 +4,10 @@ description: |-
   Polled customer reviews (Plan §4.4's `negative_review` trigger) — the
   only seller-actionable field is a reply, per §4.15, and only on channels
   where `capabilities()->reviewReply` is true (eBay only in v1).
+
+  **Requires `inbox_enabled` (Pro+, Plan §4.15)** — reviewing/replying to a
+  customer is the same underlying capability as the Unified Inbox, so it's
+  gated behind the same flag rather than its own separate one.
 endpoints:
   -
     custom: []
@@ -18,6 +22,10 @@ endpoints:
         Polled customer reviews (Plan §4.4's `negative_review` trigger) — the
         only seller-actionable field is a reply, per §4.15, and only on channels
         where `capabilities()->reviewReply` is true (eBay only in v1).
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.15)** — reviewing/replying to a
+        customer is the same underlying capability as the Unified Inbox, so it's
+        gated behind the same flag rather than its own separate one.
       subgroup: ''
       subgroupDescription: ''
       title: "List this team's polled reviews, newest first."
@@ -57,6 +65,10 @@ endpoints:
         Polled customer reviews (Plan §4.4's `negative_review` trigger) — the
         only seller-actionable field is a reply, per §4.15, and only on channels
         where `capabilities()->reviewReply` is true (eBay only in v1).
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.15)** — reviewing/replying to a
+        customer is the same underlying capability as the Unified Inbox, so it's
+        gated behind the same flag rather than its own separate one.
       subgroup: ''
       subgroupDescription: ''
       title: 'Reply to a review on its platform.'

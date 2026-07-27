@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Rules\CheckNegativeReviewAction;
+use App\Actions\Rules\CheckPositiveReviewAction;
 use App\Jobs\Concerns\ThrottlesPerStoreConnection;
 use App\Models\Review;
 use App\Models\StoreConnection;
@@ -32,7 +33,7 @@ class PollWooReviewsJob implements ShouldQueue
         $this->onQueue('poll');
     }
 
-    public function handle(CheckNegativeReviewAction $checkNegativeReview): void
+    public function handle(CheckNegativeReviewAction $checkNegativeReview, CheckPositiveReviewAction $checkPositiveReview): void
     {
         $connection = StoreConnection::query()->find($this->connectionId);
 
@@ -81,6 +82,7 @@ class PollWooReviewsJob implements ShouldQueue
             ]);
 
             $checkNegativeReview->handle($review);
+            $checkPositiveReview->handle($review);
         }
     }
 }

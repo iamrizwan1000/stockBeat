@@ -31,7 +31,7 @@ class SendEmailNotificationAction
     /**
      * @param  array<string, mixed>  $extraData
      */
-    public function handle(Team $team, User $recipient, string $title, string $body, ?StoreConnection $connection = null, array $extraData = []): string
+    public function handle(Team $team, User $recipient, string $title, string $body, ?StoreConnection $connection = null, array $extraData = [], ?string $priority = null): string
     {
         $emailMonthlyLimit = $this->resolveEntitlements->handle($team)['limits']['email_monthly'] ?? null;
 
@@ -47,6 +47,7 @@ class SendEmailNotificationAction
             'title' => $title,
             'body' => $body,
             'data' => $data !== [] ? $data : null,
+            'priority' => $priority ?? Notification::PRIORITY_NORMAL,
         ]);
 
         if ($connection !== null && $connection->notifications_muted) {

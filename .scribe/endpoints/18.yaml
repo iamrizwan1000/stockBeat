@@ -23,7 +23,9 @@ endpoints:
       subgroup: ''
       subgroupDescription: ''
       title: "List this team's polled payouts, newest first."
-      description: ''
+      description: |-
+        Requires the plan's `analytics_level` to be `full` (Pro+, Plan §4.14/§5) —
+        this was specified from the start but not actually enforced until this fix.
       authenticated: true
       deprecated: false
     headers:
@@ -51,6 +53,17 @@ endpoints:
           }
         headers: []
         description: success
+      -
+        custom: []
+        status: 403
+        content: |-
+          {
+            "success": false,
+            "message": "Payouts requires the Pro plan or higher.",
+            "errors": null
+          }
+        headers: []
+        description: 'plan does not include payouts'
     responseFields: []
     auth:
       - headers

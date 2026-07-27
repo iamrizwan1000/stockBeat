@@ -13,7 +13,7 @@ Per Plan §4.10's navigation spec, this is the **first of four bottom tabs**: Fe
 **Layout, top to bottom:**
 
 1. **Analytics header** — call `GET /analytics/summary?range=today` on load. Show revenue + order count prominently ("Today: $240.00 · 3 orders"). If `entitlements.limits.analytics_level` (from `GET /me`) is `"7d"` or `"full"`, offer a range switcher (Today / 7d / 30d, capped to what the plan allows); tapping a disallowed range should open the upgrade paywall directly rather than firing the request and handling the 422 — you already know client-side which ranges are allowed.
-2. **Filter bar** — channel (platform icons, multi-select or single), status, date range, value range, tag. Keep this collapsed/summary by default (Plan §4.10: "zero-training-needed") — a filter icon that expands, not a permanently-visible form.
+2. **Filter bar** — channel (platform icons, multi-select or single), status, date range, value range, tag. Keep this collapsed/summary by default (Plan §4.10: "zero-training-needed") — a filter icon that expands, not a permanently-visible form. **Favorite/saved filters (added 2026-07-27, Plan §4.23, free on every plan):** a "Saved" chip/dropdown in this same bar, populated from `GET /order-filters` — tapping one applies its `filters` object straight into this screen's filter state (no special "apply" endpoint). A "Save current filters" action (only shown when at least one filter is active) opens a name prompt → `POST /order-filters`.
 3. **Search** — a search field wired to `q`, debounced (don't fire a request per keystroke).
 4. **Order list** — cursor-paginated (`orders-api-reference.md`'s `cursor` param). Infinite scroll: on reaching the end, if `next_cursor !== null`, fetch the next page and append; stop when it's `null`.
 
@@ -34,13 +34,18 @@ Per Plan §4.10's navigation spec, this is the **first of four bottom tabs**: Fe
 
 **On tap of a row:** navigate to `OrderDetailScreen` (Screen 2) with the order's `id`.
 
+**Bulk select mode — added 2026-07-26 (Plan §4.17):** long-press a row to enter multi-select (checkboxes appear on every row); tapping rows toggles selection. Only offer this mode at all if `entitlements.limits.bulk_actions_enabled` (from `GET /me`) is `true` — on a Free team, either hide the long-press affordance entirely or let it open the upgrade paywall directly, the same "don't fire the request and handle the 403" pattern used for a disallowed analytics range above. While selected, show a bottom action bar with two buttons:
+- **"Tag"** → a single text input for one tag → `POST /orders/bulk-tag {ids, tag}`. This *adds* the tag to each selected order (existing tags kept) — don't build this as "replace this order's tags," that's the single-order flow below.
+- **"Cancel"** → confirm step (not reversible) → `POST /orders/bulk-cancel {ids, reason}`. **Always render the per-id `results` array**, even on a 200 — e.g. "18 of 20 cancelled" with an expandable list of which ones failed and why, never a single pass/fail toast, since a channel-capability failure on one order doesn't mean the whole batch failed.
+- **"Share packing slips"** (added 2026-07-27, Plan §4.22) → `POST /orders/bulk-packing-slips {ids}` (max 100 selected), hand the returned multi-page PDF to the native share sheet — same mechanism as the single-order packing slip, just one order per page.
+
 ---
 
 ## Screen 2 — `OrderDetailScreen`
 
 **Params:** `order_id`.
 
-**On load:** `GET /orders/{id}` (includes `items` and `notes`, unlike the list endpoint).
+**On load:** `GET /orders/{id}` (includes `items`, `notes`, and (added 2026-07-27) `events`, unlike the list endpoint).
 
 **Layout:**
 1. Order header — number, status badges, placed-at date, ship-by countdown if present.
@@ -51,7 +56,9 @@ Per Plan §4.10's navigation spec, this is the **first of four bottom tabs**: Fe
 6. Tags — editable chip list. On add/remove, `POST /orders/{id}/tags` with the **full resulting array** (see API reference — this replaces, not appends).
 7. **Quick action buttons** — see below.
 8. "Message customer" button → opens a simple compose sheet, `POST /orders/{id}/message` with `{body}`. (Full inbox thread UI is a separate future module — this can be a single-shot "send a message" action for now, per the API reference's note.)
-9. "Share packing slip" → `GET /orders/{id}/packing-slip`, hand the PDF response to the native share sheet.
+9. "Share packing slip" → `GET /orders/{id}/packing-slip`, hand the PDF response to the native share sheet. This deliberately has no price on it.
+10. "Share invoice" → added 2026-07-26 (Plan §4.18), `GET /orders/{id}/invoice`, same PDF/share-sheet mechanism as the packing slip above but this one has the priced breakdown (line items, subtotal, discount/tax if known, total) — the one to send a customer, not the packing slip. Free on every plan, no capability check needed before showing the button.
+11. **Order timeline — added 2026-07-27 (Plan §4.19), free on every plan.** A collapsible "Activity" section rendering `events` top-to-bottom (already oldest-first from the API — don't reverse it). Map each `type` to a fixed icon + one-line label built from `payload` (e.g. `fulfilled` → "Marked fulfilled · UPS 1Z999AA1...", `tags_updated` → "Tags updated: gift, urgent"); `created`/`updated` have no `payload` today, just show a generic "Order received"/"Order synced" line. This is a good source for a real order-detail "what happened" section that didn't exist before — don't build a placeholder timeline out of `status` alone when this real data exists.
 
 ### Quick action buttons — capability-gated, don't just always show all four
 

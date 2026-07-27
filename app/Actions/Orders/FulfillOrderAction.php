@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Models\Order;
+use App\Models\OrderEvent;
 use App\Support\Connections\ActionResult;
 use App\Support\Connections\ChannelAdapterManager;
 use App\Support\Connections\FulfillmentData;
@@ -33,6 +34,13 @@ class FulfillOrderAction
 
         if ($result->success) {
             $order->update(['tracking_number' => $trackingNumber, 'carrier' => $carrier]);
+
+            OrderEvent::query()->create([
+                'order_id' => $order->id,
+                'type' => OrderEvent::TYPE_FULFILLED,
+                'payload' => ['tracking_number' => $trackingNumber, 'carrier' => $carrier],
+                'occurred_at' => now(),
+            ]);
         }
 
         return $result;

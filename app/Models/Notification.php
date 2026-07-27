@@ -16,11 +16,12 @@ use Illuminate\Support\Carbon;
  * @property string $title
  * @property string $body
  * @property array<string, mixed>|null $data
+ * @property string $priority
  * @property Carbon|null $read_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'type', 'title', 'body', 'data', 'read_at'])]
+#[Fillable(['user_id', 'type', 'title', 'body', 'data', 'priority', 'read_at'])]
 class Notification extends Model
 {
     /** @use HasFactory<NotificationFactory> */
@@ -43,6 +44,12 @@ class Notification extends Model
     public const TYPE_INBOX_MESSAGE = 'inbox_message';
 
     public const TYPE_QUOTA_WARNING = 'quota_warning';
+
+    public const PRIORITY_NORMAL = 'normal';
+
+    public const PRIORITY_HIGH = 'high';
+
+    public const PRIORITY_CRITICAL = 'critical';
 
     /**
      * Get the attributes that should be cast.

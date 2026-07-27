@@ -19,10 +19,12 @@ This is the **in-app record of everything that's been sent to this user** — di
   {
     "id": 1, "type": "rule_push", "title": "High-value order",
     "body": "Order #1042 — $84.00", "data": { "order_id": "1", "trigger": "high_value_order", "platform": "shopify" },
-    "read_at": null, "created_at": "2026-07-16T01:00:00.000000Z"
+    "priority": "high", "read_at": null, "created_at": "2026-07-16T01:00:00.000000Z"
   }
 ] } }
 ```
+
+**`priority` — added 2026-07-27 (Plan §4.20):** one of `normal` (default) `high` `critical`, mirrored from the rule that produced this notification (or `normal` for anything not rule-sourced — trial reminders, support replies, etc., which have no priority concept of their own). Worth a visual treatment in the list (e.g. a colored dot or bold row for `high`/`critical`) since it's a real signal the seller set intentionally, not incidental metadata — this isn't just about how the row *looks*, `high`/`critical` also means the push itself was delivered at the OS's immediate-delivery tier rather than a battery-conserving one.
 
 ### `type` and `data` — what each one means and where tapping it should go
 

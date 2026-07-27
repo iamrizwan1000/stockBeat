@@ -6,6 +6,8 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 
 **Shopify only, v1.** Every other platform (WooCommerce, eBay, Etsy, Amazon, TikTok) simply has zero rows here — that's expected, not an error. WooCommerce has no native payout concept at all (it depends on whatever payment gateway plugin the merchant uses), and eBay/Etsy/Amazon were deferred as a deliberate scope decision (Plan §4.14), not an oversight.
 
+**Requires the Pro plan or higher** (`entitlements.limits.analytics_level === "full"`) — this is an analytics extension, gated the same way as the rest of full analytics (Plan §5). **Fixed 2026-07-26**: this was specified from the start but the endpoint had no actual entitlement check until this pass — don't assume any earlier build/testing that showed this working on Free/Starter reflects intended behavior.
+
 ---
 
 ## `GET /payouts`
@@ -36,3 +38,4 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 |---|---|
 | 200 | Success (an empty `payouts` array is a normal, valid response — not an error) |
 | 401 | Missing/invalid/revoked bearer token |
+| 403 | Team's plan doesn't include full analytics (Free/Starter) |

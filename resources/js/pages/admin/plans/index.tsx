@@ -63,6 +63,7 @@ const BOOLEAN_KEYS = [
     'ai_enabled',
     'ai_rule_builder_enabled',
     'ai_proactive_insights_enabled',
+    'bulk_actions_enabled',
 ];
 const ENUM_KEYS: Record<string, Array<{ label: string; value: string }>> = {
     analytics_level: [
@@ -88,6 +89,7 @@ const LABELS: Record<string, string> = {
     ai_questions_monthly: 'AI questions / month',
     ai_rule_builder_enabled: 'AI natural-language rule builder',
     ai_proactive_insights_enabled: 'Proactive AI Insights',
+    bulk_actions_enabled: 'Bulk order actions (bulk cancel/tag)',
 };
 
 function LimitRow({ limit }: { limit: PlanLimit }) {

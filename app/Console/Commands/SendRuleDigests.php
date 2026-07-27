@@ -71,6 +71,17 @@ class SendRuleDigests extends Command
             }
         }
 
+        // Capped 1-28 at validation time (StoreRuleRequest/UpdateRuleRequest)
+        // specifically so every month genuinely has this day — no
+        // "skips every February" edge case to reason about here.
+        if ($frequency === 'monthly') {
+            $dayOfMonth = (int) ($rule->controls['digest_day_of_month'] ?? 1);
+
+            if ($now->day !== $dayOfMonth) {
+                return false;
+            }
+        }
+
         $lastFiredAt = RuleExecution::query()
             ->where('rule_id', $rule->id)
             ->where('trigger', Rule::TRIGGER_DIGEST)
@@ -81,7 +92,11 @@ class SendRuleDigests extends Command
             return true;
         }
 
-        $boundary = $frequency === 'weekly' ? $now->copy()->subDays(6) : $now->copy()->startOfDay();
+        $boundary = match ($frequency) {
+            'weekly' => $now->copy()->subDays(6),
+            'monthly' => $now->copy()->startOfMonth(),
+            default => $now->copy()->startOfDay(),
+        };
 
         return Carbon::parse($lastFiredAt)->lt($boundary);
     }

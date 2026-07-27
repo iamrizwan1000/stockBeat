@@ -80,3 +80,27 @@ test('repeat_buyer is true only when the same email has another order on the tea
     $second = Order::factory()->create(['team_id' => $team->id, 'customer_email' => 'buyer@example.com']);
     expect(evaluator()->evaluate(['all' => [['field' => 'repeat_buyer', 'value' => true]]], $second))->toBeTrue();
 });
+
+test('shipping_state reads from shipping_address without a separate column', function () {
+    $order = Order::factory()->create(['shipping_address' => ['country' => 'US', 'state' => 'CA']]);
+
+    expect(evaluator()->evaluate(['all' => [['field' => 'shipping_state', 'operator' => 'eq', 'value' => 'CA']]], $order))->toBeTrue();
+    expect(evaluator()->evaluate(['all' => [['field' => 'shipping_state', 'operator' => 'eq', 'value' => 'NY']]], $order))->toBeFalse();
+});
+
+test('customer_order_count includes the triggering order itself, so "eq N" reads as "this is their Nth order"', function () {
+    $team = Team::factory()->create();
+
+    $first = Order::factory()->create(['team_id' => $team->id, 'customer_email' => 'buyer@example.com']);
+    expect(evaluator()->evaluate(['all' => [['field' => 'customer_order_count', 'operator' => 'eq', 'value' => 1]]], $first))->toBeTrue();
+
+    $second = Order::factory()->create(['team_id' => $team->id, 'customer_email' => 'buyer@example.com']);
+    expect(evaluator()->evaluate(['all' => [['field' => 'customer_order_count', 'operator' => 'eq', 'value' => 2]]], $second))->toBeTrue();
+    expect(evaluator()->evaluate(['all' => [['field' => 'customer_order_count', 'operator' => 'gte', 'value' => 2]]], $second))->toBeTrue();
+});
+
+test('customer_order_count is 0 for a guest order with no email', function () {
+    $order = Order::factory()->create(['customer_email' => null]);
+
+    expect(evaluator()->evaluate(['all' => [['field' => 'customer_order_count', 'operator' => 'eq', 'value' => 0]]], $order))->toBeTrue();
+});

@@ -35,7 +35,8 @@ class UpdatePlanLimitAction
     {
         return match ($key) {
             PlanLimit::INBOX_ENABLED, PlanLimit::WIDGETS_ENABLED, PlanLimit::ADVANCED_TRIGGERS_ENABLED,
-            PlanLimit::AI_ENABLED, PlanLimit::AI_RULE_BUILDER_ENABLED, PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => filter_var($rawValue, FILTER_VALIDATE_BOOLEAN),
+            PlanLimit::AI_ENABLED, PlanLimit::AI_RULE_BUILDER_ENABLED, PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED,
+            PlanLimit::BULK_ACTIONS_ENABLED => filter_var($rawValue, FILTER_VALIDATE_BOOLEAN),
             PlanLimit::ANALYTICS_LEVEL => (string) $rawValue,
             default => ($rawValue === '' || $rawValue === null) ? null : (int) $rawValue,
         };

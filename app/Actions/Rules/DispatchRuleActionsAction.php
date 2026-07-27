@@ -2,6 +2,7 @@
 
 namespace App\Actions\Rules;
 
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Notifications\AutoTagAction;
 use App\Actions\Notifications\NotifyMemberAction;
 use App\Actions\Notifications\SendEmailNotificationAction;
@@ -12,6 +13,7 @@ use App\Models\DailyStat;
 use App\Models\Order;
 use App\Models\Rule;
 use App\Models\StoreConnection;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -44,6 +46,7 @@ class DispatchRuleActionsAction
         private readonly SendSmsNotificationAction $sendSms,
         private readonly NotifyMemberAction $notifyMember,
         private readonly AutoTagAction $autoTag,
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
     ) {}
 
     /**
@@ -73,12 +76,12 @@ class DispatchRuleActionsAction
 
                 $status = match ($type) {
                     'push' => $order !== null
-                        ? $this->sendOrderPush->handle($creator, $order, $title, $body, $rule->sound, connection: $connection, extraData: $sourceData)
-                        : $this->sendPush->handle($creator, $title, $body, $sourceData, sound: $rule->sound, connection: $connection),
-                    'email' => $this->sendEmail->handle($team, $creator, $title, $body, $connection, $sourceData),
+                        ? $this->sendOrderPush->handle($creator, $order, $title, $body, $rule->sound, connection: $connection, extraData: $sourceData, priority: $rule->priority)
+                        : $this->sendPush->handle($creator, $title, $body, $sourceData, sound: $rule->sound, connection: $connection, priority: $rule->priority),
+                    'email' => $this->sendEmail->handle($team, $creator, $title, $body, $connection, $sourceData, priority: $rule->priority),
                     'sms' => $this->sendSms->handle($team, $creator, $body, $connection),
                     'notify_member' => isset($action['user_id'])
-                        ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body, $rule->sound, $connection, $sourceData)
+                        ? $this->notifyMember->handle($team, (int) $action['user_id'], $title, $body, $rule->sound, $connection, $sourceData, priority: $rule->priority)
                         : 'missing_user_id',
                     'auto_tag' => $order !== null && isset($action['tag'])
                         ? $this->autoTag->handle($order, (string) $action['tag'])
@@ -120,7 +123,8 @@ class DispatchRuleActionsAction
         return match ($rule->trigger) {
             Rule::TRIGGER_DIGEST => $this->digestBody($rule),
             Rule::TRIGGER_LOW_STOCK => $this->lowStockBody($context),
-            Rule::TRIGGER_NEGATIVE_REVIEW => $this->negativeReviewBody($context),
+            Rule::TRIGGER_STALE_INVENTORY => $this->staleInventoryBody($context),
+            Rule::TRIGGER_NEGATIVE_REVIEW, Rule::TRIGGER_POSITIVE_REVIEW => $this->reviewBody($context),
             Rule::TRIGGER_AI_INSIGHT => (string) ($context['insight'] ?? 'Your AI Assistant found something worth a look.'),
             default => 'Rule triggered.',
         };
@@ -141,12 +145,17 @@ class DispatchRuleActionsAction
     }
 
     /**
+     * Shared by `negative_review` and `positive_review` (added 2026-07-27)
+     * — the context shape is identical either way, only which rules get
+     * evaluated (by rating direction, in `CheckNegativeReviewAction`/
+     * `CheckPositiveReviewAction`) differs.
+     *
      * @param  array<string, mixed>  $context
      */
-    private function negativeReviewBody(array $context): string
+    private function reviewBody(array $context): string
     {
         if (! isset($context['rating'])) {
-            return 'A negative review was received.';
+            return 'A review was received.';
         }
 
         $productSuffix = isset($context['product_title']) ? " on {$context['product_title']}" : '';
@@ -156,16 +165,42 @@ class DispatchRuleActionsAction
     }
 
     /**
+     * @param  array<string, mixed>  $context
+     */
+    private function staleInventoryBody(array $context): string
+    {
+        if (! isset($context['title'], $context['days_unchanged'])) {
+            return 'A product\'s inventory hasn\'t changed in a while.';
+        }
+
+        $skuSuffix = isset($context['sku']) ? " (SKU {$context['sku']})" : '';
+        $stockSuffix = isset($context['stock_quantity']) ? ", still at {$context['stock_quantity']} units" : '';
+
+        return "{$context['title']}{$skuSuffix} hasn't moved in {$context['days_unchanged']} days{$stockSuffix}.";
+    }
+
+    /**
      * The free-tier morning digest (`SendMorningDigestAction`) and this
      * Pro custom-rule digest deliberately compute the same real stats
      * content rather than a generic placeholder, since the whole point of
      * firing it is the summary itself.
+     *
+     * `monthly` (added 2026-07-27, Plan §4.21 "monthly business report")
+     * reuses this exact trigger/dedup/dispatch machinery rather than a
+     * parallel report system — it's a `digest` firing on a calendar-month
+     * cadence with a richer body. The period is the previous **calendar
+     * month** (not a rolling 30 days), since "my July numbers" is what a
+     * seller actually means by a monthly report.
      */
     private function digestBody(Rule $rule): string
     {
         $frequency = $rule->controls['digest_frequency'] ?? 'daily';
-        $end = now()->copy()->subDay()->endOfDay();
-        $start = $frequency === 'weekly' ? $end->copy()->subDays(6)->startOfDay() : $end->copy()->startOfDay();
+
+        [$start, $end] = match ($frequency) {
+            'weekly' => [now()->copy()->subDay()->subDays(6)->startOfDay(), now()->copy()->subDay()->endOfDay()],
+            'monthly' => [now()->copy()->subMonthNoOverflow()->startOfMonth(), now()->copy()->subMonthNoOverflow()->endOfMonth()],
+            default => [now()->copy()->subDay()->startOfDay(), now()->copy()->subDay()->endOfDay()],
+        };
 
         $totals = DailyStat::query()
             ->where('team_id', $rule->team_id)
@@ -176,11 +211,76 @@ class DispatchRuleActionsAction
         $ordersCount = (int) ($totals->orders_count ?? 0);
         $revenue = (float) ($totals->revenue ?? 0);
 
+        $noOrdersMessage = match ($frequency) {
+            'weekly' => 'No orders in the last 7 days.',
+            'monthly' => "No orders in {$start->format('F Y')}.",
+            default => 'No orders yesterday.',
+        };
+
         if ($ordersCount === 0) {
-            return $frequency === 'weekly' ? 'No orders in the last 7 days.' : 'No orders yesterday.';
+            return $noOrdersMessage;
         }
 
-        $bestSeller = DB::table('order_items')
+        $bestSeller = $this->bestSellerBetween($rule->team_id, $start, $end);
+
+        $label = match ($frequency) {
+            'weekly' => 'Last 7 days',
+            'monthly' => $start->format('F Y'),
+            default => 'Yesterday',
+        };
+        $body = "{$label}: {$ordersCount} orders, \$".number_format($revenue, 2).'.';
+
+        if ($bestSeller !== null) {
+            $body .= " Best seller: {$bestSeller}.";
+        }
+
+        if ($frequency === 'monthly') {
+            $body .= $this->monthlyReportExtras($rule, $start, $end);
+        }
+
+        return $body;
+    }
+
+    private function bestSellerBetween(int $teamId, CarbonInterface $start, CarbonInterface $end): ?string
+    {
+        return DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.team_id', $teamId)
+            ->where('orders.is_test', false)
+            ->whereBetween('orders.placed_at', [$start, $end])
+            ->selectRaw('order_items.title, SUM(order_items.qty * order_items.price) as revenue')
+            ->groupBy('order_items.title')
+            ->orderByDesc('revenue')
+            ->value('title');
+    }
+
+    /**
+     * The monthly report's extra breakdown — per-channel revenue and top 3
+     * products — gated on `analytics_level: full` (Pro+), the same
+     * entitlement `GetAnalyticsSummaryAction`/`GetTopProductsAction` already
+     * use to draw this exact line. A Starter team's monthly digest still
+     * fires (it's not trigger-gated, same as daily/weekly), it just stays at
+     * the plain orders/revenue/best-seller line above — never silently
+     * fabricating the richer breakdown for a plan that hasn't paid for it.
+     */
+    private function monthlyReportExtras(Rule $rule, CarbonInterface $start, CarbonInterface $end): string
+    {
+        $limits = $this->resolveEntitlements->handle($rule->team)['limits'];
+
+        if (($limits['analytics_level'] ?? null) !== 'full') {
+            return '';
+        }
+
+        $byChannel = DB::table('orders')
+            ->where('team_id', $rule->team_id)
+            ->where('is_test', false)
+            ->whereBetween('placed_at', [$start, $end])
+            ->selectRaw('platform, SUM(total_base_currency) as revenue')
+            ->groupBy('platform')
+            ->orderByDesc('revenue')
+            ->get();
+
+        $topProducts = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.team_id', $rule->team_id)
             ->where('orders.is_test', false)
@@ -188,15 +288,22 @@ class DispatchRuleActionsAction
             ->selectRaw('order_items.title, SUM(order_items.qty * order_items.price) as revenue')
             ->groupBy('order_items.title')
             ->orderByDesc('revenue')
-            ->value('title');
+            ->limit(3)
+            ->pluck('title');
 
-        $label = $frequency === 'weekly' ? 'Last 7 days' : 'Yesterday';
-        $body = "{$label}: {$ordersCount} orders, \$".number_format($revenue, 2).'.';
+        $extra = '';
 
-        if ($bestSeller !== null) {
-            $body .= " Best seller: {$bestSeller}.";
+        if ($byChannel->isNotEmpty()) {
+            $channelLine = $byChannel
+                ->map(fn ($row) => "{$row->platform} \$".number_format((float) $row->revenue, 2))
+                ->implode(', ');
+            $extra .= " By channel: {$channelLine}.";
         }
 
-        return $body;
+        if ($topProducts->isNotEmpty()) {
+            $extra .= ' Top products: '.$topProducts->implode(', ').'.';
+        }
+
+        return $extra;
     }
 }

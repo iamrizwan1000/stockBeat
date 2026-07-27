@@ -39,7 +39,7 @@ endpoints:
         name: channel
         description: ''
         required: false
-        example: woo
+        example: amazon
         type: string
         enumValues:
           - shopify
@@ -67,7 +67,7 @@ endpoints:
         name: status
         description: ''
         required: false
-        example: refunded
+        example: cancelled
         type: string
         enumValues:
           - new
@@ -83,7 +83,7 @@ endpoints:
         name: date_from
         description: 'Must be a valid date.'
         required: false
-        example: '2026-07-26T17:28:08'
+        example: '2026-07-26T18:44:40'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -94,7 +94,7 @@ endpoints:
         name: date_to
         description: 'Must be a valid date.'
         required: false
-        example: '2026-07-26T17:28:08'
+        example: '2026-07-26T18:44:40'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -160,24 +160,24 @@ endpoints:
         name: include_snoozed
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      channel: woo
+      channel: amazon
       store: 16
-      status: refunded
-      date_from: '2026-07-26T17:28:08'
-      date_to: '2026-07-26T17:28:08'
+      status: cancelled
+      date_from: '2026-07-26T18:44:40'
+      date_to: '2026-07-26T18:44:40'
       value_min: 4326.41688
       value_max: 4326.41688
       tag: architecto
       q: architecto
       customer_email: zbailey@example.net
-      include_snoozed: false
+      include_snoozed: true
     fileParameters: []
     responses:
       -
@@ -799,6 +799,204 @@ endpoints:
   -
     custom: []
     httpMethods:
+      - POST
+    uri: api/v1/orders/bulk-cancel
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Cancel several orders in one call.'
+      description: |-
+        Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17) — single-order cancel
+        stays free on every tier. Team ownership across the whole `ids` batch is checked atomically
+        up front (any id not belonging to the team 422s the entire call, nothing partially applied),
+        but per-order cancellation itself is not atomic: a channel that doesn't support cancel only
+        fails that one order, reported in the `results` array rather than blocking the rest.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      ids:
+        custom: []
+        name: ids
+        description: ''
+        required: true
+        example:
+          - 16
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      reason:
+        custom: []
+        name: reason
+        description: 'Must not be greater than 500 characters.'
+        required: false
+        example: 'n'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      ids:
+        - 16
+      reason: 'n'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": { "results": [
+              { "id": 1, "success": true, "error": null },
+              { "id": 2, "success": false, "error": "This channel doesn't support cancelling orders from here." }
+            ] }
+          }
+        headers: []
+        description: success
+      -
+        custom: []
+        status: 403
+        content: |-
+          {
+            "success": false,
+            "message": "Bulk order actions require the Starter plan or higher.",
+            "errors": null
+          }
+        headers: []
+        description: 'plan does not include bulk actions'
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "ids": ["One or more orders do not belong to your team."] }
+          }
+        headers: []
+        description: "an id doesn't belong to the team"
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/v1/orders/bulk-tag
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Tag several orders in one call.'
+      description: |-
+        Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17). Appends `tag` to each
+        order's existing tags (deduped) rather than replacing the list — different from the
+        single-order `POST /orders/{id}/tags`, which replaces the whole list. Team ownership across
+        the batch is checked atomically up front, same as bulk-cancel; unlike bulk-cancel, tagging
+        can never fail per-order once ownership is confirmed, so every id in the batch always succeeds.
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      ids:
+        custom: []
+        name: ids
+        description: ''
+        required: true
+        example:
+          - 16
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      tag:
+        custom: []
+        name: tag
+        description: 'Must not be greater than 50 characters.'
+        required: true
+        example: 'n'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      ids:
+        - 16
+      tag: 'n'
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "success": true,
+            "message": null,
+            "data": { "orders": [
+              { "id": 1, "order_number": "#1042", "tags": ["gift", "urgent"] }
+            ] }
+          }
+        headers: []
+        description: success
+      -
+        custom: []
+        status: 422
+        content: |-
+          {
+            "success": false,
+            "message": "The given data was invalid.",
+            "errors": { "ids": ["One or more orders do not belong to your team."] }
+          }
+        headers: []
+        description: "an id doesn't belong to the team"
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
       - GET
     uri: 'api/v1/orders/{order_id}/packing-slip'
     metadata:
@@ -812,6 +1010,60 @@ endpoints:
       subgroupDescription: ''
       title: 'Get a packing slip PDF.'
       description: 'Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_SANCTUM_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      order_id:
+        custom: []
+        name: order_id
+        description: 'The ID of the order.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      order_id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 6g43cv8PD1aE5beadkZfhV6'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/v1/orders/{order_id}/invoice'
+    metadata:
+      custom: []
+      groupName: Orders
+      groupDescription: |-
+
+        The unified order feed across all connected channels, plus quick actions
+        (fulfill/tracking, refund, cancel, notes/tags, packing slip).
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Get an invoice PDF.'
+      description: |-
+        Distinct from the packing slip (which deliberately omits price): this includes item unit
+        price, subtotal, discount, tax, and total — the customer-facing priced document. Free on
+        every plan (Plan §4.18), any team member can fetch it. Returns the rendered PDF directly
+        (`Content-Type: application/pdf`), not a JSON envelope.
       authenticated: true
       deprecated: false
     headers:

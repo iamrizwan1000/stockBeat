@@ -4,6 +4,7 @@ namespace App\Actions\Rules;
 
 use App\Models\Review;
 use App\Models\Rule;
+use App\Support\Rules\ReviewKeywordFilter;
 use Illuminate\Support\Str;
 
 /**
@@ -13,6 +14,9 @@ use Illuminate\Support\Str;
  * genuinely new review row" (the poller only calls this once, at insert
  * time), so no notified-at bookkeeping is needed the way `low_stock` needs
  * it for its fluctuating stock value.
+ *
+ * `controls.review_keyword` (added 2026-07-27, see `ReviewKeywordFilter`) is
+ * an optional extra narrowing filter shared with `CheckPositiveReviewAction`.
  */
 class CheckNegativeReviewAction
 {
@@ -32,6 +36,10 @@ class CheckNegativeReviewAction
             $maxRating = (int) ($rule->controls['negative_review_max_rating'] ?? 3);
 
             if ($review->rating > $maxRating) {
+                continue;
+            }
+
+            if (! ReviewKeywordFilter::matches($rule, $review)) {
                 continue;
             }
 

@@ -6,6 +6,10 @@ description: |-
   real Trading API member messages, Etsy the same way but gated behind its
   own conversations-API approval, Amazon out of scope until that adapter's
   built.
+
+  **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified
+  from the start but not actually enforced anywhere until this fix; every
+  plan could reach every method here regardless of tier.
 endpoints:
   -
     custom: []
@@ -22,6 +26,10 @@ endpoints:
         real Trading API member messages, Etsy the same way but gated behind its
         own conversations-API approval, Amazon out of scope until that adapter's
         built.
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified
+        from the start but not actually enforced anywhere until this fix; every
+        plan could reach every method here regardless of tier.
       subgroup: ''
       subgroupDescription: ''
       title: 'List threads.'
@@ -90,6 +98,10 @@ endpoints:
         real Trading API member messages, Etsy the same way but gated behind its
         own conversations-API approval, Amazon out of scope until that adapter's
         built.
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified
+        from the start but not actually enforced anywhere until this fix; every
+        plan could reach every method here regardless of tier.
       subgroup: ''
       subgroupDescription: ''
       title: "List a thread's messages."
@@ -158,6 +170,10 @@ endpoints:
         real Trading API member messages, Etsy the same way but gated behind its
         own conversations-API approval, Amazon out of scope until that adapter's
         built.
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified
+        from the start but not actually enforced anywhere until this fix; every
+        plan could reach every method here regardless of tier.
       subgroup: ''
       subgroupDescription: ''
       title: 'Send a message.'
@@ -250,6 +266,10 @@ endpoints:
         real Trading API member messages, Etsy the same way but gated behind its
         own conversations-API approval, Amazon out of scope until that adapter's
         built.
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified
+        from the start but not actually enforced anywhere until this fix; every
+        plan could reach every method here regardless of tier.
       subgroup: ''
       subgroupDescription: ''
       title: 'Assign (or unassign) a thread to a team member.'
@@ -309,7 +329,10 @@ endpoints:
     metadata:
       custom: []
       groupName: Inbox
-      groupDescription: ''
+      groupDescription: |-
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — same fix as
+        `ThreadController`, this was never actually enforced until this pass.
       subgroup: ''
       subgroupDescription: ''
       title: 'List saved reply templates.'
@@ -359,7 +382,10 @@ endpoints:
     metadata:
       custom: []
       groupName: Inbox
-      groupDescription: ''
+      groupDescription: |-
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — same fix as
+        `ThreadController`, this was never actually enforced until this pass.
       subgroup: ''
       subgroupDescription: ''
       title: 'Create a reply template.'
@@ -431,7 +457,10 @@ endpoints:
     metadata:
       custom: []
       groupName: Inbox
-      groupDescription: ''
+      groupDescription: |-
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — same fix as
+        `ThreadController`, this was never actually enforced until this pass.
       subgroup: ''
       subgroupDescription: ''
       title: ''
@@ -502,7 +531,10 @@ endpoints:
     metadata:
       custom: []
       groupName: Inbox
-      groupDescription: ''
+      groupDescription: |-
+
+        **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — same fix as
+        `ThreadController`, this was never actually enforced until this pass.
       subgroup: ''
       subgroupDescription: ''
       title: ''

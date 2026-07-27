@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PayoutResource;
 use App\Http\Responses\ApiResponse;
@@ -20,8 +21,15 @@ use Illuminate\Http\Request;
  */
 class PayoutController extends Controller
 {
+    public function __construct(
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
+    ) {}
+
     /**
      * List this team's polled payouts, newest first.
+     *
+     * Requires the plan's `analytics_level` to be `full` (Pro+, Plan §4.14/§5) —
+     * this was specified from the start but not actually enforced until this fix.
      *
      * @response 200 scenario="success" {
      *   "success": true,
@@ -29,6 +37,11 @@ class PayoutController extends Controller
      *   "data": { "payouts": [
      *     { "id": 1, "connection_id": 1, "amount": 482.19, "currency": "USD", "status": "paid", "arrival_date": "2026-07-24" }
      *   ] }
+     * }
+     * @response 403 scenario="plan does not include payouts" {
+     *   "success": false,
+     *   "message": "Payouts requires the Pro plan or higher.",
+     *   "errors": null
      * }
      */
     public function index(Request $request): JsonResponse
@@ -39,6 +52,12 @@ class PayoutController extends Controller
 
         if ($team === null) {
             return ApiResponse::success(['payouts' => []]);
+        }
+
+        $limits = $this->resolveEntitlements->handle($team)['limits'];
+
+        if (($limits['analytics_level'] ?? null) !== 'full') {
+            return ApiResponse::error('Payouts requires the Pro plan or higher.', status: 403);
         }
 
         $payouts = Payout::query()

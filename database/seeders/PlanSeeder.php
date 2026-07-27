@@ -41,6 +41,7 @@ class PlanSeeder extends Seeder
             PlanLimit::AI_QUESTIONS_MONTHLY => 0,
             PlanLimit::AI_RULE_BUILDER_ENABLED => false,
             PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => false,
+            PlanLimit::BULK_ACTIONS_ENABLED => false,
         ]);
 
         $starter = Plan::query()->updateOrCreate(
@@ -63,6 +64,7 @@ class PlanSeeder extends Seeder
             PlanLimit::AI_QUESTIONS_MONTHLY => 30,
             PlanLimit::AI_RULE_BUILDER_ENABLED => false,
             PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => false,
+            PlanLimit::BULK_ACTIONS_ENABLED => true,
         ]);
 
         $pro = Plan::query()->updateOrCreate(
@@ -85,6 +87,7 @@ class PlanSeeder extends Seeder
             PlanLimit::AI_QUESTIONS_MONTHLY => 150,
             PlanLimit::AI_RULE_BUILDER_ENABLED => true,
             PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => false,
+            PlanLimit::BULK_ACTIONS_ENABLED => true,
         ]);
 
         $premium = Plan::query()->updateOrCreate(
@@ -108,6 +111,7 @@ class PlanSeeder extends Seeder
             PlanLimit::AI_QUESTIONS_MONTHLY => 500,
             PlanLimit::AI_RULE_BUILDER_ENABLED => true,
             PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED => true,
+            PlanLimit::BULK_ACTIONS_ENABLED => true,
         ]);
     }
 

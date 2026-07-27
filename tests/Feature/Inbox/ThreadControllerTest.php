@@ -5,6 +5,7 @@ use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\ReplyTemplate;
 use App\Models\StoreConnection;
+use App\Models\Subscription;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +37,21 @@ function onboardedInboxSeller(): array
 
 test('listing threads requires authentication', function () {
     test()->getJson('/api/v1/threads')->assertUnauthorized();
+});
+
+test('a free-plan team is blocked from the inbox with a clear upgrade message', function () {
+    [$user] = onboardedInboxSeller();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_EXPIRED, 'trial_ends_at' => now()->subDay()]);
+
+    test()->getJson('/api/v1/threads')
+        ->assertForbidden()
+        ->assertJsonPath('message', 'The unified inbox requires the Pro plan or higher.');
+});
+
+test('a pro-trial team can access the inbox', function () {
+    [$user] = onboardedInboxSeller();
+
+    test()->getJson('/api/v1/threads')->assertOk();
 });
 
 test('a seller only sees threads belonging to their own team', function () {

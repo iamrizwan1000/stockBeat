@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Models\Order;
+use App\Models\OrderEvent;
 use Carbon\CarbonInterface;
 
 /**
@@ -15,6 +16,13 @@ class SnoozeOrderAction
     public function handle(Order $order, ?CarbonInterface $until): Order
     {
         $order->update(['snoozed_until' => $until]);
+
+        OrderEvent::query()->create([
+            'order_id' => $order->id,
+            'type' => OrderEvent::TYPE_SNOOZED,
+            'payload' => ['until' => $until?->toIso8601String()],
+            'occurred_at' => now(),
+        ]);
 
         return $order;
     }

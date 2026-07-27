@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ReplyTemplate;
+use App\Models\Subscription;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +28,18 @@ function onboardedTemplateOwner(): User
 
 test('listing reply templates requires authentication', function () {
     test()->getJson('/api/v1/reply-templates')->assertUnauthorized();
+});
+
+test('a free-plan team is blocked from reply templates with a clear upgrade message', function () {
+    $user = onboardedTemplateOwner();
+    $user->ownedTeam->subscription->update(['status' => Subscription::STATUS_EXPIRED, 'trial_ends_at' => now()->subDay()]);
+
+    test()->getJson('/api/v1/reply-templates')
+        ->assertForbidden()
+        ->assertJsonPath('message', 'The unified inbox requires the Pro plan or higher.');
+
+    test()->postJson('/api/v1/reply-templates', ['name' => 'x', 'body_with_variables' => 'y'])
+        ->assertForbidden();
 });
 
 test('a seller only sees their own teams reply templates', function () {

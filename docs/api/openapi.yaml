@@ -33,7 +33,7 @@ tags:
   - name: Devices
     description: ''
   - name: Inbox
-    description: "\nUnified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)\nroutes per-thread by channel: Shopify/Woo via order-linked email, eBay via\nreal Trading API member messages, Etsy the same way but gated behind its\nown conversations-API approval, Amazon out of scope until that adapter's\nbuilt."
+    description: "\nUnified customer inbox (Plan §4.5). `sendMessage` (in `SendInboxMessageAction`)\nroutes per-thread by channel: Shopify/Woo via order-linked email, eBay via\nreal Trading API member messages, Etsy the same way but gated behind its\nown conversations-API approval, Amazon out of scope until that adapter's\nbuilt.\n\n**Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified\nfrom the start but not actually enforced anywhere until this fix; every\nplan could reach every method here regardless of tier."
   - name: Me
     description: ''
   - name: Notifications
@@ -45,7 +45,7 @@ tags:
   - name: Products
     description: "\nPolled product/stock snapshots (Plan §4.4's `low_stock` trigger) — not a\ncatalog management feature. Seller-editable fields are `cost_price` (Plan\n§4.12 Phase B, since no platform API exposes true cost-of-goods) and, as\nof §4.13, `stock_quantity` on Shopify/WooCommerce connections — a quick\nfix, not full listing/catalog editing."
   - name: Reviews
-    description: "\nPolled customer reviews (Plan §4.4's `negative_review` trigger) — the\nonly seller-actionable field is a reply, per §4.15, and only on channels\nwhere `capabilities()->reviewReply` is true (eBay only in v1)."
+    description: "\nPolled customer reviews (Plan §4.4's `negative_review` trigger) — the\nonly seller-actionable field is a reply, per §4.15, and only on channels\nwhere `capabilities()->reviewReply` is true (eBay only in v1).\n\n**Requires `inbox_enabled` (Pro+, Plan §4.15)** — reviewing/replying to a\ncustomer is the same underlying capability as the Unified Inbox, so it's\ngated behind the same flag rather than its own separate one."
   - name: Rules
     description: "\nCustom notification rules: trigger + condition tree + actions, with quiet hours, cooldown,\nand an execution log. See Plan §4.4 for the full trigger catalogue (12 triggers, e.g.\n`new_order`, `unfulfilled_after_x`, `order_spike`, `low_stock`, `digest`)."
   - name: Settings
@@ -122,7 +122,7 @@ paths:
                 mode:
                   type: string
                   description: ''
-                  example: help
+                  example: data
                   enum:
                     - data
                     - help
@@ -498,7 +498,7 @@ paths:
                 range:
                   type: string
                   description: ''
-                  example: 7d
+                  example: today
                   enum:
                     - today
                     - 7d
@@ -581,7 +581,7 @@ paths:
                 range:
                   type: string
                   description: ''
-                  example: 7d
+                  example: today
                   enum:
                     - today
                     - 7d
@@ -960,7 +960,7 @@ paths:
                   type: array
                   description: ''
                   example:
-                    - etsy
+                    - tiktok
                   items:
                     type: string
                     enum:
@@ -973,7 +973,7 @@ paths:
                 timezone:
                   type: string
                   description: ''
-                  example: Pacific/Honolulu
+                  example: Australia/Brisbane
                   enum:
                     - Africa/Abidjan
                     - Africa/Accra
@@ -2200,7 +2200,7 @@ paths:
                 notifications_muted:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
               required:
                 - notifications_muted
     parameters:
@@ -3375,7 +3375,7 @@ paths:
                 channel:
                   type: string
                   description: ''
-                  example: woo
+                  example: amazon
                   enum:
                     - shopify
                     - woo
@@ -3390,7 +3390,7 @@ paths:
                 status:
                   type: string
                   description: ''
-                  example: refunded
+                  example: cancelled
                   enum:
                     - new
                     - unfulfilled
@@ -3400,11 +3400,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-26T17:28:08'
+                  example: '2026-07-26T18:44:40'
                 date_to:
                   type: string
                   description: 'Must be a valid date.'
-                  example: '2026-07-26T17:28:08'
+                  example: '2026-07-26T18:44:40'
                 value_min:
                   type: number
                   description: ''
@@ -3428,7 +3428,7 @@ paths:
                 include_snoozed:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
   '/api/v1/orders/{id}':
     get:
       summary: 'Get an order.'
@@ -4074,11 +4074,271 @@ paths:
         required: true
         schema:
           type: integer
+  /api/v1/orders/bulk-cancel:
+    post:
+      summary: 'Cancel several orders in one call.'
+      operationId: cancelSeveralOrdersInOneCall
+      description: "Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17) — single-order cancel\nstays free on every tier. Team ownership across the whole `ids` batch is checked atomically\nup front (any id not belonging to the team 422s the entire call, nothing partially applied),\nbut per-order cancellation itself is not atomic: a channel that doesn't support cancel only\nfails that one order, reported in the `results` array rather than blocking the rest."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    results:
+                      -
+                        id: 1
+                        success: true
+                        error: null
+                      -
+                        id: 2
+                        success: false
+                        error: "This channel doesn't support cancelling orders from here."
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      results:
+                        type: array
+                        example:
+                          - id: 1
+                            success: true
+                            error: null
+                          - id: 2
+                            success: false
+                            error: "This channel doesn't support cancelling orders from here."
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            success:
+                              type: boolean
+                              example: true
+                            error:
+                              type: string
+                              example: null
+                              nullable: true
+        403:
+          description: 'plan does not include bulk actions'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Bulk order actions require the Starter plan or higher.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Bulk order actions require the Starter plan or higher.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
+        422:
+          description: "an id doesn't belong to the team"
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    ids:
+                      - 'One or more orders do not belong to your team.'
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      ids:
+                        type: array
+                        example:
+                          - 'One or more orders do not belong to your team.'
+                        items:
+                          type: string
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  description: ''
+                  example:
+                    - 16
+                  items:
+                    type: integer
+                reason:
+                  type: string
+                  description: 'Must not be greater than 500 characters.'
+                  example: 'n'
+                  nullable: true
+              required:
+                - ids
+  /api/v1/orders/bulk-tag:
+    post:
+      summary: 'Tag several orders in one call.'
+      operationId: tagSeveralOrdersInOneCall
+      description: "Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan §4.17). Appends `tag` to each\norder's existing tags (deduped) rather than replacing the list — different from the\nsingle-order `POST /orders/{id}/tags`, which replaces the whole list. Team ownership across\nthe batch is checked atomically up front, same as bulk-cancel; unlike bulk-cancel, tagging\ncan never fail per-order once ownership is confirmed, so every id in the batch always succeeds."
+      parameters: []
+      responses:
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: true
+                  message: null
+                  data:
+                    orders:
+                      -
+                        id: 1
+                        order_number: '#1042'
+                        tags:
+                          - gift
+                          - urgent
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    properties:
+                      orders:
+                        type: array
+                        example:
+                          -
+                            id: 1
+                            order_number: '#1042'
+                            tags:
+                              - gift
+                              - urgent
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            order_number:
+                              type: string
+                              example: '#1042'
+                            tags:
+                              type: array
+                              example:
+                                - gift
+                                - urgent
+                              items:
+                                type: string
+        422:
+          description: "an id doesn't belong to the team"
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'The given data was invalid.'
+                  errors:
+                    ids:
+                      - 'One or more orders do not belong to your team.'
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    properties:
+                      ids:
+                        type: array
+                        example:
+                          - 'One or more orders do not belong to your team.'
+                        items:
+                          type: string
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  description: ''
+                  example:
+                    - 16
+                  items:
+                    type: integer
+                tag:
+                  type: string
+                  description: 'Must not be greater than 50 characters.'
+                  example: 'n'
+              required:
+                - ids
+                - tag
   '/api/v1/orders/{order_id}/packing-slip':
     get:
       summary: 'Get a packing slip PDF.'
       operationId: getAPackingSlipPDF
       description: 'Returns the rendered PDF directly (`Content-Type: application/pdf`), not a JSON envelope.'
+      parameters: []
+      responses: {}
+      tags:
+        - Orders
+    parameters:
+      -
+        in: path
+        name: order_id
+        description: 'The ID of the order.'
+        example: 16
+        required: true
+        schema:
+          type: integer
+  '/api/v1/orders/{order_id}/invoice':
+    get:
+      summary: 'Get an invoice PDF.'
+      operationId: getAnInvoicePDF
+      description: "Distinct from the packing slip (which deliberately omits price): this includes item unit\nprice, subtotal, discount, tax, and total — the customer-facing priced document. Free on\nevery plan (Plan §4.18), any team member can fetch it. Returns the rendered PDF directly\n(`Content-Type: application/pdf`), not a JSON envelope."
       parameters: []
       responses: {}
       tags:
@@ -4176,7 +4436,7 @@ paths:
     get:
       summary: "List this team's polled payouts, newest first."
       operationId: listThisTeamsPolledPayoutsNewestFirst
-      description: ''
+      description: "Requires the plan's `analytics_level` to be `full` (Pro+, Plan §4.14/§5) —\nthis was specified from the start but not actually enforced until this fix."
       parameters: []
       responses:
         200:
@@ -4238,6 +4498,27 @@ paths:
                             arrival_date:
                               type: string
                               example: '2026-07-24'
+        403:
+          description: 'plan does not include payouts'
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  success: false
+                  message: 'Payouts requires the Pro plan or higher.'
+                  errors: null
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Payouts requires the Pro plan or higher.'
+                  errors:
+                    type: string
+                    example: null
+                    nullable: true
       tags:
         - Payouts
   /api/v1/products:
@@ -4769,7 +5050,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: payment_failed
+                  example: high_value_order
                   enum:
                     - new_order
                     - high_value_order
@@ -4814,7 +5095,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: lte
+                            example: gt
                             enum:
                               - eq
                               - neq
@@ -4842,7 +5123,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: repeat_buyer
+                            example: customer_country
                             enum:
                               - channel
                               - store
@@ -4857,7 +5138,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: eq
+                            example: between
                             enum:
                               - eq
                               - neq
@@ -4886,7 +5167,7 @@ paths:
                       type:
                         type: string
                         description: ''
-                        example: email
+                        example: notify_member
                         enum:
                           - push
                           - email
@@ -4930,11 +5211,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '17:28'
+                          example: '18:44'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '17:28'
+                          example: '18:44'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -4946,14 +5227,14 @@ paths:
                     digest_frequency:
                       type: string
                       description: ''
-                      example: daily
+                      example: weekly
                       enum:
                         - daily
                         - weekly
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '17:28'
+                      example: '18:44'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -5098,7 +5379,7 @@ paths:
                 trigger:
                   type: string
                   description: ''
-                  example: digest
+                  example: low_stock
                   enum:
                     - new_order
                     - high_value_order
@@ -5128,7 +5409,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: shipping_method
+                            example: sku
                             enum:
                               - channel
                               - store
@@ -5143,7 +5424,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: between
+                            example: eq
                             enum:
                               - eq
                               - neq
@@ -5171,7 +5452,7 @@ paths:
                           field:
                             type: string
                             description: ''
-                            example: tag
+                            example: sku
                             enum:
                               - channel
                               - store
@@ -5186,7 +5467,7 @@ paths:
                           operator:
                             type: string
                             description: ''
-                            example: lte
+                            example: neq
                             enum:
                               - eq
                               - neq
@@ -5214,7 +5495,7 @@ paths:
                       type:
                         type: string
                         description: 'This field is required when <code>actions</code> is present.'
-                        example: push
+                        example: sms
                         enum:
                           - push
                           - email
@@ -5232,7 +5513,7 @@ paths:
                 sound:
                   type: string
                   description: ''
-                  example: cha_ching
+                  example: chime
                   enum:
                     - default
                     - cha_ching
@@ -5256,11 +5537,11 @@ paths:
                         start:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '17:28'
+                          example: '18:44'
                         end:
                           type: string
                           description: 'Must be a valid date in the format <code>H:i</code>.'
-                          example: '17:28'
+                          example: '18:44'
                         timezone:
                           type: string
                           description: 'Must be a valid time zone, such as <code>Africa/Accra</code>.'
@@ -5279,7 +5560,7 @@ paths:
                     digest_time:
                       type: string
                       description: 'Must be a valid date in the format <code>H:i</code>.'
-                      example: '17:28'
+                      example: '18:44'
                     digest_day_of_week:
                       type: integer
                       description: 'Must be between 0 and 6.'
@@ -5303,7 +5584,7 @@ paths:
                 enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
     parameters:
       -
         in: path
@@ -5613,24 +5894,24 @@ paths:
                 push_enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
                 email_enabled:
                   type: boolean
                   description: ''
-                  example: false
+                  example: true
                 sms_enabled:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                 quiet_hours_start:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '17:28'
+                  example: '18:44'
                   nullable: true
                 quiet_hours_end:
                   type: string
                   description: 'Must be a valid date in the format <code>H:i</code>.'
-                  example: '17:28'
+                  example: '18:44'
                   nullable: true
                 quiet_hours_timezone:
                   type: string
@@ -5842,7 +6123,7 @@ paths:
                 rating:
                   type: integer
                   description: ''
-                  example: 1
+                  example: 0
                   enum:
                     - 0
                     - 1
@@ -6115,7 +6396,7 @@ paths:
                 role:
                   type: string
                   description: ''
-                  example: manager
+                  example: agent
                   enum:
                     - manager
                     - agent

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Inbox\AssignInboxThreadAction;
 use App\Actions\Inbox\RenderReplyTemplateAction;
 use App\Actions\Inbox\SendInboxMessageAction;
@@ -12,6 +13,7 @@ use App\Http\Resources\InboxThreadResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\InboxThread;
 use App\Models\ReplyTemplate;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,9 +26,17 @@ use Illuminate\Http\Request;
  * real Trading API member messages, Etsy the same way but gated behind its
  * own conversations-API approval, Amazon out of scope until that adapter's
  * built.
+ *
+ * **Requires `inbox_enabled` (Pro+, Plan §4.5/§5)** — this was specified
+ * from the start but not actually enforced anywhere until this fix; every
+ * plan could reach every method here regardless of tier.
  */
 class ThreadController extends Controller
 {
+    public function __construct(
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
+    ) {}
+
     /**
      * List threads.
      *
@@ -50,6 +60,10 @@ class ThreadController extends Controller
 
         if ($team === null) {
             return ApiResponse::success(['threads' => []]);
+        }
+
+        if (! $this->inboxEnabled($team)) {
+            return ApiResponse::error('The unified inbox requires the Pro plan or higher.', status: 403);
         }
 
         $threads = InboxThread::query()
@@ -155,5 +169,14 @@ class ThreadController extends Controller
         if ($thread->team_id !== $user->currentTeam()?->id) {
             abort(404);
         }
+
+        if (! $this->inboxEnabled($thread->team)) {
+            abort(403, 'The unified inbox requires the Pro plan or higher.');
+        }
+    }
+
+    private function inboxEnabled(Team $team): bool
+    {
+        return (bool) ($this->resolveEntitlements->handle($team)['limits']['inbox_enabled'] ?? false);
     }
 }

@@ -58,6 +58,8 @@ class ConditionEvaluator
             'repeat_buyer' => $this->isRepeatBuyer($order) === (bool) $value,
             'shipping_method' => $this->compare($order->shipping_address['method'] ?? null, $operator, $value),
             'tag' => is_string($value) && in_array($value, $order->tags ?? [], true),
+            'shipping_state' => $this->compare($order->shipping_address['state'] ?? null, $operator, $value),
+            'customer_order_count' => $this->compareNumeric((float) $this->customerOrderCount($order), $operator, $value),
             default => false,
         };
     }
@@ -105,14 +107,27 @@ class ConditionEvaluator
 
     private function isRepeatBuyer(Order $order): bool
     {
+        return $this->customerOrderCount($order) > 1;
+    }
+
+    /**
+     * Total orders this team has from the order's customer email,
+     * **including this order itself** — added 2026-07-27 for the
+     * `customer_order_count` condition ("this is their 5th order" reads
+     * naturally as `customer_order_count eq 5`, since a rule only ever
+     * evaluates after the triggering order is already persisted). Reused
+     * by `isRepeatBuyer()` above rather than a separate near-duplicate
+     * query — a count of 1 means no prior orders, i.e. not a repeat buyer.
+     */
+    private function customerOrderCount(Order $order): int
+    {
         if ($order->customer_email === null) {
-            return false;
+            return 0;
         }
 
         return Order::query()
             ->where('team_id', $order->team_id)
             ->where('customer_email', $order->customer_email)
-            ->where('id', '!=', $order->id)
-            ->exists();
+            ->count();
     }
 }

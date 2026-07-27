@@ -1,12 +1,12 @@
 # StockBeat Mobile — Payouts Screen
 
-Pair with `payouts-api-reference.md` — **read its opening note first**: this isn't a Plan §4 bottom-nav screen, it's a read-only reconciliation view. Entry point below is a recommendation, not a spec requirement.
+Pair with `payouts-api-reference.md` — **read its opening note first**: this isn't a Plan §4 bottom-nav screen, it's a read-only reconciliation view. Entry point below is a recommendation, not a spec requirement. **Pro+ only** (`entitlements.limits.analytics_level === "full"`) — gated the same way as the rest of full analytics.
 
 ---
 
 ## Entry point: Settings/More
 
-Row 6 in `MoreScreen` (`settings-flow-screens.md`'s Screen 1), between "Customers" and "Reviews" — an occasional glance, not a primary tab, same reasoning as Products.
+Row 6 in `MoreScreen` (`settings-flow-screens.md`'s Screen 1), between "Customers" and "Reviews" — **gate this row like the Team & Roles row** (locked-with-upgrade-prompt for Free/Starter, per `entitlements.limits.analytics_level`), not the ungated treatment Products/Customers get.
 
 ---
 

@@ -23,6 +23,7 @@ class RuleResource extends JsonResource
             'conditions' => $this->conditions,
             'actions' => $this->actions,
             'sound' => $this->sound,
+            'priority' => $this->priority,
             'controls' => $this->controls,
             'enabled' => $this->enabled,
             'created_at' => $this->created_at,

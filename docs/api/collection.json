@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "StockBeat API Documentation",
-        "_postman_id": "0b829a49-ccd3-43f8-be18-3422c60f2053",
+        "_postman_id": "8d427311-129f-42e0-b713-f97a61ffe169",
         "description": "Token-authenticated REST API consumed by the StockBeat mobile app (React Native).",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -41,7 +41,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"help\"}"
+                            "raw": "{\"question\":\"b\",\"conversation_id\":16,\"mode\":\"data\"}"
                         },
                         "description": ""
                     },
@@ -245,7 +245,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"7d\"}"
+                            "raw": "{\"range\":\"today\"}"
                         },
                         "description": "`comparison` and `goal` are only present at the `full` analytics level (Pro\/Premium)."
                     },
@@ -299,7 +299,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"range\":\"7d\"}"
+                            "raw": "{\"range\":\"today\"}"
                         },
                         "description": "Grouped by SKU, falling back to title for SKU-less line items. Same plan gating as the summary."
                     },
@@ -512,7 +512,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"etsy\"],\"timezone\":\"Pacific\\\/Honolulu\",\"base_currency\":\"iyv\"}"
+                            "raw": "{\"name\":\"b\",\"business_name\":\"n\",\"phone\":\"+36\",\"sells_on\":[\"tiktok\"],\"timezone\":\"Australia\\\/Brisbane\",\"base_currency\":\"iyv\"}"
                         },
                         "description": "One-time step for new users after OTP verification. Creates the user's owning `Team`\n(with the user as `owner`) alongside setting their profile fields."
                     },
@@ -940,7 +940,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"notifications_muted\":false}"
+                            "raw": "{\"notifications_muted\":true}"
                         },
                         "description": "The only editable field on an existing connection today \u2014 syncing continues either way,\nthis only stops push\/email\/SMS from rules whose firing traces back to this store. Rule\nfires are still logged in the notification center regardless (Plan \u00a74.8\/\u00a717.4's \"logged\nbut not delivered\" convention)."
                     },
@@ -1069,7 +1069,7 @@
         },
         {
             "name": "Inbox",
-            "description": "\nUnified customer inbox (Plan \u00a74.5). `sendMessage` (in `SendInboxMessageAction`)\nroutes per-thread by channel: Shopify\/Woo via order-linked email, eBay via\nreal Trading API member messages, Etsy the same way but gated behind its\nown conversations-API approval, Amazon out of scope until that adapter's\nbuilt.",
+            "description": "\nUnified customer inbox (Plan \u00a74.5). `sendMessage` (in `SendInboxMessageAction`)\nroutes per-thread by channel: Shopify\/Woo via order-linked email, eBay via\nreal Trading API member messages, Etsy the same way but gated behind its\nown conversations-API approval, Amazon out of scope until that adapter's\nbuilt.\n\n**Requires `inbox_enabled` (Pro+, Plan \u00a74.5\/\u00a75)** \u2014 this was specified\nfrom the start but not actually enforced anywhere until this fix; every\nplan could reach every method here regardless of tier.",
             "item": [
                 {
                     "name": "List threads.",
@@ -1514,7 +1514,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"channel\":\"woo\",\"store\":16,\"status\":\"refunded\",\"date_from\":\"2026-07-26T17:28:08\",\"date_to\":\"2026-07-26T17:28:08\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"customer_email\":\"zbailey@example.net\",\"include_snoozed\":false}"
+                            "raw": "{\"channel\":\"amazon\",\"store\":16,\"status\":\"cancelled\",\"date_from\":\"2026-07-26T18:44:40\",\"date_to\":\"2026-07-26T18:44:40\",\"value_min\":4326.41688,\"value_max\":4326.41688,\"tag\":\"architecto\",\"q\":\"architecto\",\"customer_email\":\"zbailey@example.net\",\"include_snoozed\":true}"
                         },
                         "description": "Cursor-paginated, filterable by channel\/store\/status\/date\/value\/tag, with global search\nacross order number, customer name\/email, and item SKU\/title. `history_days` is plan-gated\nserver-side; test orders are excluded unless the team is viewing in test mode."
                     },
@@ -1832,6 +1832,94 @@
                     ]
                 },
                 {
+                    "name": "Cancel several orders in one call.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/bulk-cancel",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/bulk-cancel"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[16],\"reason\":\"n\"}"
+                        },
+                        "description": "Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan \u00a74.17) \u2014 single-order cancel\nstays free on every tier. Team ownership across the whole `ids` batch is checked atomically\nup front (any id not belonging to the team 422s the entire call, nothing partially applied),\nbut per-order cancellation itself is not atomic: a channel that doesn't support cancel only\nfails that one order, reported in the `results` array rather than blocking the rest."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"results\": [\n    { \"id\": 1, \"success\": true, \"error\": null },\n    { \"id\": 2, \"success\": false, \"error\": \"This channel doesn't support cancelling orders from here.\" }\n  ] }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 403,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Bulk order actions require the Starter plan or higher.\",\n  \"errors\": null\n}",
+                            "name": "plan does not include bulk actions"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"ids\": [\"One or more orders do not belong to your team.\"] }\n}",
+                            "name": "an id doesn't belong to the team"
+                        }
+                    ]
+                },
+                {
+                    "name": "Tag several orders in one call.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/bulk-tag",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/bulk-tag"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[16],\"tag\":\"n\"}"
+                        },
+                        "description": "Requires `plan_limits.bulk_actions_enabled` (Starter+, Plan \u00a74.17). Appends `tag` to each\norder's existing tags (deduped) rather than replacing the list \u2014 different from the\nsingle-order `POST \/orders\/{id}\/tags`, which replaces the whole list. Team ownership across\nthe batch is checked atomically up front, same as bulk-cancel; unlike bulk-cancel, tagging\ncan never fail per-order once ownership is confirmed, so every id in the batch always succeeds."
+                    },
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"orders\": [\n    { \"id\": 1, \"order_number\": \"#1042\", \"tags\": [\"gift\", \"urgent\"] }\n  ] }\n}",
+                            "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 422,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"The given data was invalid.\",\n  \"errors\": { \"ids\": [\"One or more orders do not belong to your team.\"] }\n}",
+                            "name": "an id doesn't belong to the team"
+                        }
+                    ]
+                },
+                {
                     "name": "Get a packing slip PDF.",
                     "request": {
                         "url": {
@@ -1861,6 +1949,39 @@
                         ],
                         "body": null,
                         "description": "Returns the rendered PDF directly (`Content-Type: application\/pdf`), not a JSON envelope."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get an invoice PDF.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/v1\/orders\/:order_id\/invoice",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/v1\/orders\/:order_id\/invoice",
+                            "variable": [
+                                {
+                                    "id": "order_id",
+                                    "key": "order_id",
+                                    "value": 16,
+                                    "description": "The ID of the order."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "Distinct from the packing slip (which deliberately omits price): this includes item unit\nprice, subtotal, discount, tax, and total \u2014 the customer-facing priced document. Free on\nevery plan (Plan \u00a74.18), any team member can fetch it. Returns the rendered PDF directly\n(`Content-Type: application\/pdf`), not a JSON envelope."
                     },
                     "response": []
                 },
@@ -1934,7 +2055,7 @@
                             }
                         ],
                         "body": null,
-                        "description": ""
+                        "description": "Requires the plan's `analytics_level` to be `full` (Pro+, Plan \u00a74.14\/\u00a75) \u2014\nthis was specified from the start but not actually enforced until this fix."
                     },
                     "response": [
                         {
@@ -1942,6 +2063,12 @@
                             "code": 200,
                             "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": { \"payouts\": [\n    { \"id\": 1, \"connection_id\": 1, \"amount\": 482.19, \"currency\": \"USD\", \"status\": \"paid\", \"arrival_date\": \"2026-07-24\" }\n  ] }\n}",
                             "name": "success"
+                        },
+                        {
+                            "header": [],
+                            "code": 403,
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Payouts requires the Pro plan or higher.\",\n  \"errors\": null\n}",
+                            "name": "plan does not include payouts"
                         }
                     ]
                 }
@@ -2093,7 +2220,7 @@
         },
         {
             "name": "Reviews",
-            "description": "\nPolled customer reviews (Plan \u00a74.4's `negative_review` trigger) \u2014 the\nonly seller-actionable field is a reply, per \u00a74.15, and only on channels\nwhere `capabilities()->reviewReply` is true (eBay only in v1).",
+            "description": "\nPolled customer reviews (Plan \u00a74.4's `negative_review` trigger) \u2014 the\nonly seller-actionable field is a reply, per \u00a74.15, and only on channels\nwhere `capabilities()->reviewReply` is true (eBay only in v1).\n\n**Requires `inbox_enabled` (Pro+, Plan \u00a74.15)** \u2014 reviewing\/replying to a\ncustomer is the same underlying capability as the Unified Inbox, so it's\ngated behind the same flag rather than its own separate one.",
             "item": [
                 {
                     "name": "List this team's polled reviews, newest first.",
@@ -2229,7 +2356,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"payment_failed\",\"actions\":[{\"type\":\"email\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"17:28\",\"end\":\"17:28\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"daily\",\"digest_time\":\"17:28\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"shipping_method\",\"operator\":\"lte\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"repeat_buyer\",\"operator\":\"eq\",\"value\":\"architecto\"}]}}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"high_value_order\",\"actions\":[{\"type\":\"notify_member\",\"tag\":\"n\",\"user_id\":16}],\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":27,\"quiet_hours\":{\"start\":\"18:44\",\"end\":\"18:44\",\"timezone\":\"Asia\\\/Ulaanbaatar\"},\"threshold_hours\":67,\"digest_frequency\":\"weekly\",\"digest_time\":\"18:44\",\"digest_day_of_week\":1,\"spike_count\":27,\"spike_window_minutes\":35,\"low_stock_threshold\":76,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"shipping_method\",\"operator\":\"gt\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"customer_country\",\"operator\":\"between\",\"value\":\"architecto\"}]}}"
                         },
                         "description": ""
                     },
@@ -2278,7 +2405,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"b\",\"trigger\":\"digest\",\"sound\":\"cha_ching\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"17:28\",\"end\":\"17:28\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"17:28\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":false,\"conditions\":{\"all\":[{\"field\":\"shipping_method\",\"operator\":\"between\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"tag\",\"operator\":\"lte\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"push\",\"tag\":\"n\",\"user_id\":16}]}"
+                            "raw": "{\"name\":\"b\",\"trigger\":\"low_stock\",\"sound\":\"chime\",\"controls\":{\"cooldown_minutes\":39,\"quiet_hours\":{\"start\":\"18:44\",\"end\":\"18:44\",\"timezone\":\"Antarctica\\\/Rothera\"},\"threshold_hours\":66,\"digest_frequency\":\"weekly\",\"digest_time\":\"18:44\",\"digest_day_of_week\":0,\"spike_count\":35,\"spike_window_minutes\":43,\"low_stock_threshold\":60,\"negative_review_max_rating\":2},\"enabled\":true,\"conditions\":{\"all\":[{\"field\":\"sku\",\"operator\":\"eq\",\"value\":\"architecto\"}],\"any\":[{\"field\":\"sku\",\"operator\":\"neq\",\"value\":\"architecto\"}]},\"actions\":[{\"type\":\"sms\",\"tag\":\"n\",\"user_id\":16}]}"
                         },
                         "description": ""
                     },
@@ -2431,7 +2558,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"push_enabled\":false,\"email_enabled\":false,\"sms_enabled\":true,\"quiet_hours_start\":\"17:28\",\"quiet_hours_end\":\"17:28\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"chime\"}"
+                            "raw": "{\"push_enabled\":true,\"email_enabled\":true,\"sms_enabled\":false,\"quiet_hours_start\":\"18:44\",\"quiet_hours_end\":\"18:44\",\"quiet_hours_timezone\":\"Asia\\\/Yekaterinburg\",\"sound\":\"chime\"}"
                         },
                         "description": ""
                     },
@@ -2539,7 +2666,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"rating\":1}"
+                            "raw": "{\"rating\":0}"
                         },
                         "description": ""
                     },
@@ -2655,7 +2782,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"role\":\"manager\",\"store_visibility\":[16]}"
+                            "raw": "{\"role\":\"agent\",\"store_visibility\":[16]}"
                         },
                         "description": ""
                     },

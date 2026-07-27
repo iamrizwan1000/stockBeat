@@ -27,6 +27,25 @@ class OrderEvent extends Model
 
     public const TYPE_UPDATED = 'updated';
 
+    /**
+     * Added 2026-07-27 (Plan §4.19, "order timeline") — every quick action
+     * now writes one of these, closing a real gap: the table/model/relation
+     * all existed already, but every action past ingestion silently wrote
+     * nothing, so `GET /orders/{id}` could never show what actually
+     * happened to an order beyond "it was created/updated."
+     */
+    public const TYPE_FULFILLED = 'fulfilled';
+
+    public const TYPE_REFUNDED = 'refunded';
+
+    public const TYPE_CANCELLED = 'cancelled';
+
+    public const TYPE_SNOOZED = 'snoozed';
+
+    public const TYPE_TAGS_UPDATED = 'tags_updated';
+
+    public const TYPE_NOTE_ADDED = 'note_added';
+
     public $timestamps = false;
 
     /**

@@ -14,7 +14,7 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 
 ## Trigger catalogue
 
-`trigger` — one of these 13 values (Plan §4.4 + the AI Assistant's `ai_insight`, added later):
+`trigger` — one of these 15 values (Plan §4.4 + the AI Assistant's `ai_insight`, plus `positive_review`/`stale_inventory` added 2026-07-27):
 
 | Trigger | Meaning | Relevant `controls` keys |
 |---|---|---|
@@ -25,18 +25,24 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 | `refund_requested` | A refund was initiated on the platform side | — |
 | `order_cancelled` | An order was cancelled on the platform side | — |
 | `payment_failed` | A payment failed | — |
-| `negative_review` | A new low-rating review came in | `negative_review_max_rating` (int 1–5, "rating at or below this fires") |
+| `negative_review` | A new low-rating review came in | `negative_review_max_rating` (int 1–5, "rating at or below this fires"), `review_keyword` (optional string — see note below) |
+| `positive_review` | **Added 2026-07-27, WooCommerce-only in practice** — a new high-rating review came in. eBay's feedback poller only ever fetches *negative* feedback from eBay's API, so this trigger has nothing to check for an eBay connection — don't advertise it as available there even though the trigger value itself isn't platform-restricted server-side | `positive_review_min_rating` (int 1–5, default 5 — "rating at or above this fires"), `review_keyword` (optional string) |
 | `low_stock` | A product's stock dropped to/below a threshold | `low_stock_threshold` (int) |
+| `stale_inventory` | **Added 2026-07-27, WooCommerce-only for now** — a product's stock hasn't changed in N days (dead-stock alert). Only WooCommerce connections have the polling history this needs; inert (never fires, never errors) on every other platform until their own product polling exists | `stale_days` (int, default 30) |
 | `order_spike` | **Premium only** — order volume anomaly | `spike_count` (int), `spike_window_minutes` (int) |
 | `refund_spike` | **Premium only** — refund volume anomaly | `spike_count` (int), `spike_window_minutes` (int) |
-| `digest` | A custom recurring summary (distinct from the free-tier daily digest) | `digest_frequency` (`"daily"`\|`"weekly"`), `digest_time` (`"HH:mm"`), `digest_day_of_week` (0–6, Sunday=0, weekly only) |
+| `digest` | A custom recurring summary (distinct from the free-tier daily digest). **`monthly` added 2026-07-27 (Plan §4.21)** — a real monthly business report, not just a bigger digest: covers the previous calendar month, and teams on `analytics_level: full` (Pro+) get an extra per-channel breakdown + top-3 products appended to the body | `digest_frequency` (`"daily"`\|`"weekly"`\|`"monthly"`), `digest_time` (`"HH:mm"`), `digest_day_of_week` (0–6, Sunday=0, weekly only), `digest_day_of_month` (1–28, monthly only, default 1) |
 | `ai_insight` | **Premium only** — an unprompted AI-detected anomaly (Plan §4.12) | none — this one is entirely system-driven, don't build a controls UI for it, just let the merchant enable/disable + pick actions |
+
+**`review_keyword` (added 2026-07-27, shared by `negative_review`/`positive_review`)**: optional string, max 100 chars, case-insensitive substring match against the review's text. Narrows the trigger further — e.g. "only low ratings that also mention 'broken'" — rather than replacing the rating threshold. Omit/leave blank for "any matching-rating review."
 
 **Plan gating you must check client-side before offering these** (read from `GET /me`'s `entitlements.limits`, same keys used elsewhere):
 - `order_spike`/`refund_spike` — require `advanced_triggers_enabled: true`
 - `ai_insight` — requires `ai_proactive_insights_enabled: true`
-- Every other trigger is available from Starter up (Free gets presets only — see below)
+- Every other trigger, including `positive_review`/`stale_inventory`, is available from Starter up (Free gets presets only — see below) — they're **not** Premium-gated, same treatment as `low_stock`/`negative_review`
+- `priority` and monthly digests need no separate entitlement check — both are plain fields on a custom rule, so `max_rules` (below) is the only gate that applies
 - `max_rules` (int\|null) — the create button should be disabled/paywalled once the team is at this count; `null` = unlimited
+- **Monthly digest's richer content** (per-channel breakdown + top products) depends on `analytics_level: full` (Pro+) — a Starter team's monthly rule still saves and fires fine, its digest body is just the plain summary line, same as daily/weekly
 
 **Free plan note:** `max_rules` is `0` on Free — the create-rule screen shouldn't be reachable at all on Free, route straight to the upgrade paywall instead of showing an empty form that will 422.
 
@@ -48,7 +54,7 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 
 Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 
-**`field`** — exactly these 10 values, and what UI control each one implies:
+**`field`** — exactly these 12 values, and what UI control each one implies:
 | Field | Compares against | Value input |
 |---|---|---|
 | `channel` | Platform (`shopify`/`woo`/`ebay`/`etsy`/`amazon`/`tiktok`) | Fixed dropdown — same 6 values used everywhere else in this API, never free text |
@@ -61,6 +67,8 @@ Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 | `repeat_buyer` | `true`/`false` — has this customer email ordered before | Boolean toggle, not free text |
 | `shipping_method` | Shipping method string from the order's shipping address | **Free text, genuinely unstructured** — this is raw, platform-specific text (e.g. "USPS Priority", "Standard Shipping") with no fixed catalog and no "list of methods seen" endpoint. Don't build a dropdown you can't actually populate correctly; a plain text input (with a note that it must match exactly) is the honest choice here. |
 | `tag` | Exact match against one of the order's tags | Free text, or reuse whatever tag-entry UI `orders-feed-screens.md`'s tag editor already has, since these are the same order tags |
+| `shipping_state` | Order's `shipping_address.state` — **added 2026-07-27** | Same honesty as `customer_country` above — raw platform-sent text (e.g. a US state code, or a full province name depending on platform), no fixed enum and no "list of states seen" endpoint. Free text or a bundled state/province picker client-side, not derived from this API. |
+| `customer_order_count` | Total orders this team has from the order's customer email, **including the order that's about to trigger the rule** — **added 2026-07-27** | Numeric input. This is what makes "notify me on someone's Nth order" work: `operator: "eq"`, `value: 5` fires exactly on a customer's 5th order. `0` for a guest checkout with no email captured. |
 
 **`operator`** — exactly these 8 values, **word-based, not symbols**:
 | Operator | Meaning | Value shape |
@@ -91,7 +99,7 @@ Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 **Requires auth.**
 ```json
 { "success": true, "message": null, "data": { "rules": [
-  { "id": 1, "name": "High-value order alert", "trigger": "high_value_order", "conditions": {"all": [{"field": "total", "operator": "gte", "value": 200}]}, "actions": [{"type": "push"}], "sound": null, "controls": {"quiet_hours": {"start": "22:00", "end": "08:00", "timezone": "Australia/Sydney"}}, "enabled": true, "created_at": "2026-07-10T00:00:00.000000Z" }
+  { "id": 1, "name": "High-value order alert", "trigger": "high_value_order", "conditions": {"all": [{"field": "total", "operator": "gte", "value": 200}]}, "actions": [{"type": "push"}], "sound": null, "priority": "high", "controls": {"quiet_hours": {"start": "22:00", "end": "08:00", "timezone": "Australia/Sydney"}}, "enabled": true, "created_at": "2026-07-10T00:00:00.000000Z" }
 ] } }
 ```
 **There's no `DELETE` endpoint** — a rule can only be disabled (`PUT` with `enabled: false`), never removed. Build the UI around that (a toggle + edit, no "delete" swipe action).
@@ -107,6 +115,7 @@ Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 | `conditions` | optional, `{all?: [...], any?: [...]}`, each item validated per the vocabulary above |
 | `actions` | required, array, min 1 — see below |
 | `sound` | optional, one of `default` `cha_ching` `alert` `chime` |
+| `priority` | **added 2026-07-27 (Plan §4.20)** — optional, one of `normal` (default) `high` `critical`. Not just a label: `high`/`critical` push notifications are sent at FCM/APNs's "deliver now" priority tier, so this is worth exposing as a real setting, not decoration |
 | `controls` | optional, object — see the per-trigger table above, plus `cooldown_minutes` (int) and `quiet_hours: {start: "HH:mm", end: "HH:mm", timezone: "IANA/Zone"}`, both usable on any trigger |
 | `enabled` | optional bool, defaults true |
 
@@ -169,9 +178,23 @@ Show these plainly in a test-fire result screen rather than just "success"/"fail
 
 ## `GET /rules/{id}/executions`
 
-**Requires auth.** Most recent 50 firings, newest first, same shape as the `test` response's `execution` object. `order_id` is `null` for order-less triggers (`digest`, `low_stock`, `negative_review`, `ai_insight`).
+**Requires auth.** Most recent 50 firings, newest first, same shape as the `test` response's `execution` object. `order_id` is `null` for order-less triggers (`digest`, `low_stock`, `stale_inventory`, `negative_review`, `positive_review`, `ai_insight`).
 
-**`actions_result[].status` can also be `muted_by_store` here** (added 2026-07-23) — the firing's store connection has `notifications_muted: true` (`connections-api-reference.md`). Applies to every trigger that resolves to a real store — every order-scoped trigger, plus `low_stock`/`negative_review` — but never `digest`/`ai_insight`, which summarize across every connected store at once and so have no single store to mute against.
+**`actions_result[].status` can also be `muted_by_store` here** (added 2026-07-23) — the firing's store connection has `notifications_muted: true` (`connections-api-reference.md`). Applies to every trigger that resolves to a real store — every order-scoped trigger, plus `low_stock`/`stale_inventory`/`negative_review`/`positive_review` — but never `digest`/`ai_insight`, which summarize across every connected store at once and so have no single store to mute against.
+
+---
+
+## Platform coverage — which triggers actually have data behind them
+
+The app doesn't reject a rule just because its trigger has nothing to fire from on a seller's connected platforms — it saves fine and simply never fires. Worth surfacing in the UI so a seller doesn't wonder why a rule "isn't working":
+
+| Trigger | Real on |
+|---|---|
+| Every order-linked trigger (`new_order`, `high_value_order`, `unfulfilled_after_x`, `ship_by_deadline`, `refund_requested`, `order_cancelled`, `payment_failed`, `order_spike`, `refund_spike`) and every condition that reads off an order (including `shipping_state`, `customer_order_count`) | All 6 connected-platform types — real order sync exists everywhere now |
+| `low_stock` | Shopify, WooCommerce only |
+| `stale_inventory` | **WooCommerce only** — Shopify's inventory sync is webhook-driven and doesn't write the stock-history table this trigger reads |
+| `negative_review` | WooCommerce, eBay |
+| `positive_review` | **WooCommerce only** — eBay's feedback poller only ever fetches negative feedback from eBay's API, so it structurally never sees a positive review to check |
 
 ---
 

@@ -159,18 +159,26 @@ Users compose rules: **WHEN trigger + IF conditions + THEN actions.**
 | Order cancelled | webhook/poll |
 | Payment failed / pending too long | webhook/poll |
 | Negative review / low feedback received | poll |
+| Positive review received (added 2026-07-27) | poll |
 | Low stock (below threshold) | poll/webhook |
+| Stale inventory — stock unchanged for X days (added 2026-07-27) | poll |
 | Order spike (X orders within Y minutes) | derived |
 | Refund spike | derived |
 | Daily / weekly digest (scheduled summary) | scheduler |
 
-**Conditions (AND/OR groups):** channel, store, order total (>, <, between), product/SKU contains, quantity, customer country, customer is repeat buyer, shipping method, tag.
+**Conditions (AND/OR groups):** channel, store, order total (>, <, between), product/SKU contains, quantity, customer country, customer is repeat buyer, shipping method, tag, destination state/province (added 2026-07-27), customer's total order count including this one — "this is their Nth order" (added 2026-07-27).
 
 **Actions:** push notification (with custom sound option — the "cha-ching"), email, SMS (deducts credits), notify specific team member(s), auto-tag the order.
 
-**Controls:** per-rule quiet hours with timezone, cooldown/de-duplication window, per-channel mute, test-fire button ("send me a sample now"), rule enable/disable toggle, execution log (last 50 firings per rule).
+**Controls:** per-rule quiet hours with timezone, cooldown/de-duplication window, per-channel mute, test-fire button ("send me a sample now"), rule enable/disable toggle, execution log (last 50 firings per rule). Review triggers additionally support an optional keyword filter (`review_keyword`, added 2026-07-27) — narrows to reviews whose text contains a given word/phrase, on top of the rating threshold.
 
 **Free tier:** preset alerts only (new order push, daily digest). **Pro:** unlimited custom rules (see §5).
+
+**2026-07-27 additions, platform-scope honesty notes:**
+- **Positive review** reuses the same review-polling infrastructure as negative review, but is **WooCommerce-only in practice** — eBay's feedback poller specifically calls the Trading API's negative-feedback filter (`fetchNegativeFeedback()`), so it never ingests a positive review to check against in the first place. Not a bug, a structural limitation of what that one API call returns.
+- **Stale inventory** reuses `product_stock_snapshots` (Plan §4.12 Phase B's table, previously write-only with no reader) but is **WooCommerce-only today** for the same reason as everything else product-related — only `PollWooProductsJob` writes to that table; it's an inert no-op for every other platform's products until their own product polling exists, never a fabricated result.
+- **Destination state** required no new column — `shipping_address` (all 6 adapters already populate a `state` key) is decrypted in PHP once an order is loaded, so `ConditionEvaluator` reads it directly the same way it already does for `shipping_method`; the separate plaintext `shipping_country` column (§8.7.2) exists only because the *admin panel's* SQL-level filter needs it, a different constraint that doesn't apply to per-order rule evaluation.
+- **Customer order count** ("Nth order" milestone) is computed by counting the customer's total orders on the team **including the triggering order itself** (already persisted by the time a rule evaluates it) — `customer_order_count eq 5` reads naturally as "this is their 5th order." `repeat_buyer` now derives from the same count (`> 1`) rather than a separate near-duplicate query.
 
 ### 4.5 Unified customer inbox (Phase 2)
 
@@ -180,6 +188,7 @@ Users compose rules: **WHEN trigger + IF conditions + THEN actions.**
 - Assign conversation to a team member; unread/assigned filters.
 - Push notification on new buyer message (rule-controllable).
 - Compliance guardrails: per-platform character/content restrictions enforced before send (especially Amazon).
+- **Plan gating (real bug fixed 2026-07-26):** `inbox_enabled` (Pro+, §5) was declared as an admin-editable plan limit from the start but never actually checked anywhere in `ThreadController`/`ReplyTemplateController` — every tier including Free could reach every inbox endpoint regardless of the pricing table. Now enforced server-side on every method (list, view messages, send, assign, reply templates), returning a 403 with a clear upgrade message rather than silently allowing access.
 
 ### 4.6 Business overview & analytics-lite
 
@@ -267,7 +276,7 @@ Analytics (§4.6) shows order **revenue** — what a customer paid. It says noth
 - **Data model:** new `payouts` table (§9) — `team_id`, `connection_id`, `external_id`, `amount`, `currency`, `status`, `arrival_date`/`paid_at`, `raw JSON`, `UNIQUE(connection_id, external_id)` — polled on a schedule (`PollShopifyPayoutsJob`, same reconciliation-poller convention as every other platform sync in §7), not pushed via webhook (Shopify's Payouts API doesn't offer one).
 - **New capability flag:** `payoutsAvailable` on `CapabilitySet` (§8.3) — `true` for Shopify only, `false` for every other platform, stated honestly from day one rather than repeating the `inventoryUpdate`/`reviewsFeedback` mistake of declaring a capability before any code backs it.
 - **API:** `GET /api/v1/payouts` (team-scoped, optionally filtered by `connection_id`, ordered newest-first — no pagination in v1, mirroring `GET /products`'s "return the whole team catalog" simplicity since payout volume is naturally low) — no `POST`/`PUT`/`DELETE`, this endpoint set is deliberately read-only end to end.
-- **Plan gating:** reuses the existing `analytics_level: full` entitlement (Pro+, §5) rather than introducing a new plan-limit dimension — this is naturally an analytics extension, not a distinct product surface.
+- **Plan gating:** reuses the existing `analytics_level: full` entitlement (Pro+, §5) rather than introducing a new plan-limit dimension — this is naturally an analytics extension, not a distinct product surface. **Correction 2026-07-26: this was specified but not actually implemented** — `PayoutController::index` had no entitlement check at all, meaning every tier could reach it regardless of the table above. Now enforced server-side, returning a 403 with a clear upgrade message.
 
 ### 4.15 Review-reply (identified gap, spec'd 2026-07-26)
 
@@ -279,7 +288,7 @@ A real `reviews` table and `Review` model already exist (built for the `negative
 - **Contract:** `ChannelAdapter::replyToReview(Review $review, string $body): ActionResult` — same synchronous, capability-gated pattern as `updateInventory`/`fulfill`/`refund`/`cancel`. Real implementation for eBay only; WooCommerce/Shopify/Etsy/Amazon/TikTok all throw if called directly, matching the `updateInventory` stub convention.
 - **New capability flag:** `reviewReply` on `CapabilitySet` (§8.3) — `true` for eBay only, `false` everywhere else, stated honestly from day one.
 - **API:** `GET /api/v1/reviews` (team-scoped, no pagination, mirrors `GET /products`) — **a real gap found during build**: no way to list reviews existed anywhere before this, since `reviews` was previously write-only-from-polling and read only by `CheckNegativeReviewAction` internally, never exposed to the mobile app at all. A reply screen needs something to reply *to*, so this list endpoint is added alongside the reply one, not a separate future task. Plus `POST /api/v1/reviews/{review}/reply`, gated `team.role:owner,manager`, capability-checked server-side before ever calling the adapter, same 422-with-plain-message pattern as every other capability-gated action.
-- **Plan gating:** none — available on every tier, consistent with §4.13's reasoning (a quick action, not a premium analytics feature).
+- **Plan gating (revised 2026-07-26):** initially specified as ungated, but reconsidered — replying to a customer is the same underlying capability as the Unified Inbox (§4.5), which is Pro+ only, so shipping Review-reply free-for-all while Inbox is paid would draw an inconsistent line around the same "communicate with a customer" action. Now gated behind the same `inbox_enabled` flag as Inbox, on both `GET /reviews` and `POST /reviews/{id}/reply`.
 
 ### 4.16 Customer view (identified gap, spec'd 2026-07-26)
 
@@ -290,6 +299,65 @@ The app shows orders (§4.2's unified feed), never **customers** — there's no 
 - **Customer detail:** no new endpoint — reuses the existing order feed. `GET /api/v1/orders` (`orders-api-reference.md`) gains a new **exact-match** `customer_email` filter (distinct from its existing fuzzy `q` search param, which can false-positive-match unrelated fields) via `ListOrdersRequest`/`ListOrdersAction`. This means a customer's detail screen is just the familiar order feed, filtered — same pagination, same resource shape, same plan-gating the mobile app already knows how to render, not a parallel screen/endpoint to build and maintain.
 - **API:** `GET /api/v1/customers` only (no pagination — customer counts are bounded by order volume within the plan's history window, same "low enough volume, don't over-engineer" reasoning as §4.14's Payouts list) — no `POST`/`PUT`/`DELETE`, deliberately read-only end to end, same as Payouts.
 - **Plan gating:** none beyond what's inherited from `history_days` (above) — available on every tier, consistent with §4.13/§4.14's reasoning.
+
+### 4.17 Bulk order actions (identified gap, spec'd 2026-07-26)
+
+Every quick action (§4.3) works one order at a time — real friction for a higher-volume seller doing the same thing (tag a batch, cancel a batch) repeatedly. §4.12's `PUT /products/cost-prices` already proved the exact pattern needed: atomic ownership check across the whole batch (any id not belonging to the team 422s the *entire* call, nothing partially applied), then apply the same value to every item.
+
+- **Scope, narrowed deliberately:** **bulk tag** and **bulk cancel** only — both are "apply one uniform value/action across N orders," the same shape the cost-price precedent already handles. **Bulk fulfill and bulk refund are explicitly out of scope for v1** — both need genuinely per-order data (a distinct tracking number per shipment, a distinct refund amount per order) that doesn't fit the uniform-batch pattern; forcing them into "same value for all" would produce wrong tracking/refund data, which is worse than not having the feature at all.
+- **Contract:** no new adapter methods — reuses `CancelOrderAction`/`UpdateOrderTagsAction` per order, same capability-gating each already does individually (an order on a channel where `cancel` isn't supported fails within the batch, doesn't 500 the whole request — see the atomicity note below on why this is the one place partial failure is allowed).
+- **Atomicity nuance, different from the cost-price precedent:** ownership (all ids belong to the team) is checked atomically up front, same as cost-price. But **per-order success is not atomic** — unlike cost-price edits (which can never fail once ownership is confirmed), cancel can genuinely fail per-order for reasons outside the caller's control (a channel that doesn't support cancel, a platform rejecting a specific order). The response reports a per-id result array so the client can show "18 of 20 cancelled, 2 failed" rather than an all-or-nothing outcome that would make one bad order block 19 good ones.
+- **API:** `POST /api/v1/orders/bulk-cancel {ids: [...], reason}`, `POST /api/v1/orders/bulk-tag {ids: [...], tag}` — both `owner`/`manager` role, both team-ownership-atomic/per-order-result as described above.
+- **Bulk-tag semantics (decided 2026-07-26):** appends the given `tag` to each order's existing tag list (deduped), rather than replacing it — reuses `UpdateOrderTagsAction` but computes `array_unique([...$order->tags, $tag])` first. A straight passthrough to `UpdateOrderTagsAction::handle($order, [$tag])` would *replace* the whole list per-order (that action's existing single-tag-edit contract), which would silently wipe unrelated tags across a whole batch — clearly worse than the feature not existing. Single-order tag editing (`POST /orders/{id}/tags`) is unchanged and still a full replace, since that's the "edit this order's tags" screen, a different intent than "label this batch."
+- **Plan gating (decided 2026-07-26):** **Starter and up — not Free.** New `plan_limits.bulk_actions_enabled` (bool), `false` on Free / `true` on Starter+. Reasoning: single-order fulfill/refund/cancel/tag (§4.3) stay free on every tier — nothing already-free is being taken away. Bulk is purely a volume/efficiency multiplier on top of that, valuable in proportion to order count, so it fits the same tiering axis §16.3 already established (store count, team seats, history — scale-based, not feature-based) rather than the communication/financial-data axis that gates Inbox/Reviews-reply/Payouts to Pro+. Free is capped at 1 store and 7-day history by design, i.e. deliberately the lowest-volume tier, so a batch-efficiency tool has little to offer there anyway — gating it at Starter gives Free a concrete, honest upgrade trigger without touching what Free already does today.
+
+### 4.18 Invoice generation (identified gap, spec'd 2026-07-26)
+
+Previously bucketed under §12's "invoice generation" (desktop-deferred, alongside accounting integrations) — reconsidered and pulled into mobile for the same reason as §4.17 (bulk order actions): this specific piece doesn't actually need a desktop-sized surface, it needs one more PDF endpoint next to the packing slip that already exists.
+
+- **Scope:** a single seller-and-customer-facing PDF per order, downloadable/shareable from the order detail screen exactly like the existing packing slip (§4.3) — same "generated server-side, handed to the native share sheet" shape, no in-app PDF rendering needed. Distinct from the packing slip in content, not mechanism: the packing slip deliberately omits price (a warehouse packing document); the invoice is the priced, customer-facing counterpart — item unit price × qty, subtotal, `discount_amount`, `tax` (both already populated for real on WooCommerce orders via `WooOrderMapper`, §15.3 AI Assistant Phase B; `null`/omitted on platforms whose adapters can't populate them yet, never fabricated), and total. Seller-only data (`cost_price`, profit) never appears on an invoice — that's a private figure, not something to hand a customer.
+- **Contract:** no new adapter methods, no new tables — pure read/render over the existing `Order`/`OrderItem` data already ingested, same as the packing slip's `GeneratePackingSlipAction`. New `GenerateInvoiceAction` + `resources/views/orders/invoice.blade.php`, rendered via the same `barryvdh/laravel-dompdf` dependency already in use.
+- **API:** `GET /api/v1/orders/{order}/invoice` — team-scoped (same `authorizeOrderAccess` check every other order endpoint uses), any team member can fetch it (read-only document, not a mutating action), so no `owner`/`manager` role gate, matching the packing slip's own gating (none beyond team membership).
+- **Plan gating: none — free on every tier.** Same reasoning as the packing slip it sits beside: this isn't a volume/scale feature (§4.17's reasoning) or a communication/financial-data feature (Inbox/Payouts' reasoning) — it's a basic "get a document for this order" utility every seller needs regardless of plan, and treating it differently from the already-free packing slip would be an arbitrary inconsistency within the same "quick actions" bucket.
+
+### 4.19 Order timeline (identified gap, spec'd 2026-07-27)
+
+A real, surprising gap: `order_events` (table, model, `Order::events()` relation) existed since the very first Orders module pass, but only ever recorded two event types — `created`/`updated`, both written exclusively by `IngestOrderAction`. Every quick action built since (fulfill, refund, cancel, snooze, tag, note) wrote nothing to it, so `GET /orders/{id}` had no way to show "what actually happened to this order" beyond ingestion.
+
+- **Scope:** every existing quick action now writes one `order_events` row on real success — `fulfilled` (payload: tracking number, carrier), `refunded` (amount, reason), `cancelled` (reason), `snoozed` (new `snoozed_until`, `null` for un-snooze), `tags_updated` (resulting tag list), `note_added` (acting user id, a 140-char excerpt). Written only on genuine success (e.g. a failed platform-side fulfill call from `FulfillOrderAction` writes no event), so the timeline is truthful, not "we attempted this."
+- **Contract:** no new adapter methods, no new tables — the six actions this touches (`FulfillOrderAction`/`RefundOrderAction`/`CancelOrderAction`/`SnoozeOrderAction`/`UpdateOrderTagsAction`/`AddOrderNoteAction`) each gained one `OrderEvent::create()` call after their existing mutation. Bulk variants (`BulkCancelOrdersAction`/`BulkTagOrdersAction`) needed **no separate code** — they delegate to these same single-order actions per item, so a bulk cancel/tag already produces one timeline entry per affected order for free.
+- **API:** no new endpoint — `GET /orders/{id}` now eager-loads `events` (chronological, oldest first) alongside the existing `items`/`notes`, and `OrderResource` serializes them via a new `OrderEventResource` (`id`, `type`, `payload`, `occurred_at`).
+- **Plan gating: none — free on every tier.** This is a transparency/audit layer over actions (notes, tags, quick actions) that are already free everywhere; gating the *record* of a free action differently from the action itself would be incoherent.
+
+### 4.20 Notification priority (identified gap, spec'd 2026-07-27)
+
+- **Scope:** `critical`/`high`/`normal` priority per rule (default `normal`), mirrored onto every `Notification` row it produces so the notification center can display/filter by it without joining back to a rule that may since have changed or been deleted.
+- **Contract:** `rules.priority` and `notifications.priority` columns (both `string`, `NOT NULL DEFAULT 'normal'` — no migration of existing data needed, everything just behaves exactly as before). Threaded through `SendPushNotificationAction`/`SendEmailNotificationAction`/`SendOrderPushWithStormProtectionAction`/`NotifyMemberAction` as an optional `$priority` parameter, defaulting to `Notification::PRIORITY_NORMAL` when omitted (every pre-existing caller is unaffected). This is a real delivery-behavior change, not cosmetic: `critical`/`high` map to FCM's `AndroidConfig::withHighMessagePriority()` and APNs's `ApnsConfig::withImmediatePriority()` — the OS-level "deliver now" tier — while `normal` maps to the standard/power-conserving tier.
+- **API:** `POST/PUT /rules` gains an optional `priority` field, validated against `Rule::priorities()`.
+- **Plan gating: none beyond what already gates custom rules.** Available wherever a custom rule can be created at all (Starter+) — Free has zero custom rules (presets only), so there's nothing for this field to attach to there; no separate plan_limit needed.
+
+### 4.21 Monthly business report (identified gap, spec'd 2026-07-27)
+
+Deliberately **not** a parallel report system — this reuses the existing `digest` trigger's exact trigger/dedup/dispatch machinery, adding `monthly` as a third `digest_frequency` alongside `daily`/`weekly`.
+
+- **Scope:** a richer digest firing once per calendar month (default the 1st, configurable via `controls.digest_day_of_month`, capped 1–28 so every month genuinely has that day) — the period is the **previous full calendar month**, not a rolling 30 days, since "my July numbers" is what a seller means by a monthly report. Base content (orders count, revenue, best seller) matches the daily/weekly digest's own shape; **teams on `analytics_level: full` (Pro+) additionally get a per-channel revenue breakdown and top-3 products** — the same entitlement `GetAnalyticsSummaryAction`/`GetTopProductsAction` already gate their own richer views on. A Starter team's monthly digest still fires (it's not trigger-gated, same as daily/weekly), it just stays at the plain summary line — never a silently fabricated breakdown for a plan that hasn't paid for it.
+- **Contract:** `SendRuleDigests`' `isDue()` gained a `monthly` branch (day-of-month gate + a "last fired before start of this month" dedup boundary, alongside the existing daily/weekly checks). `DispatchRuleActionsAction::digestBody()` gained calendar-month period bounds and a new `monthlyReportExtras()` method for the gated richer content — reusing the exact same `order_items`/`orders` join pattern the existing best-seller query already uses, not a new data-access layer.
+- **API:** no new endpoint — `controls.digest_frequency` accepts `"monthly"`, `controls.digest_day_of_month` (int, 1–28) is the new companion control, both validated in `StoreRuleRequest`/`UpdateRuleRequest`.
+- **Plan gating:** the rule itself is available wherever custom digest rules already are (Starter+, `max_rules` applies as normal); the richer per-channel/top-products content is Pro+ only (`analytics_level: full`), same axis as Business overview (§4.6).
+
+### 4.22 Bulk print packing slips (identified gap, spec'd 2026-07-27)
+
+- **Scope:** one multi-page PDF covering every requested order (not a zip of separate files), sharable as a single item from the native share sheet — same "generated server-side" shape as the single-order packing slip (§4.3), which it reuses the exact markup of (still deliberately price-free — a warehouse document). Capped at 100 orders per call (vs. bulk-cancel/bulk-tag's 500) since PDF rendering time scales with page count in a way a JSON response doesn't.
+- **Contract:** no new adapter methods. New `GenerateBulkPackingSlipsAction` — atomic team-ownership check up front (any id not belonging to the team 422s the whole call, same as every other bulk endpoint), then renders `resources/views/orders/packing-slips-bulk.blade.php` (a loop over the single-slip markup with a CSS page-break between orders). No per-order failure mode exists here (unlike bulk-cancel) — this is a pure read/render, so every id that passes the ownership check always succeeds.
+- **API:** `POST /api/v1/orders/bulk-packing-slips {ids}` — team-scoped, **no `owner`/`manager` role gate** (read-only, matching the single-order packing-slip/invoice endpoints' own gating), returns the PDF directly.
+- **Plan gating: Starter and up, reusing `plan_limits.bulk_actions_enabled`** — the same flag §4.17's bulk-cancel/bulk-tag use, not a new one. Same reasoning: this is a batch-efficiency perk on top of an already-free single-order action, not a new pricing dimension to invent for every future bulk endpoint.
+
+### 4.23 Favorite/saved order filters (identified gap, spec'd 2026-07-27)
+
+- **Scope:** a named, team-shared preset over the exact filter params `GET /orders` already accepts (`channel`/`store`/`status`/`date_from`/`date_to`/`value_min`/`value_max`/`tag`/`q`/`customer_email`/`include_snoozed`) — no new filtering logic, purely persistence of what a seller would otherwise re-enter every time. Modeled directly on the existing `ReplyTemplate` CRUD shape (§4.5): team-scoped, `index` open to any member, mutations gated `owner`/`manager`.
+- **Contract:** new `saved_order_filters` table (`team_id`, `name`, `filters` JSON). `SaveOrderFilterRequest` validates `filters.*` against the identical field vocabulary `ListOrdersRequest` already uses — any key outside that vocabulary is silently dropped (not stored) by Laravel's own validated-data extraction, the same discipline as every other named (non-wildcard) sub-object in this API.
+- **API:** `GET/POST /api/v1/order-filters`, `PUT/DELETE /api/v1/order-filters/{id}`.
+- **Plan gating: none — free on every tier.** Sits on top of the order feed & filters, which are already free everywhere (§5's "Unified feed & search ✅" row, all tiers) — gating a saved-preset layer over an already-free feature would be an arbitrary inconsistency.
 
 ---
 
@@ -308,15 +376,24 @@ The app shows orders (§4.2's unified feed), never **customers** — there's no 
 | Email alerts /mo | 25 | 250 | 1,000 | 5,000 |
 | SMS credits /mo | — | 20 | 100 (top-ups available) | 500 (top-ups available) |
 | Quick actions | ✅ | ✅ | ✅ | ✅ |
+| Invoices & packing slips (§4.3/§4.18) | ✅ | ✅ | ✅ | ✅ |
+| Order timeline (§4.19) | ✅ | ✅ | ✅ | ✅ |
+| Favorite/saved filters (§4.23) | ✅ | ✅ | ✅ | ✅ |
+| Bulk order actions incl. bulk packing slips (§4.17/§4.22) | — | ✅ | ✅ | ✅ |
+| Inventory management (§4.13) | ✅ | ✅ | ✅ | ✅ |
+| Customer view (§4.16) | ✅ (bounded by history) | ✅ (bounded by history) | ✅ | ✅ |
 | Unified inbox (Phase 2) | — | — | ✅ | ✅ |
+| Reviews & reply (§4.15) | — | — | ✅ | ✅ |
+| Payouts (§4.14) | — | — | ✅ | ✅ |
 | Team seats | 1 | 1 | 3 | 10 |
+| Notification priority (§4.20) | Presets only (normal) | ✅ per-rule | ✅ per-rule | ✅ per-rule |
 | Analytics | Today only | Today + 7d | Full | Full + multi-currency⁴ |
-| Widgets & digests | — | Daily digest only | ✅ | ✅ |
+| Widgets & digests, incl. monthly report (§4.21) | — | Daily digest only | ✅ (+ full monthly breakdown) | ✅ (+ full monthly breakdown) |
 | AI Assistant ⭐ | 🔒 Locked (teaser) | 30 questions/mo⁵ | 150 questions/mo⁵ + rule builder | 500 questions/mo⁵ + proactive insights |
 | Support | Community | Community | Priority email | Priority email + phone/chat |
 
 ¹ new-order push + daily digest — the same free-tier baseline as before.
-² new order, high-value, unfulfilled-after-X, ship-by-deadline, order cancelled, refund requested, payment failed, low stock, negative review, digest.
+² new order, high-value, unfulfilled-after-X, ship-by-deadline, order cancelled, refund requested, payment failed, low stock, negative review, positive review, stale inventory, digest — the 2026-07-27 additions (positive review, stale inventory) get the same Starter+ "core trigger" treatment as low stock/negative review, not Premium, per the same "basic seller hygiene, not a luxury perk" reasoning already established for that pair.
 ³ order spike, refund spike only — deliberately not `low_stock`/`negative_review`, which read as basic seller hygiene rather than a Premium-only perk (`plan_limits.advanced_triggers_enabled`, `Rule::advancedTriggers()`).
 ⁴ once the `fx_rates` table exists (§9/§17.3 — still not built).
 ⁵ AI question quota resets each billing cycle and does not roll over; non-expiring top-up packs available (same consumable-IAP pattern as SMS top-ups, below).
@@ -348,6 +425,7 @@ Written Notify Me-style: numeric quotas on everything, benefits not features (se
 - 20 SMS + 250 email alerts /month
 - Today + 7-day analytics
 - Last 30 days of orders
+- Bulk order actions — tag or cancel a batch of orders in one tap
 - AI Assistant — 30 questions/month about your own sales, orders & inventory
 
 **Pro — $17.99/month** · *first month intro offer*

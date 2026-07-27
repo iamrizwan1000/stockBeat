@@ -42,7 +42,7 @@ class SendOrderPushWithStormProtectionAction
      *                                           from" onto the Notification
      *                                           Center row, added 2026-07-24).
      */
-    public function handle(User $user, Order $order, string $title, string $body, ?string $sound = null, ?StoreConnection $connection = null, array $extraData = []): string
+    public function handle(User $user, Order $order, string $title, string $body, ?string $sound = null, ?StoreConnection $connection = null, array $extraData = [], ?string $priority = null): string
     {
         $orderTotal = (float) ($order->total_base_currency ?? $order->total);
         $data = [...$extraData, 'order_id' => (string) $order->id];
@@ -63,7 +63,7 @@ class SendOrderPushWithStormProtectionAction
                 'bundle_sent_at' => null,
             ])->save();
 
-            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection);
+            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection, priority: $priority);
         }
 
         $window->order_count++;
@@ -72,12 +72,12 @@ class SendOrderPushWithStormProtectionAction
         if ($window->order_count <= self::THRESHOLD) {
             $window->save();
 
-            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection);
+            return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection, priority: $priority);
         }
 
         // Log this order to the in-app center, but never fan out its own
         // FCM push once the window is in storm mode.
-        $this->sendPush->handle($user, $title, $body, $data, deliver: false, connection: $connection);
+        $this->sendPush->handle($user, $title, $body, $data, deliver: false, connection: $connection, priority: $priority);
 
         if ($window->bundle_sent_at !== null) {
             $window->save();
@@ -90,6 +90,6 @@ class SendOrderPushWithStormProtectionAction
 
         $summary = "{$window->order_count} new orders in the last ".self::WINDOW_MINUTES.' min · $'.number_format((float) $window->revenue_total, 2);
 
-        return $this->sendPush->handle($user, 'Order storm', $summary, ['storm' => 'true'], sound: $sound, connection: $connection);
+        return $this->sendPush->handle($user, 'Order storm', $summary, ['storm' => 'true'], sound: $sound, connection: $connection, priority: $priority);
     }
 }

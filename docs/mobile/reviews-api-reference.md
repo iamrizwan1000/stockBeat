@@ -6,6 +6,8 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 
 **Reply support: eBay only, v1.** WooCommerce and eBay are the only platforms with real review **data** today (Shopify/Etsy/Amazon declare no fetch code and never populate this list for those connections). Of those two, only **eBay** can actually reply — verified against eBay's Commerce Feedback API before this was built. **WooCommerce reviews can be listed but not replied to** — its `wc/v3` REST API has no reply mechanism at all (`comment_parent` is hardcoded to `0` on every review), and the real path (`wp/v2/comments`) needs a WordPress credential this app doesn't collect. This is explicitly deferred (Plan §4.15), not a bug — don't file it as one.
 
+**Requires the Pro plan or higher** (`entitlements.limits.inbox_enabled`) — **revised 2026-07-26**: replying to a customer is the same underlying capability as the Unified Inbox (`inbox-api-reference.md`), which is already Pro+ only, so this reuses that same flag rather than shipping free-for-all while Inbox is paid. Both `GET /reviews` and `POST /reviews/{id}/reply` are gated — treat this whole feature the same as Inbox for paywall placement (behind the same upgrade prompt, not a separate one).
+
 ---
 
 ## `GET /reviews`
@@ -65,6 +67,6 @@ Same "hide the control rather than let them hit this wall" rule as every other c
 |---|---|
 | 200 | Success |
 | 401 | Missing/invalid/revoked bearer token |
-| 403 | `viewer`/`agent` role attempting to reply |
+| 403 | Team's plan doesn't include the inbox (Free/Starter), or a `viewer`/`agent` role attempting to reply |
 | 404 | Review doesn't belong to your team |
 | 422 | `body` fails validation, or the channel doesn't support replies (see above) |

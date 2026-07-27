@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ReplyTemplateController;
 use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\RuleController;
+use App\Http\Controllers\Api\V1\SavedOrderFilterController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\TeamController;
@@ -106,7 +107,26 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])
         ->middleware('team.role:owner,manager')
         ->name('orders.cancel');
+    Route::post('orders/bulk-cancel', [OrderController::class, 'bulkCancel'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.bulk-cancel');
+    Route::post('orders/bulk-tag', [OrderController::class, 'bulkTag'])
+        ->middleware('team.role:owner,manager')
+        ->name('orders.bulk-tag');
     Route::get('orders/{order}/packing-slip', [OrderController::class, 'packingSlip'])->name('orders.packing-slip');
+    Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
+    Route::post('orders/bulk-packing-slips', [OrderController::class, 'bulkPackingSlips'])->name('orders.bulk-packing-slips');
+
+    Route::get('order-filters', [SavedOrderFilterController::class, 'index'])->name('order-filters.index');
+    Route::post('order-filters', [SavedOrderFilterController::class, 'store'])
+        ->middleware('team.role:owner,manager')
+        ->name('order-filters.store');
+    Route::put('order-filters/{savedOrderFilter}', [SavedOrderFilterController::class, 'update'])
+        ->middleware('team.role:owner,manager')
+        ->name('order-filters.update');
+    Route::delete('order-filters/{savedOrderFilter}', [SavedOrderFilterController::class, 'destroy'])
+        ->middleware('team.role:owner,manager')
+        ->name('order-filters.destroy');
     Route::post('orders/{order}/message', [OrderController::class, 'message'])
         ->middleware('team.role:owner,manager')
         ->name('orders.message');

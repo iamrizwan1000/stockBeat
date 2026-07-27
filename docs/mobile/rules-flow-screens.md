@@ -28,23 +28,28 @@ Tab 2 in the bottom nav (Feed · **Rules** · Inbox · More, Plan §4.10). Depen
 **Params:** `rule_id` (optional — absent means create).
 
 ### Trigger picker
-A list/grid of the 13 triggers (human labels + short descriptions, from the API reference's catalogue table). **Filter or badge the gated ones** (`order_spike`, `refund_spike`, `ai_insight`) based on `entitlements.limits.advanced_triggers_enabled`/`ai_proactive_insights_enabled` — show them with a "Premium" lock badge rather than hiding them entirely (a Starter merchant should see what they're missing, per Plan's conversion-mechanics philosophy elsewhere in the app).
+A list/grid of the 15 triggers (human labels + short descriptions, from the API reference's catalogue table). **Filter or badge the gated ones** (`order_spike`, `refund_spike`, `ai_insight`) based on `entitlements.limits.advanced_triggers_enabled`/`ai_proactive_insights_enabled` — show them with a "Premium" lock badge rather than hiding them entirely (a Starter merchant should see what they're missing, per Plan's conversion-mechanics philosophy elsewhere in the app).
+
+**Platform-coverage badge (added 2026-07-27):** `stale_inventory` and `positive_review` aren't backed by every platform (see the API reference's "Platform coverage" table — `stale_inventory` is WooCommerce-only, `positive_review` is WooCommerce-only). If the team's connected stores (`GET /connections`) don't include a platform that trigger actually fires from, show a small "won't fire on your connected stores yet" note rather than blocking creation outright — the server doesn't reject it either, so don't be more restrictive than the API. `low_stock`/`negative_review` get the same treatment but for a wider platform set (Shopify+Woo, and Woo+eBay respectively).
 
 ### Condition builder — only for triggers that use conditions
 Not every trigger needs conditions (`new_order`, `digest`, `ai_insight` typically don't; `high_value_order` is *defined by* its conditions — there's no separate "value" field on the trigger itself, the threshold lives entirely in `conditions`).
 
 **Build this as a fixed-choice UI, never free text:**
-- Field: a dropdown of the 10 real field names (with human labels — "Order total" not `total`).
+- Field: a dropdown of the 12 real field names (with human labels — "Order total" not `total`).
 - Operator: a dropdown of the 8 real word-based operators (human labels — "is greater than" not `gt`) — **this is the exact spot the pre-existing bug lived in**. If you're tempted to show operator buttons like "＞" "≥" "=", map their *tap* to the real word string (`gt`, `gte`, `eq`) before ever touching the API — never send a symbol.
-- Value: input type depends on field (numeric keyboard for `total`/`quantity`, a platform picker for `channel`, a store picker for `store`, free text for `sku`/`product`/`customer_country`/`shipping_method`/`tag`, a toggle for `repeat_buyer`).
+- Value: input type depends on field (numeric keyboard for `total`/`quantity`/`customer_order_count`, a platform picker for `channel`, a store picker for `store`, free text for `sku`/`product`/`customer_country`/`shipping_method`/`shipping_state`/`tag`, a toggle for `repeat_buyer`).
 - Support building multiple conditions and choosing `all` (AND) vs `any` (OR) grouping — even a simple version (all conditions in one `all` list, no nested groups) covers the large majority of real use cases and matches every example in the API reference.
 
 ### Trigger-specific controls
-Show extra fields based on the selected trigger, per the API reference's per-trigger `controls` table — e.g. `unfulfilled_after_x` needs a "how many hours" number input, `digest` needs a frequency/time/day picker, `low_stock` needs a threshold number input. Don't show a generic "controls" JSON editor — map each real field to a real input.
+Show extra fields based on the selected trigger, per the API reference's per-trigger `controls` table — e.g. `unfulfilled_after_x` needs a "how many hours" number input, `low_stock` needs a threshold number input, `stale_inventory` needs a "days unchanged" number input (default 30), `negative_review`/`positive_review` need a rating-threshold number input plus an optional "must also mention" keyword text field (`review_keyword`, shared by both). Don't show a generic "controls" JSON editor — map each real field to a real input.
+
+**`digest` frequency picker (updated 2026-07-27):** a 3-way choice — Daily / Weekly / Monthly — followed by the matching companion field: a day-of-week picker for Weekly, or a day-of-month number input (1–28, default 1) for **Monthly** (new, Plan §4.21). Label Monthly clearly as "your business report for last month" in the UI copy, not just another digest cadence — it's meaningfully richer for Pro+ teams (see the API reference's plan-gating note), so the trigger picker's own description text should say so.
 
 ### Universal controls (any trigger)
 - **Quiet hours** — start/end time pickers + timezone (default to the device's, matching the pattern already established in `auth-flow-screens.md`'s `ProfileSetupScreen`).
 - **Cooldown** — "don't fire more than once every N minutes" number input.
+- **Priority — added 2026-07-27 (Plan §4.20).** A 3-way segmented control: Normal (default) / High / Critical. Worth a short inline hint that this changes real delivery behavior ("High/Critical notifications are delivered immediately, bypassing battery-saving delays") rather than presenting it as pure cosmetic labeling — it maps to a real FCM/APNs priority tier server-side.
 
 ### Actions
 Multi-select chips: Push, Email, SMS, Notify a team member (opens a member picker, needs `GET /team` — sets `user_id`), Auto-tag (opens a text input for the tag — sets `tag`). At least one required.

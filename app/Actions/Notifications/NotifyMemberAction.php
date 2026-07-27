@@ -20,7 +20,7 @@ class NotifyMemberAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(Team $team, int $targetUserId, string $title, string $body, ?string $sound = null, ?StoreConnection $connection = null, array $data = []): string
+    public function handle(Team $team, int $targetUserId, string $title, string $body, ?string $sound = null, ?StoreConnection $connection = null, array $data = [], ?string $priority = null): string
     {
         $isMember = TeamMember::query()
             ->where('team_id', $team->id)
@@ -37,6 +37,6 @@ class NotifyMemberAction
             return 'not_a_team_member';
         }
 
-        return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection);
+        return $this->sendPush->handle($user, $title, $body, $data, sound: $sound, connection: $connection, priority: $priority);
     }
 }

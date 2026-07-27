@@ -3,6 +3,7 @@
 namespace App\Actions\Rules;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Models\Notification;
 use App\Models\Rule;
 use App\Models\Team;
 use App\Models\User;
@@ -57,6 +58,7 @@ class CreateRuleAction
             'conditions' => $data['conditions'] ?? null,
             'actions' => $data['actions'],
             'sound' => $data['sound'] ?? null,
+            'priority' => $data['priority'] ?? Notification::PRIORITY_NORMAL,
             'controls' => $data['controls'] ?? null,
             'enabled' => $data['enabled'] ?? true,
             'created_by' => $creator->id,

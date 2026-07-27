@@ -59,6 +59,13 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  * row is even created, so it's present regardless of mute/quiet-hours/
  * delivery outcome. `null` connection (order-less triggers with no single
  * store, e.g. `digest`/`ai_insight`) simply leaves `platform` absent.
+ *
+ * `$priority` (Plan §4.20, added 2026-07-27) defaults to `Notification::PRIORITY_NORMAL`
+ * when omitted, is stored on the `Notification` row regardless of delivery
+ * outcome (same "record of what fired" discipline as everything else here),
+ * and maps `high`/`critical` to the FCM/APNs "deliver now" priority tier
+ * (`AndroidConfig::withHighMessagePriority()`, `ApnsConfig::withImmediatePriority()`)
+ * so it's a real delivery-behavior change, not just a cosmetic label.
  */
 class SendPushNotificationAction
 {
@@ -69,11 +76,13 @@ class SendPushNotificationAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null, ?StoreConnection $connection = null): string
+    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null, ?StoreConnection $connection = null, ?string $priority = null): string
     {
         if ($connection !== null) {
             $data['platform'] ??= $connection->platform;
         }
+
+        $effectivePriority = $priority ?? Notification::PRIORITY_NORMAL;
 
         $notification = Notification::query()->create([
             'user_id' => $user->id,
@@ -81,6 +90,7 @@ class SendPushNotificationAction
             'title' => $title,
             'body' => $body,
             'data' => $data,
+            'priority' => $effectivePriority,
         ]);
 
         if ($onNotificationCreated !== null) {
@@ -138,11 +148,16 @@ class SendPushNotificationAction
                 ->withNotification(FirebaseNotification::create($title, $body))
                 ->withData($stringData);
 
+            $isUrgent = in_array($effectivePriority, [Notification::PRIORITY_HIGH, Notification::PRIORITY_CRITICAL], true);
+            $androidConfig = $isUrgent ? AndroidConfig::new()->withHighMessagePriority() : AndroidConfig::new()->withNormalMessagePriority();
+            $apnsConfig = $isUrgent ? ApnsConfig::new()->withImmediatePriority() : ApnsConfig::new()->withPowerConservingPriority();
+
             if ($effectiveSound !== null && $effectiveSound !== '') {
-                $message = $message
-                    ->withApnsConfig(ApnsConfig::new()->withSound($effectiveSound))
-                    ->withAndroidConfig(AndroidConfig::new()->withSound($effectiveSound));
+                $apnsConfig = $apnsConfig->withSound($effectiveSound);
+                $androidConfig = $androidConfig->withSound($effectiveSound);
             }
+
+            $message = $message->withApnsConfig($apnsConfig)->withAndroidConfig($androidConfig);
 
             try {
                 $this->messaging->send($message);

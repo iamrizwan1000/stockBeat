@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Actions\Reviews\ReplyToReviewAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reviews\ReplyToReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Review;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,9 +20,17 @@ use Illuminate\Http\Request;
  * Polled customer reviews (Plan §4.4's `negative_review` trigger) — the
  * only seller-actionable field is a reply, per §4.15, and only on channels
  * where `capabilities()->reviewReply` is true (eBay only in v1).
+ *
+ * **Requires `inbox_enabled` (Pro+, Plan §4.15)** — reviewing/replying to a
+ * customer is the same underlying capability as the Unified Inbox, so it's
+ * gated behind the same flag rather than its own separate one.
  */
 class ReviewController extends Controller
 {
+    public function __construct(
+        private readonly ResolveEntitlementsAction $resolveEntitlements,
+    ) {}
+
     /**
      * List this team's polled reviews, newest first.
      */
@@ -30,9 +40,15 @@ class ReviewController extends Controller
         $user = $request->user();
         $team = $user->currentTeam();
 
-        $reviews = $team === null
-            ? collect()
-            : Review::query()->where('team_id', $team->id)->orderByDesc('reviewed_at')->get();
+        if ($team === null) {
+            return ApiResponse::success(['reviews' => []]);
+        }
+
+        if (! $this->inboxEnabled($team)) {
+            return ApiResponse::error('Reviews requires the Pro plan or higher.', status: 403);
+        }
+
+        $reviews = Review::query()->where('team_id', $team->id)->orderByDesc('reviewed_at')->get();
 
         return ApiResponse::success(['reviews' => ReviewResource::collection($reviews)]);
     }
@@ -72,5 +88,14 @@ class ReviewController extends Controller
         if ($review->team_id !== $user->currentTeam()?->id) {
             abort(404);
         }
+
+        if (! $this->inboxEnabled($review->team)) {
+            abort(403, 'Reviews requires the Pro plan or higher.');
+        }
+    }
+
+    private function inboxEnabled(Team $team): bool
+    {
+        return (bool) ($this->resolveEntitlements->handle($team)['limits']['inbox_enabled'] ?? false);
     }
 }

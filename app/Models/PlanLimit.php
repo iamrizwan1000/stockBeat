@@ -68,6 +68,14 @@ class PlanLimit extends Model
     public const AI_PROACTIVE_INSIGHTS_ENABLED = 'ai_proactive_insights_enabled';
 
     /**
+     * Gates bulk order actions (Plan §4.17: `POST /orders/bulk-cancel`,
+     * `POST /orders/bulk-tag`) to Starter and up — `false` on Free only.
+     * Single-order fulfill/refund/cancel/tag are never gated by this; it's
+     * purely the batch convenience on top of already-free actions.
+     */
+    public const BULK_ACTIONS_ENABLED = 'bulk_actions_enabled';
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

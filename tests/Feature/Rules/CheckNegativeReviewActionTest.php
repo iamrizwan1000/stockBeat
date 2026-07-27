@@ -53,3 +53,34 @@ test('the review\'s store connection is passed through and mutes the push when m
     $execution = RuleExecution::query()->where('rule_id', $rule->id)->firstOrFail();
     expect($execution->actions_result[0])->toMatchArray(['type' => 'push', 'status' => 'muted_by_store']);
 });
+
+test('review_keyword narrows a negative_review rule to reviews mentioning that word', function () {
+    $team = Team::factory()->create();
+    $rule = Rule::factory()->create([
+        'team_id' => $team->id,
+        'trigger' => Rule::TRIGGER_NEGATIVE_REVIEW,
+        'controls' => ['negative_review_max_rating' => 3, 'review_keyword' => 'broken'],
+    ]);
+
+    $matching = Review::factory()->create(['team_id' => $team->id, 'rating' => 1, 'content' => 'Arrived completely broken.']);
+    app(CheckNegativeReviewAction::class)->handle($matching);
+    expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
+
+    $nonMatching = Review::factory()->create(['team_id' => $team->id, 'rating' => 1, 'content' => 'Just did not like the color.']);
+    app(CheckNegativeReviewAction::class)->handle($nonMatching);
+    expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
+});
+
+test('a blank review_keyword control does not filter anything out', function () {
+    $team = Team::factory()->create();
+    $rule = Rule::factory()->create([
+        'team_id' => $team->id,
+        'trigger' => Rule::TRIGGER_NEGATIVE_REVIEW,
+        'controls' => ['negative_review_max_rating' => 3, 'review_keyword' => null],
+    ]);
+    $review = Review::factory()->create(['team_id' => $team->id, 'rating' => 1]);
+
+    app(CheckNegativeReviewAction::class)->handle($review);
+
+    expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
+});

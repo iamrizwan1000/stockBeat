@@ -29,10 +29,11 @@ use Illuminate\Support\Carbon;
  * @property int|null $stock_quantity
  * @property float|null $cost_price
  * @property Carbon|null $low_stock_notified_at
+ * @property Carbon|null $stale_stock_notified_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'connection_id', 'external_id', 'sku', 'title', 'stock_quantity', 'cost_price', 'low_stock_notified_at'])]
+#[Fillable(['team_id', 'connection_id', 'external_id', 'sku', 'title', 'stock_quantity', 'cost_price', 'low_stock_notified_at', 'stale_stock_notified_at'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -48,6 +49,7 @@ class Product extends Model
         return [
             'cost_price' => 'decimal:2',
             'low_stock_notified_at' => 'datetime',
+            'stale_stock_notified_at' => 'datetime',
         ];
     }
 

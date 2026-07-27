@@ -423,3 +423,34 @@ test('every real condition field/operator from Rule::conditionFields()/condition
 
     $response->assertCreated();
 });
+
+test('shipping_state and customer_order_count conditions are accepted (added 2026-07-27)', function () {
+    onboardedRuleUser();
+
+    $response = test()->postJson('/api/v1/rules', validRulePayload([
+        'conditions' => ['all' => [
+            ['field' => 'shipping_state', 'operator' => 'eq', 'value' => 'CA'],
+            ['field' => 'customer_order_count', 'operator' => 'gte', 'value' => 5],
+        ]],
+    ]));
+
+    $response->assertCreated();
+});
+
+test('a positive_review rule with a min rating, keyword, and a stale_inventory rule with stale_days are both accepted', function () {
+    onboardedRuleUser();
+
+    test()->postJson('/api/v1/rules', validRulePayload([
+        'name' => 'Celebrate great reviews',
+        'trigger' => Rule::TRIGGER_POSITIVE_REVIEW,
+        'conditions' => [],
+        'controls' => ['positive_review_min_rating' => 5, 'review_keyword' => 'fast shipping'],
+    ]))->assertCreated();
+
+    test()->postJson('/api/v1/rules', validRulePayload([
+        'name' => 'Flag dead stock',
+        'trigger' => Rule::TRIGGER_STALE_INVENTORY,
+        'conditions' => [],
+        'controls' => ['stale_days' => 45],
+    ]))->assertCreated();
+});

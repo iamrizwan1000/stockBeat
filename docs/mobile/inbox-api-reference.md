@@ -2,7 +2,7 @@
 
 Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md`.
 
-Tab 3 in the bottom nav (Plan §4.5/§4.10). **Requires the Pro plan or higher** (`entitlements.limits.inbox_enabled`) — Free/Starter shouldn't see this tab at all, route straight to the upgrade paywall if a Starter user somehow reaches it.
+Tab 3 in the bottom nav (Plan §4.5/§4.10). **Requires the Pro plan or higher** (`entitlements.limits.inbox_enabled`) — Free/Starter shouldn't see this tab at all, route straight to the upgrade paywall if a Starter user somehow reaches it. **Now actually enforced server-side as of 2026-07-26** — every endpoint on this page 403s with `"The unified inbox requires the Pro plan or higher."` if called on a non-entitled team; this was previously documented but not implemented, so don't rely on any earlier testing that showed it "working" for a Free team — that was the bug, not intended behavior.
 
 ## The important thing to understand before building this
 
@@ -111,5 +111,6 @@ Same body shape, both fields required (this endpoint doesn't support partial upd
 | 200 | Success |
 | 201 | Message/template created — **for messages, still check the returned `status` field, 201 isn't proof of delivery** |
 | 401 | Missing/invalid/revoked bearer token |
+| 403 | Team's plan doesn't include the inbox (Free/Starter) |
 | 404 | Thread/template doesn't exist or isn't yours |
 | 422 | Validation failure (missing body, template from another team, etc.) |

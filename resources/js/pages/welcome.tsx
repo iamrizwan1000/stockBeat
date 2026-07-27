@@ -2,6 +2,14 @@ import { Head, Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+/* ------------------------------------------------------------------ */
+/* Graphite Precision — this page's design system (see StockBeatApp's  */
+/* DESIGN.md). Flat, high-contrast, industrial-elegant: near-black     */
+/* "Graphite" as the primary anchor, "Signal Lime" reserved exclusively */
+/* for active states / focus / functional highlights, no gradients or  */
+/* drop shadows — depth comes from tonal layering and 1px borders.     */
+/* ------------------------------------------------------------------ */
+
 function useReveal<T extends HTMLElement>() {
     const ref = useRef<T | null>(null);
     const [visible, setVisible] = useState(false);
@@ -65,6 +73,8 @@ function useScrolled(threshold = 12) {
 
     return scrolled;
 }
+
+/* --------------------------- Glyphs --------------------------- */
 
 function AppleGlyph() {
     return (
@@ -138,12 +148,79 @@ function ChatGlyph() {
     );
 }
 
+function OtpGlyph() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+        >
+            <rect x="3" y="5" width="18" height="14" rx="2.5" />
+            <path d="M3 9.5h18" strokeLinecap="round" />
+            <path
+                d="M7 14h.01M11 14h.01M15 14h.01"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+function PlugGlyph() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+        >
+            <path
+                d="M9 3v4M15 3v4M6 7h12l-1 5a5 5 0 0 1-10 0L6 7Z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+            <path d="M12 16v5" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function BoltGlyph() {
+    return (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+            <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
+        </svg>
+    );
+}
+
+function HandTapGlyph() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+        >
+            <path d="M9 12V6a1.5 1.5 0 0 1 3 0v5" strokeLinecap="round" />
+            <path d="M12 11V4.5a1.5 1.5 0 0 1 3 0V11" strokeLinecap="round" />
+            <path
+                d="M15 11.5V6a1.5 1.5 0 0 1 3 0v9c0 3.5-2.5 6.5-6.5 6.5S5 18 5 15v-3.5a1.5 1.5 0 0 1 3-.2l.5 2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+/* --------------------------- Content data --------------------------- */
+
 const NOTIFICATION_CHANNELS = [
     {
         channel: 'Push',
         icon: <BellGlyph />,
-        accent: 'bg-sky-500',
-        ring: 'ring-sky-200',
         title: 'StockBeat',
         subtitle: 'High-value order',
         body: 'Order #1042 · $212.50 just came in from Shopify.',
@@ -152,8 +229,6 @@ const NOTIFICATION_CHANNELS = [
     {
         channel: 'Email',
         icon: <MailGlyph />,
-        accent: 'bg-violet-500',
-        ring: 'ring-violet-200',
         title: 'StockBeat Alerts',
         subtitle: 'New order needs your attention',
         body: '"High-value order" rule fired for order #1042 ($212.50) on Shopify.',
@@ -162,8 +237,6 @@ const NOTIFICATION_CHANNELS = [
     {
         channel: 'SMS',
         icon: <ChatGlyph />,
-        accent: 'bg-emerald-500',
-        ring: 'ring-emerald-200',
         title: 'StockBeat',
         subtitle: null,
         body: 'Order #1042 ($212.50) just came in. Tap to view →',
@@ -187,85 +260,97 @@ function NotificationDemo() {
     const revealed = Math.min(step, NOTIFICATION_CHANNELS.length);
 
     return (
-        <div className="relative mx-auto max-w-md">
-            <div className="absolute inset-x-10 -bottom-4 h-20 rounded-[2rem] bg-slate-900/10 blur-2xl" />
-            <div className="relative rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-2xl shadow-slate-400/20 backdrop-blur">
-                <div className="mb-5 flex items-center justify-between">
-                    <span className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
-                        One rule fires
-                    </span>
-                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Live
-                    </span>
-                </div>
+        <div className="relative mx-auto max-w-md rounded-xl border border-[#D8DAD4] bg-white p-6">
+            <div className="mb-5 flex items-center justify-between">
+                <span className="font-mono text-[11px] font-medium tracking-widest text-[#757872] uppercase">
+                    One rule fires
+                </span>
+                <span className="flex items-center gap-1.5 rounded-full bg-[#EFF8D5] px-2.5 py-0.5 font-mono text-[11px] font-medium text-[#3A4D00]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#4E6700]" />
+                    Live
+                </span>
+            </div>
 
-                <div className="space-y-3">
-                    {NOTIFICATION_CHANNELS.map((item, i) => {
-                        const shown = i < revealed;
+            <div className="space-y-3">
+                {NOTIFICATION_CHANNELS.map((item, i) => {
+                    const shown = i < revealed;
 
-                        return (
-                            <div
-                                key={item.channel}
-                                className={`flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm ring-1 transition-all duration-500 ease-out ${item.ring} ${
-                                    shown
-                                        ? 'translate-y-0 opacity-100'
-                                        : 'pointer-events-none -translate-y-3 opacity-0'
-                                }`}
-                            >
-                                <span
-                                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white ${item.accent}`}
-                                >
-                                    {item.icon}
-                                </span>
-                                <div className="min-w-0 flex-1 text-left">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-sm font-semibold text-slate-800">
-                                            {item.title}
-                                        </span>
-                                        <span className="flex-shrink-0 text-[11px] text-slate-400">
-                                            {item.time}
-                                        </span>
-                                    </div>
-                                    {item.subtitle && (
-                                        <div className="text-xs font-medium text-slate-500">
-                                            {item.subtitle}
-                                        </div>
-                                    )}
-                                    <p className="mt-0.5 text-xs leading-snug text-slate-500">
-                                        {item.body}
-                                    </p>
+                    return (
+                        <div
+                            key={item.channel}
+                            className={`flex items-start gap-3 rounded-lg border border-[#D8DAD4] bg-white p-3.5 transition-all duration-500 ease-out ${
+                                shown
+                                    ? 'translate-y-0 opacity-100'
+                                    : 'pointer-events-none -translate-y-3 opacity-0'
+                            }`}
+                        >
+                            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#191C18] text-white">
+                                {item.icon}
+                            </span>
+                            <div className="min-w-0 flex-1 text-left">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-sm font-semibold text-[#191C18]">
+                                        {item.title}
+                                    </span>
+                                    <span className="flex-shrink-0 font-mono text-[10px] text-[#757872]">
+                                        {item.time}
+                                    </span>
                                 </div>
-                                <span className="mt-0.5 flex-shrink-0 text-[10px] font-semibold tracking-wide text-slate-300 uppercase">
-                                    {item.channel}
-                                </span>
+                                {item.subtitle && (
+                                    <div className="text-xs font-medium text-[#454843]">
+                                        {item.subtitle}
+                                    </div>
+                                )}
+                                <p className="mt-0.5 text-xs leading-snug text-[#454843]">
+                                    {item.body}
+                                </p>
                             </div>
-                        );
-                    })}
-                </div>
+                            <span className="mt-0.5 flex-shrink-0 font-mono text-[10px] font-semibold tracking-wide text-[#757872] uppercase">
+                                {item.channel}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
 }
 
-const PLATFORMS = ['Shopify', 'WooCommerce', 'eBay', 'Etsy', 'Amazon'];
+const PLATFORMS = [
+    'Shopify',
+    'WooCommerce',
+    'eBay',
+    'Etsy',
+    'Amazon',
+    'TikTok Shop',
+];
 
-const JOBS = [
+// The animated "how it works" walkthrough — auth → connect a store →
+// orders/rules fire → act — the exact journey a new seller takes.
+const JOURNEY = [
     {
-        title: 'See',
-        body: 'Every order from every store, in one live feed, updated in real time.',
+        step: '01',
+        icon: <OtpGlyph />,
+        title: 'Sign in, no password',
+        body: 'Email in, a one-time code out. No password to forget, no account to set up beyond that.',
     },
     {
-        title: 'Know',
-        body: 'Custom rules alert you by push, email, or SMS the second something matters.',
+        step: '02',
+        icon: <PlugGlyph />,
+        title: 'Connect your stores',
+        body: 'Shopify, WooCommerce, eBay, Etsy, Amazon — link as many as your plan allows in under a minute each.',
     },
     {
-        title: 'Act',
-        body: 'Fulfill, add tracking, refund, cancel, tag — from your phone, no laptop required.',
+        step: '03',
+        icon: <BoltGlyph />,
+        title: 'Orders flow in, rules fire',
+        body: 'Every order lands in one feed the instant it happens. Your rules watch for what matters and reach you by push, email, or SMS.',
     },
     {
-        title: 'Talk',
-        body: 'A unified customer inbox across every marketplace, in one screen.',
+        step: '04',
+        icon: <HandTapGlyph />,
+        title: 'Act from your phone',
+        body: 'Fulfill, refund, cancel, tag — one order or a whole batch — without ever opening a laptop.',
     },
 ];
 
@@ -273,68 +358,84 @@ const FEATURES = [
     {
         eyebrow: 'The dashboard',
         title: 'One feed. Every channel.',
-        body: 'Shopify, WooCommerce, eBay, Etsy, and Amazon orders land in a single reverse-chronological feed — channel icon, customer, total in your base currency, fulfillment and payment status, all at a glance. Filter by channel, store, status, date, or value; search everything by order number, customer, email, product, or SKU.',
+        body: 'Shopify, WooCommerce, eBay, Etsy, Amazon, and TikTok Shop orders land in a single reverse-chronological feed — channel icon, customer, total in your base currency, fulfillment and payment status, a full chronological event timeline per order, all at a glance.',
         points: [
             'Real-time via webhooks where supported, polling everywhere else',
             'Ship-by deadline countdowns for eBay/Etsy/Amazon SLAs',
-            'Snooze any order to deal with it later',
+            'Saved filters, snooze, and global search across order #, customer, SKU',
         ],
     },
     {
         eyebrow: 'The core differentiator',
         title: 'Rules that actually know your business.',
-        body: 'Compose rules in plain terms — WHEN a trigger fires, IF conditions match, THEN act. Twelve triggers from new orders to order and refund spikes, with AND/OR condition groups on total, SKU, country, repeat-buyer status, and more.',
+        body: 'Compose rules in plain terms — WHEN a trigger fires, IF conditions match, THEN act. Fifteen triggers, from new orders to order/refund spikes, low stock, stale inventory, and review ratings — with AND/OR condition groups on total, SKU, country, shipping state, repeat-buyer status, and customer order count.',
         points: [
-            'Push, email, or SMS — with a custom sound per rule',
+            'Push, email, or SMS — with a custom sound and priority per rule',
             'Quiet hours, cooldowns, and a one-tap test-fire',
-            'Full execution log — the last 50 firings per rule',
+            'Daily, weekly, or monthly digests — plus a full execution log',
         ],
     },
     {
         eyebrow: 'From your phone',
         title: 'Act without opening a laptop.',
-        body: 'Every order card supports the actions that actually move your day forward: mark fulfilled with tracking, issue a full or partial refund, cancel, tag, add an internal note, or message the customer — queued server-side with optimistic UI and automatic retry.',
+        body: 'Every order supports the actions that actually move your day forward — mark fulfilled with tracking, issue a full or partial refund, cancel, tag, add an internal note, or message the customer. Batch it across dozens of orders at once when volume picks up.',
         points: [
-            'Packing slips generated server-side, shared instantly',
-            'Message a customer straight into the unified inbox',
-            'Every destructive action is logged and reversible in review',
+            'Bulk cancel and tag, with a per-order result — never all-or-nothing',
+            'Packing slips and priced invoices, generated server-side and shared instantly',
+            "Every action logged to that order's own timeline, permanently",
         ],
     },
     {
         eyebrow: 'Business overview',
         title: 'Know where you stand, today.',
-        body: 'Today, 7-day, and 30-day revenue, order count, and average order value — total and per channel — plus goal tracking against your best month. A morning digest tells you what happened while you slept.',
+        body: 'Today, 7-day, and 30-day revenue, order count, and average order value — total and per channel — plus goal tracking against your best month and a monthly business report. A morning digest tells you what happened while you slept.',
         points: [
             'Per-channel comparison — "Etsy up 30% this week"',
             'Top products by units and revenue',
-            'Home-screen widget for today’s numbers at a glance',
+            "Home-screen widget for today's numbers at a glance",
+        ],
+    },
+    {
+        eyebrow: 'Stay stocked',
+        title: 'Inventory that alerts itself.',
+        body: 'Push real stock corrections straight to Shopify or WooCommerce, get notified the moment something drops below threshold, and catch dead stock before it becomes a write-off.',
+        points: [
+            'Low-stock and stale-inventory alerts, threshold and day-count both yours to set',
+            'Real stock snapshots — see exactly how inventory trended over time',
+            'Cost price tracking, so profit math is never a guess',
+        ],
+    },
+    {
+        eyebrow: 'Know your customers',
+        title: 'Every buyer, one place.',
+        body: 'A customer list grouped from your own order history — order count, total spent, last order date — with one tap into their full purchase history. Real payout reconciliation and review replies live right alongside it.',
+        points: [
+            'Payout tracking — what actually landed in your bank account',
+            'Reply to reviews and negative feedback without leaving the app',
+            'Repeat-buyer and order-milestone rule conditions, built on the same data',
+        ],
+    },
+    {
+        eyebrow: 'Ask anything',
+        title: 'An AI Assistant that knows your data.',
+        body: 'Ask it about your sales, your inventory, or your restock timing — or hand it a plain-English sentence and let it draft a rule for you to review before it ever saves.',
+        points: [
+            'Real answers from your real orders — never a guess dressed up as one',
+            'Natural-language rule builder: describe it, review it, save it',
+            'Profit summaries and restock recommendations, grounded in real sales velocity',
+        ],
+    },
+    {
+        eyebrow: 'Built for teams',
+        title: 'Bring your whole team in.',
+        body: 'Invite teammates with real roles — owner, manager, agent, viewer — and route specific alerts to specific people, with per-member store visibility when you need it.',
+        points: [
+            'Per-rule "notify a specific teammate" targeting',
+            'Store-visibility restrictions for limited-access roles',
+            'A shared, permission-aware view of everything above',
         ],
     },
 ];
-
-function AppBadge({
-    icon,
-    label,
-    sublabel,
-}: {
-    icon: ReactNode;
-    label: string;
-    sublabel: string;
-}) {
-    return (
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-300/50">
-            <span className="text-slate-900">{icon}</span>
-            <div className="text-left leading-tight">
-                <div className="text-[11px] tracking-wide text-slate-500 uppercase">
-                    {sublabel}
-                </div>
-                <div className="text-sm font-semibold text-slate-900">
-                    {label}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 const PLANS = [
     {
@@ -344,7 +445,7 @@ const PLANS = [
         highlight: false,
         features: [
             '1 connected store',
-            'Live order feed',
+            'Live order feed & quick actions',
             'New-order push + daily summary',
             '25 email alerts/mo',
             '7 days of history',
@@ -358,6 +459,7 @@ const PLANS = [
         features: [
             'Up to 3 stores',
             '5 custom alert rules',
+            'Bulk order actions',
             '20 SMS + 250 email/mo',
             '30 days of history',
         ],
@@ -370,10 +472,9 @@ const PLANS = [
         features: [
             'Up to 10 stores',
             'Unlimited custom rules',
-            'Unified customer inbox',
+            'Unified customer inbox, payouts & reviews',
             '100 SMS + 1,000 email/mo',
-            '3 team seats',
-            '7-day free trial',
+            '3 team seats · 7-day free trial',
         ],
     },
     {
@@ -384,9 +485,9 @@ const PLANS = [
         features: [
             'Unlimited stores',
             'Order & refund spike alerts',
+            'Proactive AI insights',
             '500 SMS + 5,000 email/mo',
-            '10 team seats',
-            'Priority support',
+            '10 team seats · priority support',
         ],
     },
 ];
@@ -406,12 +507,27 @@ const TRUST_POINTS = [
     },
 ];
 
-function GradientBlob({ className }: { className: string }) {
+function AppBadge({
+    icon,
+    label,
+    sublabel,
+}: {
+    icon: ReactNode;
+    label: string;
+    sublabel: string;
+}) {
     return (
-        <div
-            aria-hidden
-            className={`pointer-events-none absolute rounded-full blur-3xl ${className}`}
-        />
+        <div className="flex items-center gap-3 rounded-lg border border-[#D8DAD4] bg-white px-5 py-3 transition hover:border-[#191C18]">
+            <span className="text-[#191C18]">{icon}</span>
+            <div className="text-left leading-tight">
+                <div className="font-mono text-[11px] tracking-wide text-[#757872] uppercase">
+                    {sublabel}
+                </div>
+                <div className="text-sm font-semibold text-[#191C18]">
+                    {label}
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -420,48 +536,69 @@ export default function Welcome() {
 
     return (
         <>
-            <Head title="StockBeat — Multi-channel order monitoring, mission control for sellers" />
+            <Head title="StockBeat — Multi-channel order monitoring, mission control for sellers">
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link
+                    rel="preconnect"
+                    href="https://fonts.gstatic.com"
+                    crossOrigin="anonymous"
+                />
+                <link
+                    href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap"
+                    rel="stylesheet"
+                />
+            </Head>
 
-            <div className="relative min-h-screen overflow-x-hidden bg-white text-slate-900 selection:bg-emerald-200/60">
+            <div
+                className="relative min-h-screen overflow-x-hidden bg-[#F8FAF3] text-[#191C18] selection:bg-[#EFF8D5]"
+                style={{
+                    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                }}
+            >
                 <nav
                     className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
                         scrolled
-                            ? 'border-b border-slate-200/80 bg-white/80 backdrop-blur-lg'
+                            ? 'border-b border-[#D8DAD4] bg-[#F8FAF3]/90 backdrop-blur'
                             : 'bg-transparent'
                     }`}
                 >
                     <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                        <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-sm font-bold text-white shadow-md shadow-emerald-500/30">
+                        <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#191C18] text-sm font-bold text-white">
                                 S
                             </div>
-                            <span className="text-base font-semibold tracking-tight">
+                            <span
+                                className="text-base font-semibold tracking-tight"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 StockBeat
                             </span>
                         </div>
-                        <div className="hidden items-center gap-8 text-sm font-medium text-slate-600 sm:flex">
+                        <div className="hidden items-center gap-8 text-sm font-medium text-[#454843] sm:flex">
                             <a
                                 href="#features"
-                                className="transition hover:text-slate-900"
+                                className="transition hover:text-[#191C18]"
                             >
                                 Features
                             </a>
                             <a
                                 href="#pricing"
-                                className="transition hover:text-slate-900"
+                                className="transition hover:text-[#191C18]"
                             >
                                 Pricing
                             </a>
                             <a
                                 href="#security"
-                                className="transition hover:text-slate-900"
+                                className="transition hover:text-[#191C18]"
                             >
                                 Security
                             </a>
                         </div>
                         <Link
                             href="/admin/login"
-                            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:shadow"
+                            className="rounded-xl border border-[#D8DAD4] bg-white px-4 py-2 text-sm font-medium text-[#252824] transition hover:border-[#191C18]"
                         >
                             Admin sign in
                         </Link>
@@ -469,31 +606,33 @@ export default function Welcome() {
                 </nav>
 
                 {/* Hero */}
-                <section className="relative pt-40 pb-28">
-                    <GradientBlob className="-top-32 -left-32 h-[30rem] w-[30rem] bg-emerald-200/50" />
-                    <GradientBlob className="-top-20 -right-40 h-[34rem] w-[34rem] bg-indigo-200/40" />
-                    <GradientBlob className="top-96 left-1/3 h-[24rem] w-[24rem] bg-teal-100/60" />
-
+                <section className="relative pt-40 pb-24">
                     <div className="relative mx-auto max-w-5xl px-6 text-center">
                         <Reveal>
-                            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-700">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D8DAD4] bg-white px-4 py-1.5 font-mono text-xs font-medium text-[#454843]">
+                                <span className="h-1.5 w-1.5 rounded-full bg-[#4E6700]" />
                                 Mission control for multi-channel sellers
                             </div>
                         </Reveal>
 
                         <Reveal delay={80}>
-                            <h1 className="mx-auto max-w-3xl text-5xl leading-[1.08] font-semibold tracking-tight text-slate-900 sm:text-6xl">
+                            <h1
+                                className="mx-auto max-w-3xl text-5xl leading-[1.08] font-semibold tracking-tight text-[#191C18] sm:text-6xl"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 Every order.
                                 <br />
-                                <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500 bg-clip-text text-transparent">
+                                <span className="relative inline-block">
                                     Instantly known.
+                                    <span className="absolute inset-x-0 -bottom-1 -z-10 h-3 bg-[#C3F341]" />
                                 </span>
                             </h1>
                         </Reveal>
 
                         <Reveal delay={160}>
-                            <p className="mx-auto mt-6 max-w-xl text-lg text-slate-500">
+                            <p className="mx-auto mt-6 max-w-xl text-lg text-[#454843]">
                                 StockBeat aggregates every store into one feed,
                                 alerts you the moment something matters, and
                                 lets you act without opening a laptop.
@@ -504,11 +643,15 @@ export default function Welcome() {
                             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                                 <a
                                     href="#pricing"
-                                    className="rounded-full bg-slate-900 px-7 py-3 text-sm font-semibold text-white shadow-xl shadow-slate-900/20 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-slate-900/30"
+                                    className="rounded-xl bg-[#191C18] px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-[#2e312d]"
+                                    style={{
+                                        fontFamily:
+                                            "'Hanken Grotesk', sans-serif",
+                                    }}
                                 >
                                     See pricing
                                 </a>
-                                <span className="text-sm text-slate-400">
+                                <span className="font-mono text-sm text-[#757872]">
                                     7-day free trial · no card required
                                 </span>
                             </div>
@@ -532,14 +675,13 @@ export default function Welcome() {
                         {/* Floating preview card */}
                         <Reveal delay={400} className="mt-20">
                             <div className="relative mx-auto max-w-3xl">
-                                <div className="absolute inset-x-8 -bottom-6 h-24 rounded-[2rem] bg-slate-900/10 blur-2xl" />
-                                <div className="relative rounded-[1.75rem] border border-slate-200 bg-white/90 p-3 shadow-2xl shadow-slate-400/20 backdrop-blur">
-                                    <div className="rounded-[1.4rem] bg-slate-50 p-5">
+                                <div className="relative rounded-xl border border-[#D8DAD4] bg-white p-3">
+                                    <div className="rounded-lg bg-[#F3F4EE] p-5">
                                         <div className="mb-4 flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-700">
+                                            <span className="text-sm font-semibold text-[#191C18]">
                                                 Today's feed
                                             </span>
-                                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                                            <span className="rounded-full bg-[#EFF8D5] px-2.5 py-0.5 font-mono text-[11px] font-medium text-[#3A4D00]">
                                                 Live
                                             </span>
                                         </div>
@@ -566,21 +708,21 @@ export default function Welcome() {
                                             ].map((row) => (
                                                 <div
                                                     key={row.order}
-                                                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                                                    className="flex items-center justify-between rounded-lg border border-[#D8DAD4] bg-white px-4 py-3"
                                                 >
                                                     <div className="text-left">
-                                                        <div className="text-sm font-medium text-slate-800">
+                                                        <div className="font-mono text-sm font-medium text-[#191C18]">
                                                             {row.order}
                                                         </div>
-                                                        <div className="text-xs text-slate-400">
+                                                        <div className="text-xs text-[#757872]">
                                                             {row.store}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-medium text-slate-500">
+                                                        <span className="text-xs font-medium text-[#454843]">
                                                             {row.status}
                                                         </span>
-                                                        <span className="text-sm font-semibold text-slate-800">
+                                                        <span className="font-mono text-sm font-semibold text-[#191C18]">
                                                             {row.total}
                                                         </span>
                                                     </div>
@@ -595,17 +737,17 @@ export default function Welcome() {
                 </section>
 
                 {/* Platform trust bar */}
-                <section className="border-y border-slate-100 bg-slate-50/60 py-10">
+                <section className="border-y border-[#D8DAD4] bg-[#F3F4EE] py-10">
                     <Reveal>
                         <div className="mx-auto max-w-5xl px-6">
-                            <p className="mb-6 text-center text-xs font-semibold tracking-widest text-slate-400 uppercase">
+                            <p className="mb-6 text-center font-mono text-xs font-medium tracking-widest text-[#757872] uppercase">
                                 Built for sellers on
                             </p>
                             <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
                                 {PLATFORMS.map((platform) => (
                                     <span
                                         key={platform}
-                                        className="text-lg font-semibold text-slate-400"
+                                        className="text-lg font-semibold text-[#757872]"
                                     >
                                         {platform}
                                     </span>
@@ -615,34 +757,84 @@ export default function Welcome() {
                     </Reveal>
                 </section>
 
+                {/* How it works — the real auth → connect → notify → act journey */}
+                <section className="py-24">
+                    <div className="mx-auto max-w-6xl px-6">
+                        <Reveal className="mx-auto mb-16 max-w-2xl text-center">
+                            <span className="font-mono text-xs font-semibold tracking-widest text-[#4E6700] uppercase">
+                                From zero to live
+                            </span>
+                            <h2
+                                className="mt-2 text-3xl font-semibold tracking-tight text-[#191C18] sm:text-4xl"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
+                                Four steps. A few minutes.
+                            </h2>
+                        </Reveal>
+
+                        <div className="relative grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                            {/* Connecting line — desktop only, sits behind the step numbers */}
+                            <div className="pointer-events-none absolute inset-x-16 top-[38px] hidden h-px bg-[#D8DAD4] lg:block" />
+
+                            {JOURNEY.map((step, i) => (
+                                <Reveal key={step.step} delay={i * 110}>
+                                    <div className="relative flex h-full flex-col gap-4 rounded-xl border border-[#D8DAD4] bg-white p-6">
+                                        <div className="flex items-center justify-between">
+                                            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#D8DAD4] bg-[#F8FAF3] text-[#191C18]">
+                                                {step.icon}
+                                            </span>
+                                            <span className="font-mono text-xs font-medium text-[#757872]">
+                                                {step.step}
+                                            </span>
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-[#191C18]">
+                                            {step.title}
+                                        </h3>
+                                        <p className="text-sm leading-relaxed text-[#454843]">
+                                            {step.body}
+                                        </p>
+                                    </div>
+                                </Reveal>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
                 {/* Notification demo */}
-                <section className="py-28">
+                <section className="border-y border-[#D8DAD4] bg-[#F3F4EE] py-24">
                     <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 lg:grid-cols-2">
                         <Reveal>
-                            <span className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">
+                            <span className="font-mono text-xs font-semibold tracking-widest text-[#4E6700] uppercase">
                                 The core differentiator
                             </span>
-                            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                            <h2
+                                className="mt-2 text-3xl font-semibold tracking-tight text-[#191C18] sm:text-4xl"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 One rule. Every channel.
                             </h2>
-                            <p className="mt-4 text-lg text-slate-500">
+                            <p className="mt-4 text-lg text-[#454843]">
                                 Set the condition once — a high-value order, a
-                                spike in refunds, a low-stock alert — and
-                                StockBeat reaches you however you actually want
-                                to hear about it: push, email, or SMS, the
-                                moment it happens.
+                                spike in refunds, a low-stock alert, a run of
+                                5-star reviews — and StockBeat reaches you
+                                however you actually want to hear about it:
+                                push, email, or SMS, the moment it happens.
                             </p>
                             <ul className="mt-6 space-y-3">
                                 {[
                                     'Push for the instant glance, email for the record, SMS for when you need to know now',
-                                    'Quiet hours and per-channel mute so nothing feels like spam',
+                                    'Critical/high/normal priority per rule, plus quiet hours and per-channel mute',
                                     'A full execution log — see exactly when and how every rule fired',
                                 ].map((point) => (
                                     <li
                                         key={point}
-                                        className="flex items-start gap-3 text-sm text-slate-600"
+                                        className="flex items-start gap-3 text-sm text-[#454843]"
                                     >
-                                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
+                                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4E6700]" />
                                         {point}
                                     </li>
                                 ))}
@@ -655,72 +847,40 @@ export default function Welcome() {
                     </div>
                 </section>
 
-                {/* Four jobs */}
-                <section className="bg-slate-50/60 py-28">
-                    <div className="mx-auto max-w-6xl px-6">
-                        <Reveal className="mx-auto mb-14 max-w-2xl text-center">
-                            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
-                                Four jobs. One app.
-                            </h2>
-                            <p className="mt-3 text-slate-500">
-                                Not a full order management system —
-                                deliberately. Just the mobile-first mission
-                                control for sellers who need to see, know, act,
-                                and talk, fast.
-                            </p>
-                        </Reveal>
-
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                            {JOBS.map((job, i) => (
-                                <Reveal key={job.title} delay={i * 90}>
-                                    <div className="group relative h-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60 transition duration-300 hover:-translate-y-1.5 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-200/40">
-                                        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 text-sm font-bold text-emerald-700">
-                                            {i + 1}
-                                        </div>
-                                        <h3 className="mb-2 text-lg font-semibold text-slate-900">
-                                            {job.title}
-                                        </h3>
-                                        <p className="text-sm leading-relaxed text-slate-500">
-                                            {job.body}
-                                        </p>
-                                    </div>
-                                </Reveal>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
                 {/* Feature deep-dive */}
-                <section id="features" className="py-28">
+                <section id="features" className="py-24">
                     <div className="mx-auto max-w-5xl px-6">
                         <Reveal className="mx-auto mb-16 max-w-2xl text-center">
-                            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                            <h2
+                                className="text-3xl font-semibold tracking-tight text-[#191C18] sm:text-4xl"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 Everything a multi-channel seller actually needs
                             </h2>
                         </Reveal>
 
-                        <div className="space-y-6">
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                             {FEATURES.map((feature) => (
                                 <Reveal key={feature.title}>
-                                    <div className="grid grid-cols-1 items-center gap-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/60 transition hover:shadow-lg hover:shadow-slate-300/40 md:grid-cols-2 md:p-10">
-                                        <div>
-                                            <span className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">
-                                                {feature.eyebrow}
-                                            </span>
-                                            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                                                {feature.title}
-                                            </h3>
-                                            <p className="mt-3 text-slate-500">
-                                                {feature.body}
-                                            </p>
-                                        </div>
-                                        <ul className="space-y-3">
+                                    <div className="flex h-full flex-col rounded-xl border border-[#D8DAD4] bg-white p-7">
+                                        <span className="font-mono text-xs font-semibold tracking-widest text-[#4E6700] uppercase">
+                                            {feature.eyebrow}
+                                        </span>
+                                        <h3 className="mt-2 text-xl font-semibold tracking-tight text-[#191C18]">
+                                            {feature.title}
+                                        </h3>
+                                        <p className="mt-3 text-sm text-[#454843]">
+                                            {feature.body}
+                                        </p>
+                                        <ul className="mt-5 space-y-2.5">
                                             {feature.points.map((point) => (
                                                 <li
                                                     key={point}
-                                                    className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-600"
+                                                    className="flex items-start gap-2.5 rounded-lg bg-[#F3F4EE] px-3.5 py-2.5 text-sm text-[#454843]"
                                                 >
-                                                    <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
+                                                    <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4E6700]" />
                                                     {point}
                                                 </li>
                                             ))}
@@ -733,13 +893,21 @@ export default function Welcome() {
                 </section>
 
                 {/* Security */}
-                <section id="security" className="bg-slate-50/60 py-28">
+                <section
+                    id="security"
+                    className="border-y border-[#D8DAD4] bg-[#F3F4EE] py-24"
+                >
                     <div className="mx-auto max-w-5xl px-6">
                         <Reveal className="mx-auto mb-14 max-w-2xl text-center">
-                            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                            <h2
+                                className="text-3xl font-semibold tracking-tight text-[#191C18]"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 Built to be trusted with your data
                             </h2>
-                            <p className="mt-3 text-slate-500">
+                            <p className="mt-3 text-[#454843]">
                                 Your store credentials and customer data,
                                 handled the way they should be.
                             </p>
@@ -748,11 +916,11 @@ export default function Welcome() {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                             {TRUST_POINTS.map((point, i) => (
                                 <Reveal key={point.title} delay={i * 90}>
-                                    <div className="h-full rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/60 p-6 text-center shadow-sm shadow-slate-200/50">
-                                        <h3 className="font-semibold text-slate-900">
+                                    <div className="h-full rounded-xl border border-[#D8DAD4] bg-white p-6 text-center">
+                                        <h3 className="font-semibold text-[#191C18]">
                                             {point.title}
                                         </h3>
-                                        <p className="mt-2 text-sm text-slate-500">
+                                        <p className="mt-2 text-sm text-[#454843]">
                                             {point.body}
                                         </p>
                                     </div>
@@ -763,13 +931,18 @@ export default function Welcome() {
                 </section>
 
                 {/* Pricing */}
-                <section id="pricing" className="py-28">
+                <section id="pricing" className="py-24">
                     <div className="mx-auto max-w-6xl px-6">
                         <Reveal className="mb-14 text-center">
-                            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                            <h2
+                                className="text-3xl font-semibold tracking-tight text-[#191C18]"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 Simple, honest pricing
                             </h2>
-                            <p className="mt-3 text-slate-500">
+                            <p className="mt-3 text-[#454843]">
                                 Start free. Upgrade the moment a second store
                                 makes it worth it.
                             </p>
@@ -779,25 +952,31 @@ export default function Welcome() {
                             {PLANS.map((plan, i) => (
                                 <Reveal key={plan.name} delay={i * 80}>
                                     <div
-                                        className={`relative h-full rounded-3xl border p-6 transition duration-300 hover:-translate-y-2 ${
+                                        className={`relative h-full rounded-xl border p-6 transition duration-300 ${
                                             plan.highlight
-                                                ? 'border-emerald-300 bg-gradient-to-b from-emerald-50 to-white shadow-2xl shadow-emerald-300/30'
-                                                : 'border-slate-200 bg-white shadow-sm shadow-slate-200/50 hover:shadow-xl hover:shadow-slate-300/40'
+                                                ? 'border-[#191C18] bg-white'
+                                                : 'border-[#D8DAD4] bg-white hover:border-[#191C18]'
                                         }`}
                                     >
                                         {plan.highlight && (
-                                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30">
+                                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#C3F341] px-3 py-1 font-mono text-[11px] font-semibold text-[#191C18]">
                                                 Most popular
                                             </span>
                                         )}
-                                        <h3 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+                                        <h3 className="font-mono text-sm font-semibold tracking-wide text-[#757872] uppercase">
                                             {plan.name}
                                         </h3>
                                         <div className="mt-3 flex items-baseline gap-1">
-                                            <span className="text-3xl font-semibold text-slate-900">
+                                            <span
+                                                className="text-3xl font-semibold text-[#191C18]"
+                                                style={{
+                                                    fontFamily:
+                                                        "'Hanken Grotesk', sans-serif",
+                                                }}
+                                            >
                                                 {plan.price}
                                             </span>
-                                            <span className="text-sm text-slate-400">
+                                            <span className="text-sm text-[#757872]">
                                                 {plan.cadence}
                                             </span>
                                         </div>
@@ -805,9 +984,9 @@ export default function Welcome() {
                                             {plan.features.map((feature) => (
                                                 <li
                                                     key={feature}
-                                                    className="flex items-start gap-2 text-sm text-slate-500"
+                                                    className="flex items-start gap-2 text-sm text-[#454843]"
                                                 >
-                                                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
+                                                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4E6700]" />
                                                     {feature}
                                                 </li>
                                             ))}
@@ -820,14 +999,24 @@ export default function Welcome() {
                 </section>
 
                 {/* Final CTA */}
-                <section className="py-28">
+                <section className="py-24">
                     <Reveal className="mx-auto max-w-3xl px-6 text-center">
-                        <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 px-10 py-16 shadow-2xl shadow-slate-400/30">
-                            <GradientBlob className="-top-20 -right-20 h-72 w-72 bg-emerald-400/20" />
-                            <h2 className="relative text-3xl font-semibold tracking-tight text-white">
+                        <div className="relative overflow-hidden rounded-xl border border-[#191C18] bg-[#191C18] px-10 py-16">
+                            <span
+                                className="absolute top-0 right-0 h-24 w-24 bg-[#C3F341]"
+                                style={{
+                                    clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+                                }}
+                            />
+                            <h2
+                                className="relative text-3xl font-semibold tracking-tight text-white"
+                                style={{
+                                    fontFamily: "'Hanken Grotesk', sans-serif",
+                                }}
+                            >
                                 Stop checking five apps to run one business.
                             </h2>
-                            <p className="relative mt-3 text-slate-300">
+                            <p className="relative mt-3 text-[#c5c7c1]">
                                 Start your 7-day free trial today — no card
                                 required.
                             </p>
@@ -847,8 +1036,8 @@ export default function Welcome() {
                     </Reveal>
                 </section>
 
-                <footer className="border-t border-slate-100 py-10">
-                    <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 text-sm text-slate-400 sm:flex-row sm:justify-between">
+                <footer className="border-t border-[#D8DAD4] py-10">
+                    <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 font-mono text-sm text-[#757872] sm:flex-row sm:justify-between">
                         <span>© {new Date().getFullYear()} StockBeat</span>
                         <span>
                             Billed via Apple &amp; Google in-app purchases · no

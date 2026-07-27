@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Models\Order;
+use App\Models\OrderEvent;
 use App\Support\Connections\ActionResult;
 use App\Support\Connections\ChannelAdapterManager;
 use Illuminate\Validation\ValidationException;
@@ -26,6 +27,17 @@ class CancelOrderAction
             ]);
         }
 
-        return $adapter->cancel($order, $reason);
+        $result = $adapter->cancel($order, $reason);
+
+        if ($result->success) {
+            OrderEvent::query()->create([
+                'order_id' => $order->id,
+                'type' => OrderEvent::TYPE_CANCELLED,
+                'payload' => ['reason' => $reason],
+                'occurred_at' => now(),
+            ]);
+        }
+
+        return $result;
     }
 }

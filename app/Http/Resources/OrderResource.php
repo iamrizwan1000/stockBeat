@@ -41,6 +41,7 @@ class OrderResource extends JsonResource
             'snoozed_until' => $this->snoozed_until,
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
             'notes' => OrderNoteResource::collection($this->whenLoaded('notes')),
+            'events' => OrderEventResource::collection($this->whenLoaded('events')),
         ];
     }
 }
