@@ -1,6 +1,8 @@
 <?php
 
+use App\Actions\Rules\CheckBackInStockAction;
 use App\Actions\Rules\CheckLowStockAction;
+use App\Actions\Rules\CheckStaleInventoryAction;
 use App\Jobs\PollWooProductsJob;
 use App\Models\Product;
 use App\Models\ProductStockSnapshot;
@@ -10,8 +12,23 @@ use App\Models\StoreConnection;
 use App\Models\Team;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Kreait\Firebase\Contract\Messaging;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // PollWooProductsJob's check actions all funnel through RuleEvaluationAction
+    // -> DispatchRuleActionsAction, which eagerly resolves the real Firebase
+    // Messaging client even when no rule ends up firing — bind a mock so
+    // container resolution succeeds without a real service-account credential
+    // (same pattern as DetectAiInsightsActionTest).
+    app()->instance(Messaging::class, Mockery::mock(Messaging::class));
+});
+
+function pollWooProducts(PollWooProductsJob $job): void
+{
+    $job->handle(app(CheckLowStockAction::class), app(CheckStaleInventoryAction::class), app(CheckBackInStockAction::class));
+}
 
 function wooConnectionForPolling(): StoreConnection
 {
@@ -40,7 +57,7 @@ test('the poller upserts products and clears stock_quantity when stock is unmana
         ], 200),
     ]);
 
-    (new PollWooProductsJob($connection->id))->handle(app(CheckLowStockAction::class));
+    pollWooProducts(new PollWooProductsJob($connection->id));
 
     $widget = Product::query()->where('connection_id', $connection->id)->where('external_id', '1')->first();
     $gadget = Product::query()->where('connection_id', $connection->id)->where('external_id', '2')->first();
@@ -71,11 +88,31 @@ test('the poller triggers a low_stock rule end to end when a product is at or be
         ], 200),
     ]);
 
-    (new PollWooProductsJob($connection->id))->handle(app(CheckLowStockAction::class));
+    pollWooProducts(new PollWooProductsJob($connection->id));
+
+    expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
+});
+
+test('the poller triggers a back_in_stock rule end to end when a snapshotted product goes from zero to positive', function () {
+    $connection = wooConnectionForPolling();
+    $rule = Rule::factory()->create([
+        'team_id' => $connection->team_id,
+        'trigger' => Rule::TRIGGER_BACK_IN_STOCK,
+    ]);
+
+    // Http::fake() with the same URL pattern registered twice does not
+    // override the first call — use fakeSequence so the second poll
+    // actually gets the restocked payload.
+    Http::fakeSequence('*/wp-json/wc/v3/products*')
+        ->push([['id' => 1, 'sku' => 'SKU-1', 'name' => 'Widget', 'manage_stock' => true, 'stock_quantity' => 0]], 200)
+        ->push([['id' => 1, 'sku' => 'SKU-1', 'name' => 'Widget', 'manage_stock' => true, 'stock_quantity' => 10]], 200);
+
+    pollWooProducts(new PollWooProductsJob($connection->id));
+    pollWooProducts(new PollWooProductsJob($connection->id));
 
     expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
 });
 
 test('polling a non-woo or missing connection is a safe no-op', function () {
-    (new PollWooProductsJob(999999))->handle(app(CheckLowStockAction::class));
+    pollWooProducts(new PollWooProductsJob(999999));
 })->throwsNoExceptions();

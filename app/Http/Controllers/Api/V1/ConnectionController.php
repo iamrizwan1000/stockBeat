@@ -22,8 +22,11 @@ use Illuminate\Http\Request;
  * @group Connections
  *
  * Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
- * Only WooCommerce is fully live end-to-end today — the others accept a connection
- * record but adapter operations are not yet available.
+ * WooCommerce, Shopify, eBay, Etsy, and TikTok Shop are all fully live end-to-end today
+ * (real, credential-validated connect flows — see each adapter's `connect()`/
+ * `completeConnection()`). **Amazon remains the one platform genuinely unconfigured**
+ * (no real SP-API credentials in `.env` yet, §15.2) — `POST /connections/amazon/start`
+ * always 422s via `AdapterNotReadyException`, not a special case in this controller.
  */
 class ConnectionController extends Controller
 {

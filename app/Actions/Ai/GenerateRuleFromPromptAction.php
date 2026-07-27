@@ -28,7 +28,7 @@ class GenerateRuleFromPromptAction
 
         {
           "name": "short human-readable rule name",
-          "trigger": one of ["new_order","high_value_order","unfulfilled_after_x","ship_by_deadline","refund_requested","order_cancelled","payment_failed","negative_review","positive_review","low_stock","stale_inventory","order_spike","refund_spike","digest"],
+          "trigger": one of ["new_order","high_value_order","unfulfilled_after_x","ship_by_deadline","refund_requested","order_cancelled","payment_failed","negative_review","positive_review","low_stock","stale_inventory","back_in_stock","order_spike","refund_spike","digest"],
           "conditions": { "all": [ { "field": "...", "operator": "...", "value": ... } ] } or null,
           "actions": [ { "type": "push" } ] and/or [ { "type": "email" } ] and/or [ { "type": "sms" } ],
           "controls": { ...trigger-specific settings, e.g. "threshold_hours" for unfulfilled_after_x, "spike_count"/"spike_window_minutes" for order_spike/refund_spike, "low_stock_threshold" for low_stock, "stale_days" for stale_inventory, "negative_review_max_rating" for negative_review, "positive_review_min_rating" for positive_review, "review_keyword" (optional, either review trigger), "digest_frequency" ("daily"|"weekly"|"monthly") + "digest_time" ("HH:mm") + "digest_day_of_week" (0-6, weekly only) or "digest_day_of_month" (1-28, monthly only) for digest } or {}

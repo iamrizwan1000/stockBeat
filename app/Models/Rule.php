@@ -71,6 +71,21 @@ class Rule extends Model
      */
     public const TRIGGER_STALE_INVENTORY = 'stale_inventory';
 
+    /**
+     * Fires once when a product's stock goes from 0 back to a positive
+     * quantity — added 2026-07-27. Deliberately a *product*-level "this SKU
+     * is sellable again" signal, not a per-order "your specific preorder can
+     * now ship" trigger: `order_items` has no `product_id` link back to
+     * `products` (only a denormalized `sku` snapshot), so reliably resolving
+     * "which pending orders are waiting on this exact product" isn't
+     * buildable without a schema change this doesn't include. Sellers use
+     * this to know when to go check on backordered/preorder line items
+     * themselves. Same honest platform-scope gap as `stale_inventory`: reads
+     * `product_stock_snapshots`, which today only `PollWooProductsJob`
+     * writes.
+     */
+    public const TRIGGER_BACK_IN_STOCK = 'back_in_stock';
+
     public const TRIGGER_ORDER_SPIKE = 'order_spike';
 
     public const TRIGGER_REFUND_SPIKE = 'refund_spike';
@@ -156,6 +171,7 @@ class Rule extends Model
             self::TRIGGER_POSITIVE_REVIEW,
             self::TRIGGER_LOW_STOCK,
             self::TRIGGER_STALE_INVENTORY,
+            self::TRIGGER_BACK_IN_STOCK,
             self::TRIGGER_ORDER_SPIKE,
             self::TRIGGER_REFUND_SPIKE,
             self::TRIGGER_DIGEST,
@@ -166,8 +182,10 @@ class Rule extends Model
     /**
      * The two "derived/anomaly" triggers reserved for the Premium plan
      * (`plan_limits.advanced_triggers_enabled` — see `PlanSeeder`).
-     * `low_stock`/`negative_review` are deliberately not in this list —
-     * they're available from Starter up like every other trigger.
+     * `low_stock`/`negative_review`/`positive_review`/`stale_inventory`/
+     * `back_in_stock` are deliberately not in this list — they're all
+     * "basic seller hygiene" alerts, available from Starter up like every
+     * other trigger, not anomaly detection.
      *
      * @return array<int, string>
      */

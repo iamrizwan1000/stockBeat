@@ -437,6 +437,16 @@ const FEATURES = [
     },
 ];
 
+const EVERY_PLAN_FEATURES = [
+    'Unified order feed & search',
+    'Quick actions — fulfill, track, refund',
+    'Invoices & packing slips',
+    'Order timeline',
+    'Saved filters',
+    'Bulk cost-price editing',
+    'Inventory & customer view',
+];
+
 const PLANS = [
     {
         name: 'Free',
@@ -445,8 +455,7 @@ const PLANS = [
         highlight: false,
         features: [
             '1 connected store',
-            'Live order feed & quick actions',
-            'New-order push + daily summary',
+            'New-order push + daily digest',
             '25 email alerts/mo',
             '7 days of history',
         ],
@@ -458,10 +467,11 @@ const PLANS = [
         highlight: false,
         features: [
             'Up to 3 stores',
-            '5 custom alert rules',
-            'Bulk order actions',
-            '20 SMS + 250 email/mo',
-            '30 days of history',
+            '5 custom rules — low stock, reviews, back-in-stock & more',
+            'Notification priority per rule',
+            'Bulk tag/cancel orders',
+            '20 SMS + 250 email/mo · 30 days of history',
+            'AI Assistant — 30 questions/mo',
         ],
     },
     {
@@ -472,9 +482,11 @@ const PLANS = [
         features: [
             'Up to 10 stores',
             'Unlimited custom rules',
-            'Unified customer inbox, payouts & reviews',
-            '100 SMS + 1,000 email/mo',
-            '3 team seats · 7-day free trial',
+            'Unified inbox, payouts & review replies',
+            'Full analytics + monthly business report',
+            '100 SMS + 1,000 email/mo · 3 team seats',
+            'AI Assistant — 150 questions/mo + rule builder',
+            '7-day free trial',
         ],
     },
     {
@@ -485,9 +497,9 @@ const PLANS = [
         features: [
             'Unlimited stores',
             'Order & refund spike alerts',
-            'Proactive AI insights',
-            '500 SMS + 5,000 email/mo',
-            '10 team seats · priority support',
+            '500 SMS + 5,000 email/mo · 10 team seats',
+            'AI Assistant — 500 questions/mo + proactive insights',
+            'Priority support',
         ],
     },
 ];
@@ -946,6 +958,25 @@ export default function Welcome() {
                                 Start free. Upgrade the moment a second store
                                 makes it worth it.
                             </p>
+                        </Reveal>
+
+                        <Reveal className="mb-10">
+                            <div className="rounded-xl border border-[#D8DAD4] bg-white p-6">
+                                <p className="font-mono text-xs font-semibold tracking-wide text-[#757872] uppercase">
+                                    Every plan includes
+                                </p>
+                                <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+                                    {EVERY_PLAN_FEATURES.map((feature) => (
+                                        <span
+                                            key={feature}
+                                            className="flex items-center gap-2 text-sm text-[#454843]"
+                                        >
+                                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4E6700]" />
+                                            {feature}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
                         </Reveal>
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

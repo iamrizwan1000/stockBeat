@@ -14,7 +14,7 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 
 ## Trigger catalogue
 
-`trigger` — one of these 15 values (Plan §4.4 + the AI Assistant's `ai_insight`, plus `positive_review`/`stale_inventory` added 2026-07-27):
+`trigger` — one of these 16 values (Plan §4.4 + the AI Assistant's `ai_insight`, plus `positive_review`/`stale_inventory` added 2026-07-27 and `back_in_stock` added 2026-07-28):
 
 | Trigger | Meaning | Relevant `controls` keys |
 |---|---|---|
@@ -29,6 +29,7 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 | `positive_review` | **Added 2026-07-27, WooCommerce-only in practice** — a new high-rating review came in. eBay's feedback poller only ever fetches *negative* feedback from eBay's API, so this trigger has nothing to check for an eBay connection — don't advertise it as available there even though the trigger value itself isn't platform-restricted server-side | `positive_review_min_rating` (int 1–5, default 5 — "rating at or above this fires"), `review_keyword` (optional string) |
 | `low_stock` | A product's stock dropped to/below a threshold | `low_stock_threshold` (int) |
 | `stale_inventory` | **Added 2026-07-27, WooCommerce-only for now** — a product's stock hasn't changed in N days (dead-stock alert). Only WooCommerce connections have the polling history this needs; inert (never fires, never errors) on every other platform until their own product polling exists | `stale_days` (int, default 30) |
+| `back_in_stock` | **Added 2026-07-28, WooCommerce-only for now** — a product's stock went from 0 back to a positive quantity (restock/backorder-fulfilled alert). Same polling-history dependency as `stale_inventory`, so same platform gap. **This is a product-level signal, not a per-order one** — we can't tell you *which specific pending order* can now ship, only that the SKU is sellable again; don't word the notification/UI as if it's confirming a specific order | none — the condition is binary, nothing to configure |
 | `order_spike` | **Premium only** — order volume anomaly | `spike_count` (int), `spike_window_minutes` (int) |
 | `refund_spike` | **Premium only** — refund volume anomaly | `spike_count` (int), `spike_window_minutes` (int) |
 | `digest` | A custom recurring summary (distinct from the free-tier daily digest). **`monthly` added 2026-07-27 (Plan §4.21)** — a real monthly business report, not just a bigger digest: covers the previous calendar month, and teams on `analytics_level: full` (Pro+) get an extra per-channel breakdown + top-3 products appended to the body | `digest_frequency` (`"daily"`\|`"weekly"`\|`"monthly"`), `digest_time` (`"HH:mm"`), `digest_day_of_week` (0–6, Sunday=0, weekly only), `digest_day_of_month` (1–28, monthly only, default 1) |
@@ -39,7 +40,7 @@ Rule conditions use a **word-based operator vocabulary** (`"gt"`, `"eq"`, etc.) 
 **Plan gating you must check client-side before offering these** (read from `GET /me`'s `entitlements.limits`, same keys used elsewhere):
 - `order_spike`/`refund_spike` — require `advanced_triggers_enabled: true`
 - `ai_insight` — requires `ai_proactive_insights_enabled: true`
-- Every other trigger, including `positive_review`/`stale_inventory`, is available from Starter up (Free gets presets only — see below) — they're **not** Premium-gated, same treatment as `low_stock`/`negative_review`
+- Every other trigger, including `positive_review`/`stale_inventory`/`back_in_stock`, is available from Starter up (Free gets presets only — see below) — they're **not** Premium-gated, same treatment as `low_stock`/`negative_review`
 - `priority` and monthly digests need no separate entitlement check — both are plain fields on a custom rule, so `max_rules` (below) is the only gate that applies
 - `max_rules` (int\|null) — the create button should be disabled/paywalled once the team is at this count; `null` = unlimited
 - **Monthly digest's richer content** (per-channel breakdown + top products) depends on `analytics_level: full` (Pro+) — a Starter team's monthly rule still saves and fires fine, its digest body is just the plain summary line, same as daily/weekly
@@ -178,9 +179,9 @@ Show these plainly in a test-fire result screen rather than just "success"/"fail
 
 ## `GET /rules/{id}/executions`
 
-**Requires auth.** Most recent 50 firings, newest first, same shape as the `test` response's `execution` object. `order_id` is `null` for order-less triggers (`digest`, `low_stock`, `stale_inventory`, `negative_review`, `positive_review`, `ai_insight`).
+**Requires auth.** Most recent 50 firings, newest first, same shape as the `test` response's `execution` object. `order_id` is `null` for order-less triggers (`digest`, `low_stock`, `stale_inventory`, `back_in_stock`, `negative_review`, `positive_review`, `ai_insight`).
 
-**`actions_result[].status` can also be `muted_by_store` here** (added 2026-07-23) — the firing's store connection has `notifications_muted: true` (`connections-api-reference.md`). Applies to every trigger that resolves to a real store — every order-scoped trigger, plus `low_stock`/`stale_inventory`/`negative_review`/`positive_review` — but never `digest`/`ai_insight`, which summarize across every connected store at once and so have no single store to mute against.
+**`actions_result[].status` can also be `muted_by_store` here** (added 2026-07-23) — the firing's store connection has `notifications_muted: true` (`connections-api-reference.md`). Applies to every trigger that resolves to a real store — every order-scoped trigger, plus `low_stock`/`stale_inventory`/`back_in_stock`/`negative_review`/`positive_review` — but never `digest`/`ai_insight`, which summarize across every connected store at once and so have no single store to mute against.
 
 ---
 
@@ -191,8 +192,9 @@ The app doesn't reject a rule just because its trigger has nothing to fire from 
 | Trigger | Real on |
 |---|---|
 | Every order-linked trigger (`new_order`, `high_value_order`, `unfulfilled_after_x`, `ship_by_deadline`, `refund_requested`, `order_cancelled`, `payment_failed`, `order_spike`, `refund_spike`) and every condition that reads off an order (including `shipping_state`, `customer_order_count`) | All 6 connected-platform types — real order sync exists everywhere now |
-| `low_stock` | Shopify, WooCommerce only |
+| `low_stock` | Shopify, WooCommerce, eBay (real inventory polling via `PollEbayInventoryJob`/`products:poll-ebay`, every 30 min — this row was stale/wrong until 2026-07-28, eBay support existed in code well before this doc caught up) |
 | `stale_inventory` | **WooCommerce only** — Shopify's inventory sync is webhook-driven and doesn't write the stock-history table this trigger reads |
+| `back_in_stock` | **WooCommerce only** — same stock-history table as `stale_inventory`, same gap |
 | `negative_review` | WooCommerce, eBay |
 | `positive_review` | **WooCommerce only** — eBay's feedback poller only ever fetches negative feedback from eBay's API, so it structurally never sees a positive review to check |
 

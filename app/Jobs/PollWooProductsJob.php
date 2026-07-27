@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Actions\Rules\CheckBackInStockAction;
 use App\Actions\Rules\CheckLowStockAction;
 use App\Actions\Rules\CheckStaleInventoryAction;
 use App\Jobs\Concerns\ThrottlesPerStoreConnection;
@@ -32,7 +33,7 @@ class PollWooProductsJob implements ShouldQueue
         $this->onQueue('poll');
     }
 
-    public function handle(CheckLowStockAction $checkLowStock, CheckStaleInventoryAction $checkStaleInventory): void
+    public function handle(CheckLowStockAction $checkLowStock, CheckStaleInventoryAction $checkStaleInventory, CheckBackInStockAction $checkBackInStock): void
     {
         $connection = StoreConnection::query()->find($this->connectionId);
 
@@ -84,6 +85,7 @@ class PollWooProductsJob implements ShouldQueue
 
                 $checkLowStock->handle($product);
                 $checkStaleInventory->handle($product);
+                $checkBackInStock->handle($product);
             }
 
             $totalPagesHeader = $response->header('X-WP-TotalPages');

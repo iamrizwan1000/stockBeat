@@ -55,7 +55,7 @@ There is **no Free product** — Free is simply the absence of an active subscri
 
 ## 3. Subscription purchase flow — step by step
 
-1. User taps upgrade → app opens the **RevenueCat SDK's native paywall/purchase sheet** directly (`Purchases.getOfferings()` → present the packages). **Never build a custom pricing table that calls an endpoint on this API** — there isn't one; prices live in App Store Connect / Play Console via RevenueCat.
+1. User taps upgrade → show the **"Compare plans" screen first** (`plans-flow-screens.md`, added 2026-07-28 — a verified, DB-checked feature list per tier, informational only), then the app opens the **RevenueCat SDK's native paywall/purchase sheet** directly to actually purchase (`Purchases.getOfferings()` → present the packages). **Never build a custom pricing table that calls an endpoint on this API** for the purchase itself — there isn't one; prices live in App Store Connect / Play Console via RevenueCat.
 2. Store handles the purchase (Face ID / Play Billing sheet). RevenueCat SDK resolves locally — `CustomerInfo.entitlements` flips immediately, safe to use for an optimistic "you're in!" screen transition.
 3. In the background (usually 1–10s later, occasionally longer), RevenueCat fires a webhook (`INITIAL_PURCHASE`) to `POST /hooks/revenuecat` on this backend. `ProcessRevenueCatEventAction` runs the whole state machine in one pass:
    - Creates/updates the team's `Subscription` row: `status = active`, `plan_key` set from the product ID, `expires_at` from the payload.

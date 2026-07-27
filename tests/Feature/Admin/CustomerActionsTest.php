@@ -3,6 +3,7 @@
 use App\Models\AdminAuditLog;
 use App\Models\AdminUser;
 use App\Models\AiUsageLedger;
+use App\Models\Plan;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
 use App\Models\Team;
@@ -46,6 +47,40 @@ test('extending a trial updates the subscription and logs the action', function 
     $team->refresh();
     expect($team->subscription->trial_ends_at->diffInDays(now()->addDays(8)))->toBeLessThan(1);
     expect(AdminAuditLog::query()->where('action', 'customer.extend_trial')->where('admin_id', $admin->id)->exists())->toBeTrue();
+});
+
+test('extending a trial for a team with no subscription row yet grants full premium entitlements', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+
+    expect($team->subscription)->toBeNull();
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/customers/{$user->id}/extend-trial", ['days' => 7])
+        ->assertRedirect();
+
+    $team->refresh();
+    expect($team->subscription->plan_key)->toBe(Plan::PREMIUM);
+    expect($team->subscription->effectivePlanKey())->toBe(Plan::PREMIUM);
+});
+
+test('extending a trial for a team with a lapsed paid subscription resets it to premium, not the old tier', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+    Subscription::factory()->create([
+        'team_id' => $team->id,
+        'status' => Subscription::STATUS_EXPIRED,
+        'plan_key' => Plan::STARTER,
+        'trial_ends_at' => now()->subDays(30),
+    ]);
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/customers/{$user->id}/extend-trial", ['days' => 7])
+        ->assertRedirect();
+
+    $team->refresh();
+    expect($team->subscription->status)->toBe(Subscription::STATUS_TRIAL);
+    expect($team->subscription->plan_key)->toBe(Plan::PREMIUM);
 });
 
 test('granting complimentary pro sets an active comp subscription', function () {
