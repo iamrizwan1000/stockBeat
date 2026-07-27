@@ -3,6 +3,8 @@
 namespace App\Actions\Rules;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -28,6 +30,8 @@ class UpdateRuleAction
             $limits = $this->resolveEntitlements->handle($rule->team)['limits'];
 
             if (empty($limits['advanced_triggers_enabled'])) {
+                PaywallHit::log($rule->team, PlanLimit::ADVANCED_TRIGGERS_ENABLED);
+
                 throw ValidationException::withMessages([
                     'trigger' => 'This trigger requires the Premium plan.',
                 ]);
@@ -38,6 +42,8 @@ class UpdateRuleAction
             $limits = $this->resolveEntitlements->handle($rule->team)['limits'];
 
             if (empty($limits['ai_proactive_insights_enabled'])) {
+                PaywallHit::log($rule->team, PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED);
+
                 throw ValidationException::withMessages([
                     'trigger' => 'Proactive AI Insights requires the Premium plan.',
                 ]);

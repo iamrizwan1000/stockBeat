@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Reviews\ReplyToReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Http\Responses\ApiResponse;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\Review;
 use App\Models\Team;
 use App\Models\User;
@@ -45,6 +47,8 @@ class ReviewController extends Controller
         }
 
         if (! $this->inboxEnabled($team)) {
+            PaywallHit::log($team, PlanLimit::INBOX_ENABLED);
+
             return ApiResponse::error('Reviews requires the Pro plan or higher.', status: 403);
         }
 
@@ -90,6 +94,8 @@ class ReviewController extends Controller
         }
 
         if (! $this->inboxEnabled($review->team)) {
+            PaywallHit::log($review->team, PlanLimit::INBOX_ENABLED);
+
             abort(403, 'Reviews requires the Pro plan or higher.');
         }
     }

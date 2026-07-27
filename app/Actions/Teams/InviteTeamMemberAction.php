@@ -4,6 +4,8 @@ namespace App\Actions\Teams;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Mail\TeamInviteMail;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\Team;
 use App\Models\TeamInvite;
 use App\Models\User;
@@ -46,6 +48,8 @@ class InviteTeamMemberAction
                 + TeamInvite::query()->where('team_id', $team->id)->where('status', TeamInvite::STATUS_PENDING)->count();
 
             if ($usedSeats >= $seats) {
+                PaywallHit::log($team, PlanLimit::TEAM_SEATS);
+
                 throw ValidationException::withMessages([
                     'email' => "You've reached your plan's team seat limit ({$seats}). Upgrade to invite more members.",
                 ]);

@@ -5,6 +5,8 @@ namespace App\Actions\Analytics;
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Models\DailyStat;
 use App\Models\Order;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use Illuminate\Support\Carbon;
@@ -46,6 +48,8 @@ class GetAnalyticsSummaryAction
         };
 
         if (! in_array($range, $allowedRanges, true)) {
+            PaywallHit::log($team, PlanLimit::ANALYTICS_LEVEL);
+
             throw ValidationException::withMessages([
                 'range' => 'Upgrade your plan for more analytics history.',
             ]);

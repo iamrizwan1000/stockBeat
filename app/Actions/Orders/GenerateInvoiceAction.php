@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Models\FeatureUsageEvent;
 use App\Models\Order;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
@@ -17,6 +18,8 @@ class GenerateInvoiceAction
     public function handle(Order $order): Response
     {
         $order->loadMissing(['items', 'connection']);
+
+        FeatureUsageEvent::log($order->team, FeatureUsageEvent::FEATURE_INVOICE_GENERATED);
 
         return Pdf::loadView('orders.invoice', ['order' => $order])
             ->stream("invoice-{$order->order_number}.pdf");

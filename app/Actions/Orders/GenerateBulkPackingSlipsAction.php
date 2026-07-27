@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Models\FeatureUsageEvent;
 use App\Models\Order;
 use App\Models\Team;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -48,6 +49,8 @@ class GenerateBulkPackingSlipsAction
         // Preserve the caller's requested order rather than whatever order
         // the query happened to return them in.
         $ordered = collect($ids)->map(fn (int $id) => $orders[$id]);
+
+        FeatureUsageEvent::log($team, FeatureUsageEvent::FEATURE_BULK_PACKING_SLIPS_GENERATED);
 
         return Pdf::loadView('orders.packing-slips-bulk', ['orders' => $ordered])
             ->stream('packing-slips-'.now()->format('Y-m-d').'.pdf');

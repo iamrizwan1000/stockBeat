@@ -23,6 +23,7 @@ class ReviewResource extends JsonResource
             'rating' => $this->rating,
             'reviewer_name' => $this->reviewer_name,
             'content' => $this->content,
+            'replied_at' => $this->replied_at?->toIso8601String(),
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),
         ];
     }

@@ -4,6 +4,8 @@ namespace App\Actions\Rules;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Models\Notification;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\Rule;
 use App\Models\Team;
 use App\Models\User;
@@ -33,6 +35,8 @@ class CreateRuleAction
             $currentCount = Rule::query()->where('team_id', $team->id)->count();
 
             if ($currentCount >= $maxRules) {
+                PaywallHit::log($team, PlanLimit::MAX_RULES);
+
                 throw ValidationException::withMessages([
                     'trigger' => "You've reached your plan's custom rule limit ({$maxRules}). Upgrade to add more rules.",
                 ]);
@@ -40,12 +44,16 @@ class CreateRuleAction
         }
 
         if (in_array($data['trigger'], Rule::advancedTriggers(), true) && empty($limits['advanced_triggers_enabled'])) {
+            PaywallHit::log($team, PlanLimit::ADVANCED_TRIGGERS_ENABLED);
+
             throw ValidationException::withMessages([
                 'trigger' => 'This trigger requires the Premium plan.',
             ]);
         }
 
         if ($data['trigger'] === Rule::TRIGGER_AI_INSIGHT && empty($limits['ai_proactive_insights_enabled'])) {
+            PaywallHit::log($team, PlanLimit::AI_PROACTIVE_INSIGHTS_ENABLED);
+
             throw ValidationException::withMessages([
                 'trigger' => 'Proactive AI Insights requires the Premium plan.',
             ]);

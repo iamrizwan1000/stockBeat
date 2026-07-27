@@ -7,6 +7,8 @@ use App\Exceptions\Ai\AiProviderException;
 use App\Models\AiConversation;
 use App\Models\AiMessage;
 use App\Models\AiUsageLedger;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\Ai\AiProviderManager;
@@ -74,6 +76,8 @@ class AskAssistantAction
 
         if ($mode === self::MODE_DATA) {
             if (empty($limits['ai_enabled'])) {
+                PaywallHit::log($team, PlanLimit::AI_ENABLED);
+
                 throw ValidationException::withMessages([
                     'question' => 'The AI Data Copilot isn\'t available on your current plan. Upgrade to ask questions about your store, or use App Help for how-to/billing questions.',
                 ]);
@@ -83,6 +87,8 @@ class AskAssistantAction
             $usedThisMonth = AiUsageLedger::questionsUsedThisMonth($team->id);
 
             if ($monthlyLimit !== null && $usedThisMonth >= $monthlyLimit) {
+                PaywallHit::log($team, PlanLimit::AI_QUESTIONS_MONTHLY);
+
                 throw ValidationException::withMessages([
                     'question' => "You've used all {$monthlyLimit} AI questions included in your plan this month. Upgrade or wait for next month's reset.",
                 ]);

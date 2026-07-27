@@ -5,6 +5,8 @@ namespace App\Actions\Ai;
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Exceptions\Ai\AiProviderException;
 use App\Http\Requests\Rules\StoreRuleRequest;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\Rule;
 use App\Models\Team;
 use App\Support\Ai\AiProviderManager;
@@ -50,6 +52,8 @@ class GenerateRuleFromPromptAction
         $limits = $this->resolveEntitlements->handle($team)['limits'];
 
         if (empty($limits['ai_rule_builder_enabled'])) {
+            PaywallHit::log($team, PlanLimit::AI_RULE_BUILDER_ENABLED);
+
             throw ValidationException::withMessages([
                 'prompt' => 'The AI rule builder requires the Pro plan or higher.',
             ]);

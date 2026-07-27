@@ -29,6 +29,12 @@ class ReplyToReviewAction
             ]);
         }
 
-        return $adapter->replyToReview($review, $body);
+        $result = $adapter->replyToReview($review, $body);
+
+        if ($result->success) {
+            $review->update(['replied_at' => now()]);
+        }
+
+        return $result;
     }
 }

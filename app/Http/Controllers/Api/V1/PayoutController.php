@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\PayoutResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Payout;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,6 +59,8 @@ class PayoutController extends Controller
         $limits = $this->resolveEntitlements->handle($team)['limits'];
 
         if (($limits['analytics_level'] ?? null) !== 'full') {
+            PaywallHit::log($team, PlanLimit::ANALYTICS_LEVEL);
+
             return ApiResponse::error('Payouts requires the Pro plan or higher.', status: 403);
         }
 

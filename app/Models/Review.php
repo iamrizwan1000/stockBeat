@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * A polled product review (Plan §4.4's `negative_review` trigger). Read-only
- * from our side — there's no reply/moderation feature, just enough to alert
- * on a low rating.
+ * A polled product review (Plan §4.4's `negative_review` trigger).
+ * `replied_at` (added 2026-07-27) is the one piece of state we keep on our
+ * side — everything else is read-only, replying itself is delegated live to
+ * the platform adapter each time (§4.15).
  *
  * @property int $id
  * @property int $team_id
@@ -22,11 +23,12 @@ use Illuminate\Support\Carbon;
  * @property int $rating
  * @property string|null $reviewer_name
  * @property string|null $content
+ * @property Carbon|null $replied_at
  * @property Carbon $reviewed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'connection_id', 'external_id', 'product_title', 'rating', 'reviewer_name', 'content', 'reviewed_at'])]
+#[Fillable(['team_id', 'connection_id', 'external_id', 'product_title', 'rating', 'reviewer_name', 'content', 'replied_at', 'reviewed_at'])]
 class Review extends Model
 {
     /** @use HasFactory<ReviewFactory> */
@@ -41,6 +43,7 @@ class Review extends Model
     {
         return [
             'reviewed_at' => 'datetime',
+            'replied_at' => 'datetime',
         ];
     }
 

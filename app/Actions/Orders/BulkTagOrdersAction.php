@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Models\FeatureUsageEvent;
 use App\Models\Order;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
@@ -44,6 +45,8 @@ class BulkTagOrdersAction
             $order = $orders[$id];
             $this->updateTags->handle($order, [...($order->tags ?? []), $tag]);
         }
+
+        FeatureUsageEvent::log($team, FeatureUsageEvent::FEATURE_BULK_TAG_USED);
 
         return $orders->fresh();
     }

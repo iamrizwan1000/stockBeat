@@ -11,11 +11,13 @@ import {
     Text,
 } from '@shopify/polaris';
 import {
+    AppsIcon,
     CashDollarIcon,
     ChartFunnelIcon,
     ChartVerticalIcon,
     ClockIcon,
     GlobeIcon,
+    LockIcon,
     MegaphoneIcon,
     MobileIcon,
     PersonAddIcon,
@@ -51,6 +53,41 @@ type Kpis = {
         rule_created: number;
         paid: number;
     };
+};
+
+type FeatureAdoption = {
+    saved_filters: { count: number; teams: number };
+    payouts: { count: number; teams: number };
+    reviews: { total: number; replied: number; reply_rate_pct: number };
+    rules: {
+        positive_review: number;
+        stale_inventory: number;
+        monthly_digest: number;
+        priority_critical: number;
+        priority_high: number;
+    };
+    quick_actions: {
+        fulfilled: number;
+        refunded: number;
+        cancelled: number;
+        tags_updated: number;
+        snoozed: number;
+        note_added: number;
+    };
+    usage_events: Record<string, { count: number; teams: number }>;
+};
+
+type PaywallHits = {
+    total: number;
+    last_30_days: number;
+    by_limit_key: Array<{ limit_key: string; count: number; teams: number }>;
+    top_teams: Array<{
+        team_id: number;
+        team_name: string;
+        plan_key: string | null;
+        hits: number;
+        last_hit_at: string;
+    }>;
 };
 
 type StatTone = 'success' | 'critical' | 'caution' | undefined;
@@ -145,7 +182,56 @@ const FUNNEL_STEPS = [
     { key: 'paid', label: 'Paid' },
 ] as const;
 
-export default function Dashboard({ kpis }: { kpis: Kpis }) {
+const USAGE_EVENT_LABELS: Record<string, string> = {
+    invoice_generated: 'Invoices generated',
+    packing_slip_generated: 'Packing slips (single)',
+    bulk_packing_slips_generated: 'Packing slips (bulk)',
+    bulk_cancel_used: 'Bulk cancel',
+    bulk_tag_used: 'Bulk tag',
+};
+
+const LIMIT_KEY_LABELS: Record<string, string> = {
+    bulk_actions_enabled: 'Bulk order actions',
+    analytics_level: 'Analytics history',
+    inbox_enabled: 'Unified inbox / reviews',
+    max_stores: 'Store limit',
+    max_rules: 'Rule limit',
+    advanced_triggers_enabled: 'Advanced rule triggers',
+    ai_proactive_insights_enabled: 'Proactive AI insights',
+    ai_rule_builder_enabled: 'AI rule builder',
+    team_seats: 'Team seat limit',
+    ai_enabled: 'AI Data Copilot',
+    ai_questions_monthly: 'AI question quota',
+};
+
+const PLAN_LABELS: Record<string, string> = {
+    free: 'Free',
+    starter: 'Starter',
+    pro: 'Pro',
+    premium: 'Premium',
+};
+
+const QUICK_ACTION_LABELS: Record<
+    keyof FeatureAdoption['quick_actions'],
+    string
+> = {
+    fulfilled: 'Fulfilled',
+    refunded: 'Refunded',
+    cancelled: 'Cancelled',
+    tags_updated: 'Tags updated',
+    snoozed: 'Snoozed',
+    note_added: 'Note added',
+};
+
+export default function Dashboard({
+    kpis,
+    featureAdoption,
+    paywallHits,
+}: {
+    kpis: Kpis;
+    featureAdoption: FeatureAdoption;
+    paywallHits: PaywallHits;
+}) {
     const totalPlatformConnections = kpis.platforms.reduce(
         (sum, row) => sum + row.count,
         0,
@@ -357,11 +443,203 @@ export default function Dashboard({ kpis }: { kpis: Kpis }) {
                     </SectionCard>
 
                     <SectionCard
+                        icon={AppsIcon}
+                        title="Feature adoption"
+                        caption="Real usage counts for every module shipped since §4.13 — invoice/packing-slip generation and bulk actions come from feature_usage_events; quick actions come from the order timeline (order_events)."
+                    >
+                        <BlockStack gap="400">
+                            <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
+                                <Stat
+                                    label="Saved filters"
+                                    value={`${featureAdoption.saved_filters.count} (${featureAdoption.saved_filters.teams} teams)`}
+                                />
+                                <Stat
+                                    label="Payouts recorded"
+                                    value={`${featureAdoption.payouts.count} (${featureAdoption.payouts.teams} teams)`}
+                                />
+                                <Stat
+                                    label="Review reply rate"
+                                    value={`${featureAdoption.reviews.reply_rate_pct}%`}
+                                />
+                                <Stat
+                                    label="Monthly digest rules"
+                                    value={featureAdoption.rules.monthly_digest}
+                                />
+                            </InlineGrid>
+
+                            <BlockStack gap="200">
+                                <Text as="h3" variant="headingSm">
+                                    Usage events
+                                </Text>
+                                <InlineGrid
+                                    columns={{ xs: 2, sm: 5 }}
+                                    gap="400"
+                                >
+                                    {Object.entries(
+                                        featureAdoption.usage_events,
+                                    ).map(([key, row]) => (
+                                        <Stat
+                                            key={key}
+                                            label={
+                                                USAGE_EVENT_LABELS[key] ?? key
+                                            }
+                                            value={`${row.count} (${row.teams} teams)`}
+                                        />
+                                    ))}
+                                </InlineGrid>
+                            </BlockStack>
+
+                            <BlockStack gap="200">
+                                <Text as="h3" variant="headingSm">
+                                    Quick actions taken (order timeline)
+                                </Text>
+                                <InlineGrid
+                                    columns={{ xs: 2, sm: 6 }}
+                                    gap="400"
+                                >
+                                    {(
+                                        Object.keys(
+                                            QUICK_ACTION_LABELS,
+                                        ) as Array<
+                                            keyof FeatureAdoption['quick_actions']
+                                        >
+                                    ).map((key) => (
+                                        <Stat
+                                            key={key}
+                                            label={QUICK_ACTION_LABELS[key]}
+                                            value={
+                                                featureAdoption.quick_actions[
+                                                    key
+                                                ]
+                                            }
+                                        />
+                                    ))}
+                                </InlineGrid>
+                            </BlockStack>
+                        </BlockStack>
+                    </SectionCard>
+
+                    <SectionCard
+                        icon={LockIcon}
+                        title="Paywall hits"
+                        caption="Every row is a real server-side rejection (a team actually tried to use a gated feature and was blocked) — not a client-side upsell-modal impression, which still isn't tracked. Top teams are the clearest upgrade-outreach list this dashboard can produce: a repeat hit means the feature is wanted, not just glanced at."
+                    >
+                        <BlockStack gap="400">
+                            <InlineGrid columns={2} gap="400">
+                                <Stat
+                                    label="Total hits (all time)"
+                                    value={paywallHits.total}
+                                />
+                                <Stat
+                                    label="Last 30 days"
+                                    value={paywallHits.last_30_days}
+                                    tone={
+                                        paywallHits.last_30_days > 0
+                                            ? 'caution'
+                                            : undefined
+                                    }
+                                />
+                            </InlineGrid>
+
+                            {paywallHits.by_limit_key.length > 0 && (
+                                <BlockStack gap="200">
+                                    <Text as="h3" variant="headingSm">
+                                        By gate
+                                    </Text>
+                                    <BlockStack gap="300">
+                                        {paywallHits.by_limit_key.map((row) => {
+                                            const pct =
+                                                paywallHits.total > 0
+                                                    ? Math.round(
+                                                          (row.count /
+                                                              paywallHits.total) *
+                                                              100,
+                                                      )
+                                                    : 0;
+
+                                            return (
+                                                <BlockStack
+                                                    gap="100"
+                                                    key={row.limit_key}
+                                                >
+                                                    <InlineStack align="space-between">
+                                                        <Text
+                                                            as="span"
+                                                            fontWeight="medium"
+                                                        >
+                                                            {LIMIT_KEY_LABELS[
+                                                                row.limit_key
+                                                            ] ?? row.limit_key}
+                                                        </Text>
+                                                        <Text
+                                                            as="span"
+                                                            tone="subdued"
+                                                        >
+                                                            {row.count} hit
+                                                            {row.count === 1
+                                                                ? ''
+                                                                : 's'}{' '}
+                                                            · {row.teams} team
+                                                            {row.teams === 1
+                                                                ? ''
+                                                                : 's'}
+                                                        </Text>
+                                                    </InlineStack>
+                                                    <ProgressBar
+                                                        progress={pct}
+                                                        size="small"
+                                                        tone="primary"
+                                                    />
+                                                </BlockStack>
+                                            );
+                                        })}
+                                    </BlockStack>
+                                </BlockStack>
+                            )}
+
+                            {paywallHits.top_teams.length > 0 && (
+                                <BlockStack gap="200">
+                                    <Text as="h3" variant="headingSm">
+                                        Top teams to reach out to (last 30 days)
+                                    </Text>
+                                    <BlockStack gap="200">
+                                        {paywallHits.top_teams.map((team) => (
+                                            <InlineStack
+                                                align="space-between"
+                                                key={team.team_id}
+                                            >
+                                                <Text as="span">
+                                                    {team.team_name}
+                                                    {team.plan_key && (
+                                                        <Text
+                                                            as="span"
+                                                            tone="subdued"
+                                                        >
+                                                            {' '}
+                                                            (
+                                                            {PLAN_LABELS[
+                                                                team.plan_key
+                                                            ] ?? team.plan_key}
+                                                            )
+                                                        </Text>
+                                                    )}
+                                                </Text>
+                                                <Text as="span" tone="subdued">
+                                                    {team.hits} hit
+                                                    {team.hits === 1 ? '' : 's'}
+                                                </Text>
+                                            </InlineStack>
+                                        ))}
+                                    </BlockStack>
+                                </BlockStack>
+                            )}
+                        </BlockStack>
+                    </SectionCard>
+
+                    <SectionCard
                         icon={ChartFunnelIcon}
                         title="Activation funnel"
-                        caption={
-                            '"Paywall seen" isn\'t tracked yet (no paywall-impression analytics), so the funnel skips straight from rule creation to paid.'
-                        }
+                        caption="Funnel steps skip straight from rule creation to paid — there's no reliable single step to insert for 'paywall seen' since teams hit different gates at different points. See the Paywall hits section above for which gates are actually being hit and by whom."
                     >
                         <BlockStack gap="300">
                             {FUNNEL_STEPS.map((step) => {

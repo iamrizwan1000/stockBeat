@@ -35,6 +35,8 @@ use App\Http\Resources\OrderNoteResource;
 use App\Http\Resources\OrderResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Order;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\ReplyTemplate;
 use App\Models\Team;
 use App\Models\User;
@@ -511,6 +513,8 @@ class OrderController extends Controller
         $limits = $this->resolveEntitlements->handle($team)['limits'];
 
         if (! ($limits['bulk_actions_enabled'] ?? false)) {
+            PaywallHit::log($team, PlanLimit::BULK_ACTIONS_ENABLED);
+
             return ApiResponse::error('Bulk order actions require the Starter plan or higher.', status: 403);
         }
 

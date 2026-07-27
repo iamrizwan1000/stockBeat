@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Models\FeatureUsageEvent;
 use App\Models\Order;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
@@ -16,6 +17,8 @@ class GeneratePackingSlipAction
     public function handle(Order $order): Response
     {
         $order->loadMissing(['items', 'connection']);
+
+        FeatureUsageEvent::log($order->team, FeatureUsageEvent::FEATURE_PACKING_SLIP_GENERATED);
 
         return Pdf::loadView('orders.packing-slip', ['order' => $order])
             ->stream("packing-slip-{$order->order_number}.pdf");

@@ -12,6 +12,8 @@ use App\Http\Resources\InboxMessageResource;
 use App\Http\Resources\InboxThreadResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\InboxThread;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\ReplyTemplate;
 use App\Models\Team;
 use App\Models\User;
@@ -63,6 +65,8 @@ class ThreadController extends Controller
         }
 
         if (! $this->inboxEnabled($team)) {
+            PaywallHit::log($team, PlanLimit::INBOX_ENABLED);
+
             return ApiResponse::error('The unified inbox requires the Pro plan or higher.', status: 403);
         }
 
@@ -171,6 +175,8 @@ class ThreadController extends Controller
         }
 
         if (! $this->inboxEnabled($thread->team)) {
+            PaywallHit::log($thread->team, PlanLimit::INBOX_ENABLED);
+
             abort(403, 'The unified inbox requires the Pro plan or higher.');
         }
     }

@@ -10,6 +10,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inbox\SaveReplyTemplateRequest;
 use App\Http\Resources\ReplyTemplateResource;
 use App\Http\Responses\ApiResponse;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\ReplyTemplate;
 use App\Models\Team;
 use App\Models\User;
@@ -52,6 +54,8 @@ class ReplyTemplateController extends Controller
         }
 
         if (! $this->inboxEnabled($team)) {
+            PaywallHit::log($team, PlanLimit::INBOX_ENABLED);
+
             return ApiResponse::error('The unified inbox requires the Pro plan or higher.', status: 403);
         }
 
@@ -82,6 +86,8 @@ class ReplyTemplateController extends Controller
         }
 
         if (! $this->inboxEnabled($team)) {
+            PaywallHit::log($team, PlanLimit::INBOX_ENABLED);
+
             return ApiResponse::error('The unified inbox requires the Pro plan or higher.', status: 403);
         }
 
@@ -118,6 +124,8 @@ class ReplyTemplateController extends Controller
         }
 
         if (! $this->inboxEnabled($template->team)) {
+            PaywallHit::log($template->team, PlanLimit::INBOX_ENABLED);
+
             abort(403, 'The unified inbox requires the Pro plan or higher.');
         }
     }

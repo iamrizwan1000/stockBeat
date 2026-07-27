@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Models\FeatureUsageEvent;
 use App\Models\Order;
 use App\Models\Team;
 use Illuminate\Validation\ValidationException;
@@ -37,6 +38,8 @@ class BulkCancelOrdersAction
                 'ids' => ['One or more orders do not belong to your team.'],
             ]);
         }
+
+        FeatureUsageEvent::log($team, FeatureUsageEvent::FEATURE_BULK_CANCEL_USED);
 
         return collect($ids)->map(function (int $id) use ($orders, $reason) {
             $order = $orders[$id];

@@ -4,6 +4,8 @@ namespace App\Actions\Connections;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Contracts\OAuthChannelAdapter;
+use App\Models\PaywallHit;
+use App\Models\PlanLimit;
 use App\Models\StoreConnection;
 use App\Models\Team;
 use App\Support\Connections\ChannelAdapterManager;
@@ -37,6 +39,8 @@ class StartOAuthConnectionAction
             $currentCount = StoreConnection::query()->where('team_id', $team->id)->count();
 
             if ($currentCount >= $maxStores) {
+                PaywallHit::log($team, PlanLimit::MAX_STORES);
+
                 throw ValidationException::withMessages([
                     'platform' => "You've reached your plan's store limit ({$maxStores}). Upgrade to connect more stores.",
                 ]);
