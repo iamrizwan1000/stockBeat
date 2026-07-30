@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\CustomerActionController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FeatureFlagController;
+use App\Http\Controllers\Admin\LogsController;
 use App\Http\Controllers\Admin\NewsletterSubscriberController;
 use App\Http\Controllers\Admin\OpsController;
 use App\Http\Controllers\Admin\PlanController;
@@ -65,6 +66,8 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
     Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
 
     Route::get('ops', [OpsController::class, 'index'])->name('ops.index');
+
+    Route::get('logs', [LogsController::class, 'index'])->name('logs.index');
 
     Route::get('support', [SupportInboxController::class, 'index'])->name('support.index');
     Route::get('support/{thread}', [SupportInboxController::class, 'show'])->name('support.show');

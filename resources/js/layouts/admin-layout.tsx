@@ -114,6 +114,12 @@ const NAV_ITEMS = [
         exactMatch: false,
     },
     {
+        label: 'Logs',
+        url: '/admin/logs',
+        icon: NoteIcon,
+        exactMatch: false,
+    },
+    {
         label: 'Admin Team',
         url: '/admin/team',
         icon: TeamIcon,
