@@ -208,6 +208,11 @@ There is no Free product — Free is simply the absence of an active subscriptio
 
 **Important — this only reconciles the subscription, never SMS/AI top-ups:** Apple/Google's own restore-purchases rules explicitly exclude consumables, so a top-up pack purchase is never "restored" here — those stay webhook-only and are credited exactly once at time of purchase. Don't call this expecting a lost SMS/AI top-up to reappear; there's nothing to restore there by design.
 
+**This call can itself send a notification (added 2026-07-31).** If it discovers the subscription has lapsed — which happens when the `EXPIRATION` webhook never reached the server — it applies the downgrade freeze *and* sends the `subscription_expired` push + email, so the seller isn't left with paused stores and no explanation. Two consequences for the client:
+
+- **Don't be surprised by a notification arriving moments after your own sync call.** It's expected on a lapse, it fires at most once per lapse (guarded server-side), and calling sync repeatedly on app launch won't re-trigger it.
+- **The reverse direction is deliberately silent.** When sync reconciles a *successful* purchase or restore, it sends nothing — the webhook owns that confirmation. Otherwise your post-purchase sync call would race the webhook and the seller would get two emails, one wrongly worded as a "welcome back". So don't expect a confirmation notification as acknowledgement that your sync call worked; use the response body for that.
+
 **Fails open — always check for a 200, but don't assume a 200 means something changed:** if RevenueCat itself is unreachable, or this environment doesn't have it configured, the call still returns `200` with whatever entitlements were already on file (Plan §17.5 — never block/error out a paying user over a RevenueCat outage). There's no distinct "sync failed, nothing changed" signal in the response — if you need to confirm a specific purchase actually landed, compare `plan`/`subscription_status` before and after, or fall back to polling.
 
 **Errors:** `422` validation (missing `rc_app_user_id`) or the same `"Complete profile setup first."` as above.
@@ -228,6 +233,32 @@ There is no Free product — Free is simply the absence of an active subscriptio
 `limits` is the same key set `entitlements.limits` already carries for the caller's own plan (`ai_questions_monthly`, `inbox_enabled`, `advanced_triggers_enabled`, etc. — full list in `Plan §5`) — `null` on a numeric key means unlimited, same convention everywhere else in this API. **No price is included** — pricing lives entirely in App Store Connect / Play Console via RevenueCat, not this backend, so a comparison screen still needs its own price strings (see `billing-topup-guide.md`'s product table) or to read them from the RevenueCat SDK's `Offerings`.
 
 **Use this to replace hardcoded plan-comparison copy, not just to add new copy:** if `ComparePlansScreen` currently hardcodes numbers like "Up to 3 stores" per tier, fetch this endpoint instead and interpolate — an admin changing a limit in `/admin/plans` now reaches the comparison screen on next fetch, instead of requiring an app update.
+
+### `GET /billing/history` — what the seller has actually paid (added 2026-07-31)
+
+**Requires auth.** Team-scoped. **Available on every plan including Free** — a lapsed team must still be able to see what it was charged in the past, so this is deliberately *not* entitlement-gated (unlike `GET /payouts`).
+
+Most recent **100** events, newest first. No pagination and no filter parameters, deliberately: a seller accrues roughly 12–24 events a year, so a filter UI would be over-building. (Filtering belongs on *order* invoices, which already have it — see `orders-api-reference.md`.)
+
+```json
+{ "success": true, "message": null, "data": { "history": [
+  { "id": 12, "event_type": "RENEWAL", "description": "Renewed", "product_id": "pro:monthly", "price": 19.99, "currency": "USD", "occurred_at": "2026-07-30T09:15:00+00:00" },
+  { "id": 11, "event_type": "NON_RENEWING_PURCHASE", "description": "Credit top-up", "product_id": "sms_500", "price": 9.99, "currency": "USD", "occurred_at": "2026-07-18T22:04:00+00:00" },
+  { "id": 10, "event_type": "CANCELLATION", "description": "Auto-renew cancelled", "product_id": "pro:monthly", "price": null, "currency": null, "occurred_at": "2026-07-12T11:00:00+00:00" }
+] } }
+```
+
+| Field | Notes |
+|---|---|
+| `event_type` | RevenueCat's raw vocabulary (`INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `CANCELLATION`, `UNCANCELLATION`, `EXPIRATION`, `BILLING_ISSUE`, `NON_RENEWING_PURCHASE`). **Branch on this**, not on `description` — it's the stable value. Treat it as an open set: RevenueCat can add types without an app release, so never `switch` on it without a default branch. |
+| `description` | Ready-to-render label for the same value ("Renewed", "Plan changed", "Credit top-up"…). An unrecognised `event_type` falls back to a humanised form of the raw string, so this is never empty. |
+| `product_id` | The purchased product (`pro:monthly`, `sms_500`…), or `null` if the payload didn't carry one. |
+| **`price` / `currency`** | **Both are `null` for event types RevenueCat doesn't send a price with** (cancellations, expirations, billing issues). This is honest, not missing data — the server never fabricates an amount. **Render those rows with no figure at all; do not fall back to `0.00`**, which would read as a free transaction rather than an unknown one. |
+| `occurred_at` | ISO-8601, when the event actually happened per RevenueCat (not when we recorded it). |
+
+An empty `history` array is a normal state (a Free account that never purchased) — show an empty-state message, not an error.
+
+**This is not an invoice endpoint and there is no invoice PDF.** Apple/Google are the merchant of record for IAP and issue the seller's tax receipt. See `billing-topup-guide.md`'s "Where's my invoice?" section for the full reasoning, the platform links to surface instead, and why *order* invoices are a legitimately different thing.
 
 ### `GET /me`'s billing-relevant fields (full shape in `auth-api-reference.md`)
 
@@ -287,6 +318,8 @@ Every plan, including Free (Plan §4.9) — always show this row in the More men
 ### `POST /support/messages`
 
 **Requires auth.** `{body}` (required, max 4000 chars). **Success — 201:** `{message: {...}}`, same shape, `direction: "user"`. Sending a message on a `resolved` thread silently reopens it to `open` — no special handling needed client-side, just send.
+
+**429 on a duplicate submission (added 2026-07-30):** resending the **identical `body`** within ~15 seconds returns `"This message was just sent — please wait a moment before trying again."` and creates nothing. Treat it as informational — the first message did send, so don't clear the composer or show a failure. Keyed to the body, so a genuinely different follow-up straight after is never blocked. Since this screen appends optimistically, make sure a 429 doesn't cause a *second* optimistic bubble to linger.
 
 ### `POST /support/csat`
 

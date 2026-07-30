@@ -115,4 +115,43 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Per-module From Addresses
+    |--------------------------------------------------------------------------
+    |
+    | Different kinds of mail deserve different senders, mostly so a reply
+    | lands somewhere a human reads: `support` is a real inbox people answer,
+    | while `no_reply` signals that nobody is listening. `billing` keeps
+    | payment mail visually distinct from alert noise (and easier for a seller
+    | to search for at tax time); `notifications` carries the high-volume
+    | rule/alert traffic, so if a seller filters or mutes anything it's this
+    | one — which is exactly why billing must not share it.
+    |
+    | Each falls back to `MAIL_FROM_ADDRESS` so a misconfigured environment
+    | still sends from somewhere valid rather than failing outright. `name`
+    | is per-address too, since "StockBeat Billing" reads better in an inbox
+    | list than a bare app name repeated four times.
+    |
+    */
+
+    'senders' => [
+        'billing' => [
+            'address' => env('MAIL_FROM_BILLING', env('MAIL_FROM_ADDRESS')),
+            'name' => env('MAIL_FROM_BILLING_NAME', 'StockBeat Billing'),
+        ],
+        'support' => [
+            'address' => env('MAIL_FROM_SUPPORT', env('MAIL_FROM_ADDRESS')),
+            'name' => env('MAIL_FROM_SUPPORT_NAME', 'StockBeat Support'),
+        ],
+        'notifications' => [
+            'address' => env('MAIL_FROM_NOTIFICATIONS', env('MAIL_FROM_ADDRESS')),
+            'name' => env('MAIL_FROM_NOTIFICATIONS_NAME', 'StockBeat Alerts'),
+        ],
+        'no_reply' => [
+            'address' => env('MAIL_FROM_NO_REPLY', env('MAIL_FROM_ADDRESS')),
+            'name' => env('MAIL_FROM_NO_REPLY_NAME', env('APP_NAME', 'StockBeat')),
+        ],
+    ],
+
 ];

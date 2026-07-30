@@ -55,6 +55,27 @@ class Notification extends Model
 
     public const TYPE_QUOTA_WARNING = 'quota_warning';
 
+    /**
+     * The three subscription lifecycle notices (added 2026-07-31): a purchase
+     * or tier change landing, a failed payment putting the subscription into
+     * its grace period, and a subscription actually lapsing. Transactional
+     * account notices about the seller's *own* billing state — like
+     * `TYPE_ADMIN_NOTE` and `TYPE_TRIAL_REMINDER`, and unlike
+     * `TYPE_RULE_EMAIL`, they never count against the team's `email_monthly`
+     * quota (`emailsSentThisMonth()` below only ever counts
+     * `TYPE_RULE_EMAIL`) — a seller shouldn't spend their own alert
+     * allowance being told their card was declined.
+     *
+     * Deliberately no `renewal` type: a renewal fires every billing cycle,
+     * so notifying on it would be recurring spam rather than information
+     * (see `ProcessRevenueCatEventAction`'s dispatch block).
+     */
+    public const TYPE_SUBSCRIPTION_STARTED = 'subscription_started';
+
+    public const TYPE_SUBSCRIPTION_PAYMENT_ISSUE = 'subscription_payment_issue';
+
+    public const TYPE_SUBSCRIPTION_EXPIRED = 'subscription_expired';
+
     public const PRIORITY_NORMAL = 'normal';
 
     public const PRIORITY_HIGH = 'high';

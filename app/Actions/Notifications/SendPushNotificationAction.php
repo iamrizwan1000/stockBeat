@@ -6,6 +6,7 @@ use App\Models\Device;
 use App\Models\Notification;
 use App\Models\StoreConnection;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Exception\MessagingException;
@@ -13,6 +14,7 @@ use Kreait\Firebase\Messaging\AndroidConfig;
 use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
+use Throwable;
 
 /**
  * Sends a real push notification via FCM (Plan §8.2) to every device the
@@ -76,9 +78,32 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  */
 class SendPushNotificationAction
 {
-    public function __construct(
-        private readonly Messaging $messaging,
-    ) {}
+    /**
+     * `Messaging` is resolved lazily rather than constructor-injected, and a
+     * resolution failure degrades to "logged but not delivered" instead of
+     * throwing. This is deliberate and load-bearing: injected, a missing or
+     * invalid Firebase credential made the container fail to build this class,
+     * which cascaded up through every caller — including
+     * `ProcessRevenueCatEventAction`, which is method-injected into
+     * `WebhookController::revenuecat()` and therefore resolved *before* the
+     * `revenuecat_events` dedup row is written. The result was that a Firebase
+     * misconfiguration silently took down the entire billing webhook: Apple
+     * charged the customer, RevenueCat got a 500, and entitlements never
+     * updated. Push delivery is best-effort; billing correctness is not, so
+     * the former must never be able to break the latter.
+     */
+    private function messaging(): ?Messaging
+    {
+        try {
+            return app(Messaging::class);
+        } catch (Throwable $e) {
+            Log::warning('Firebase messaging unavailable — push not delivered, in-app notification still recorded.', [
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
 
     /**
      * @param  array<string, mixed>  $data
@@ -131,6 +156,12 @@ class SendPushNotificationAction
             return 'no_devices';
         }
 
+        $messaging = $this->messaging();
+
+        if ($messaging === null) {
+            return 'failed';
+        }
+
         $effectiveSound = $sound ?? $preference?->sound;
 
         $sentAny = false;
@@ -167,7 +198,7 @@ class SendPushNotificationAction
             $message = $message->withApnsConfig($apnsConfig)->withAndroidConfig($androidConfig);
 
             try {
-                $this->messaging->send($message);
+                $messaging->send($message);
                 $sentAny = true;
             } catch (NotFound) {
                 $device->delete();

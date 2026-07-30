@@ -77,10 +77,33 @@ These all arrive the same way — a RevenueCat webhook the app never directly pa
 | `PRODUCT_CHANGE` | `plan_key` moves to the new tier (e.g. Pro → Premium); same freeze-reversal + SMS-grant logic as a fresh purchase | Plan badge updates on next `/me` |
 | `UNCANCELLATION` | Auto-renew turned back on before it lapsed — same reactivation path as a fresh purchase | Same as above |
 | `CANCELLATION` | **Does not change `status`** — this only means auto-renew was turned off; the subscription stays fully entitled until it actually expires | Show "Renews [date]" or a soft "won't auto-renew" hint if you want, but don't downgrade the UI yet — access is unaffected until `EXPIRATION` |
-| `BILLING_ISSUE` | `status → grace`. Still entitled (`Subscription::isEntitled()` treats grace as active) | Warning banner: "There's a problem with your payment method" + deep link to the platform's own subscription management (fixing a card happens there, not in this app) |
-| `EXPIRATION` | `status → expired`, entitlements revert to Free, downgrade freeze applies (stores paused / rules auto-disabled / seats suspended oldest-first, reversible on re-upgrade) | Treat as Free — show the upgrade paywall as primary content |
+| `BILLING_ISSUE` | `status → grace`. Still entitled (`Subscription::isEntitled()` treats grace as active). **Also sends a `subscription_payment_issue` push + email** (added 2026-07-31) | Warning banner: "There's a problem with your payment method" + deep link to the platform's own subscription management (fixing a card happens there, not in this app) |
+| `EXPIRATION` | `status → expired`, entitlements revert to Free, downgrade freeze applies (stores paused / rules auto-disabled / seats suspended oldest-first, reversible on re-upgrade). **Also sends a `subscription_expired` push + email** (added 2026-07-31) | Treat as Free — show the upgrade paywall as primary content |
+
+**Server-side notifications on these events (added 2026-07-31):** `INITIAL_PURCHASE` and `PRODUCT_CHANGE` send `subscription_started`; `BILLING_ISSUE` and `EXPIRATION` send their own types as noted above. `CANCELLATION` sends nothing, and so does a **routine** `RENEWAL`/`UNCANCELLATION` on an already-active subscription.
+
+**The exception worth knowing:** a `RENEWAL` arriving while the subscription was in `grace` or `expired` is a real reactivation — a recovered payment, or a lapsed seller resubscribing — and **does** send `subscription_started` with recovery/welcome-back copy. A resubscribe can land as either `INITIAL_PURCHASE` or `RENEWAL` depending on store and gap length, and both are handled, so don't assume which one you'll see. Full rules in `notifications-api-reference.md`, including that the two problem notices bypass notification preferences and can't be toggled off. Nothing for the app to trigger either way; just handle the notification tap.
 
 **Manage / cancel subscription:** deep link to the native App Store / Play Store subscription management screen. This app has no in-house cancel flow (App Store/Play policy — cancellation must go through the platform, not a third-party UI).
+
+- iOS: `https://apps.apple.com/account/subscriptions`
+- Android: `https://play.google.com/store/account/subscriptions` (optionally `?sku={productId}&package={androidPackageName}` to land on this specific subscription)
+
+### "Where's my invoice?" — what to show, and what never to build
+
+Sellers are businesses, so they will ask for a tax invoice to claim StockBeat as an expense. **StockBeat does not and will not issue one, and this is deliberate.** Billing is 100% in-app purchase via RevenueCat, which makes **Apple/Google the merchant of record** — they collect the payment and charge tax under their own registration. A StockBeat-branded document headed "Invoice" would misstate who took the money and what tax applied.
+
+**The seller loses nothing:** the App Store / Play receipt *is* a valid tax invoice, issued with the platform's own tax details, and is exactly what an accountant needs.
+
+So the Subscription screen should carry a short **"Need a tax invoice?"** panel explaining that the receipt comes from Apple/Google, with a link out to where they retrieve it:
+- **Android:** order history at `https://play.google.com/store/account/orderhistory`.
+- **iOS:** Apple emails a receipt for every purchase, and purchase history lives in the App Store app under *Account → Purchase History*. Apple has no stable public web URL for purchase history equivalent to Google's, so prefer wording that points at the emailed receipt and the in-App-Store path rather than a deep link. **Verify the current paths before shipping** — platform URLs and menu labels do change.
+
+**Never build:** a "Download invoice" / "Email me an invoice" button, or any PDF generation for a *subscription* charge. Filterable invoice lists with PDF downloads are a **direct-billed** (Stripe) pattern — Notion, Slack, Figma all do it because they *are* merchant of record. That does not transfer to an IAP app.
+
+**Do not confuse this with order invoices**, which are a completely separate and legitimate feature: `GET /orders/{id}/invoice` (`orders-api-reference.md`) is the seller invoicing *their own* customers, where the seller genuinely is merchant of record. That one is built, share-sheet ready, and rightly has bulk rendering.
+
+For a record of what the seller has actually paid StockBeat, use **`GET /billing/history`** (see `settings-api-reference.md`) — a plain transaction list, which is the standard IAP-app answer.
 
 ### Restore purchases
 

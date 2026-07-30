@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\SendsFromModuleAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -9,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 class TrialEndingMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SendsFromModuleAddress, SerializesModels;
 
     public function __construct(
         public readonly int $daysRemaining,
@@ -21,6 +22,6 @@ class TrialEndingMail extends Mailable implements ShouldQueue
             ? 'Your StockBeat trial ends today'
             : "Your StockBeat trial ends in {$this->daysRemaining} day".($this->daysRemaining === 1 ? '' : 's');
 
-        return $this->subject($subject)->view('emails.trial-ending', ['daysRemaining' => $this->daysRemaining]);
+        return $this->fromModule('billing')->subject($subject)->view('emails.trial-ending', ['daysRemaining' => $this->daysRemaining]);
     }
 }

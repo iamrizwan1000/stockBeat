@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\SendsFromModuleAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -9,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 class TeamInviteMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SendsFromModuleAddress, SerializesModels;
 
     public function __construct(
         public readonly string $teamName,
@@ -19,7 +20,8 @@ class TeamInviteMail extends Mailable implements ShouldQueue
 
     public function build(): self
     {
-        return $this->subject("{$this->inviterName} invited you to join {$this->teamName} on StockBeat")
+        return $this->fromModule('no_reply')
+            ->subject("{$this->inviterName} invited you to join {$this->teamName} on StockBeat")
             ->view('emails.team-invite');
     }
 }

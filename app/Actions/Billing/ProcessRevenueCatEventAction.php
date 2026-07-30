@@ -78,6 +78,9 @@ class ProcessRevenueCatEventAction
         private readonly ApplyDowngradeFreezeAction $applyFreeze,
         private readonly ReverseDowngradeFreezeAction $reverseFreeze,
         private readonly GrantMonthlySmsCreditsAction $grantSmsCredits,
+        private readonly SendSubscriptionStartedNotificationAction $notifyStarted,
+        private readonly SendPaymentIssueNotificationAction $notifyPaymentIssue,
+        private readonly SendSubscriptionExpiredNotificationAction $notifyExpired,
     ) {}
 
     /**
@@ -203,6 +206,15 @@ class ProcessRevenueCatEventAction
             $subscription = new Subscription(['team_id' => $team->id]);
         }
 
+        // Captured before the fill below overwrites it: `RENEWAL` means two
+        // completely different things depending on where the subscription was
+        // beforehand — a routine monthly charge (was already active, notify
+        // nothing) versus a recovery from a failed payment or a resubscribe
+        // after a lapse (notify, since we told the seller about the problem
+        // and owe them the resolution). Without this the notification below
+        // can only branch on the event name, which isn't enough.
+        $previousStatus = $subscription->exists ? $subscription->status : null;
+
         match ($type) {
             // PRODUCT_CHANGE is exactly a tier upgrade/downgrade (e.g.
             // Pro -> Premium) — plan_key must move to the new product's
@@ -254,6 +266,66 @@ class ProcessRevenueCatEventAction
         if (in_array($type, ['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION'], true)) {
             $this->grantSmsCredits->handle($team);
         }
+
+        // Tell the seller what just happened to their billing (added
+        // 2026-07-31 — before this, a declined card or a lapsed subscription
+        // was silent, and the freeze above pausing their stores had no
+        // accompanying explanation).
+        //
+        // Needs no idempotency guard of its own: this whole action runs at
+        // most once per genuine event id, enforced by the caller
+        // (`WebhookController::revenuecat()`) against the real unique
+        // constraint on `revenuecat_events.event_id`. The pull-based
+        // `POST /billing/sync` path never reaches here either — it writes
+        // the `Subscription` row itself and only borrows this class's
+        // `SUBSCRIPTION_PLAN_PRODUCTS` constant, so a mobile client calling
+        // sync on every launch can't re-notify.
+        //
+        // A *routine* `RENEWAL`/`UNCANCELLATION` notifies nothing: a renewal
+        // recurs every cycle (monthly spam), and un-cancelling an active
+        // subscription only restores a state the seller never lost. But when
+        // either arrives while the subscription was in grace or already
+        // expired, it's a real reactivation the seller needs to hear about —
+        // see `$previousStatus` above and `reactivationReason()` below.
+        match ($type) {
+            'INITIAL_PURCHASE' => $this->notifyStarted->handle($team, $planKey, SendSubscriptionStartedNotificationAction::REASON_NEW),
+            'PRODUCT_CHANGE' => $this->notifyStarted->handle($team, $planKey, SendSubscriptionStartedNotificationAction::REASON_PLAN_CHANGE),
+            'RENEWAL', 'UNCANCELLATION' => $this->notifyReactivationIfRecovered($team, $planKey, $previousStatus),
+            // Both are transition-gated for the same reason: `POST /billing/sync`
+            // can legitimately discover a lapse first (when a webhook was lost)
+            // and notify from there, so a late-arriving webhook for an event
+            // we've already reflected must not send a second copy.
+            'BILLING_ISSUE' => $previousStatus === Subscription::STATUS_GRACE
+                ? null
+                : $this->notifyPaymentIssue->handle($team, $subscription->provider),
+            'EXPIRATION' => $previousStatus === Subscription::STATUS_EXPIRED
+                ? null
+                : $this->notifyExpired->handle($team),
+            default => null,
+        };
+    }
+
+    /**
+     * Only notifies when the subscription was genuinely *not* active before
+     * this event — i.e. a payment recovered out of grace, or a lapsed seller
+     * resubscribed. A resubscribe-after-expiry can arrive as either
+     * `INITIAL_PURCHASE` or `RENEWAL` depending on the store and how long the
+     * gap was, so both paths are covered rather than betting on which one
+     * RevenueCat picks.
+     */
+    private function notifyReactivationIfRecovered(Team $team, string $planKey, ?string $previousStatus): void
+    {
+        $reason = match ($previousStatus) {
+            Subscription::STATUS_GRACE => SendSubscriptionStartedNotificationAction::REASON_PAYMENT_RECOVERED,
+            Subscription::STATUS_EXPIRED => SendSubscriptionStartedNotificationAction::REASON_REACTIVATED,
+            default => null,
+        };
+
+        if ($reason === null) {
+            return;
+        }
+
+        $this->notifyStarted->handle($team, $planKey, $reason);
     }
 
     private function mapStore(?string $store): ?string

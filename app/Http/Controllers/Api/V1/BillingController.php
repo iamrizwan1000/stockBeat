@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Billing\ListActivePlansAction;
+use App\Actions\Billing\ListBillingHistoryAction;
 use App\Actions\Billing\ResolveFullEntitlementsAction;
 use App\Actions\Billing\SyncRevenueCatSubscriberAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\SyncBillingRequest;
+use App\Http\Resources\SubscriptionEventResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -130,5 +132,46 @@ class BillingController extends Controller
     public function plans(ListActivePlansAction $listActivePlans): JsonResponse
     {
         return ApiResponse::success($listActivePlans->handle());
+    }
+
+    /**
+     * List this team's billing history, newest first.
+     *
+     * Every RevenueCat event for the team — subscription purchases, renewals, tier changes,
+     * cancellations, expirations, billing issues, and SMS/AI credit top-ups. Available on
+     * **every plan including Free**, deliberately ungated: a Free team may still have past
+     * subscription history, and a seller's own billing records are never a paid feature.
+     *
+     * **Not invoices.** Billing runs through IAP, so Apple/Google are the merchant of record
+     * and issue the seller's actual tax document — surface this as an informational
+     * transaction list and point sellers to their App Store/Play purchase history for a tax
+     * invoice. There is no invoice PDF to download and none should be built.
+     *
+     * `price`/`currency` are `null` whenever RevenueCat's payload carried no amount (common
+     * for CANCELLATION/EXPIRATION) — render that as blank, never as a `0` charge.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": { "history": [
+     *     { "id": 12, "event_type": "RENEWAL", "description": "Renewed", "product_id": "pro:monthly", "price": 19.99, "currency": "USD", "occurred_at": "2026-07-30T09:14:00+00:00" },
+     *     { "id": 9, "event_type": "NON_RENEWING_PURCHASE", "description": "Credit top-up", "product_id": "sms_500", "price": 14.99, "currency": "USD", "occurred_at": "2026-07-12T18:02:00+00:00" },
+     *     { "id": 4, "event_type": "INITIAL_PURCHASE", "description": "Subscription started", "product_id": "pro:monthly", "price": 19.99, "currency": "USD", "occurred_at": "2026-06-30T09:14:00+00:00" }
+     *   ] }
+     * }
+     */
+    public function history(Request $request, ListBillingHistoryAction $listBillingHistory): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $team = $user->currentTeam();
+
+        if ($team === null) {
+            return ApiResponse::success(['history' => []]);
+        }
+
+        return ApiResponse::success([
+            'history' => SubscriptionEventResource::collection($listBillingHistory->handle($team)),
+        ]);
     }
 }

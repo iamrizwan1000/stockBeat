@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\SendsFromModuleAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -10,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 class DataExportMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SendsFromModuleAddress, SerializesModels;
 
     public function __construct(
         public readonly string $json,
@@ -18,7 +19,8 @@ class DataExportMail extends Mailable implements ShouldQueue
 
     public function build(): self
     {
-        return $this->subject('Your StockBeat data export')
+        return $this->fromModule('no_reply')
+            ->subject('Your StockBeat data export')
             ->view('emails.data-export')
             ->attach(Attachment::fromData(fn () => $this->json, 'stockbeat-data-export.json')
                 ->withMime('application/json'));

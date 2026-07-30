@@ -1,5 +1,8 @@
 <?php
 
+use App\Mail\SubscriptionExpiredMail;
+use App\Mail\SubscriptionStartedMail;
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use Database\Seeders\AiTopupPackSeeder;
@@ -7,6 +10,7 @@ use Database\Seeders\PlanSeeder;
 use Database\Seeders\SmsTopupPackSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -110,6 +114,91 @@ test('POST billing/sync with an expired product downgrades entitlements to free'
 
     $response->assertOk()->assertJsonPath('data.plan', 'free');
     expect($user->ownedTeam->subscription->fresh()->status)->toBe(Subscription::STATUS_EXPIRED);
+});
+
+test('a lapse discovered by sync (lost EXPIRATION webhook) still tells the seller their stores were paused', function () {
+    Mail::fake();
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
+    // Put the team on a real active subscription first, so the sync below is a
+    // genuine entitled -> not-entitled transition rather than a fresh Free team.
+    $user->ownedTeam->subscription->update([
+        'status' => Subscription::STATUS_ACTIVE,
+        'plan_key' => Plan::PRO,
+        'expires_at' => now()->addMonth(),
+    ]);
+
+    fakeRevenueCatSubscriber((string) $user->id, [
+        'pro:monthly' => [
+            'expires_date' => now()->subDay()->toIso8601String(),
+            'store' => 'app_store',
+            'billing_issues_detected_at' => null,
+        ],
+    ]);
+
+    test()->postJson('/api/v1/billing/sync', ['rc_app_user_id' => (string) $user->id])->assertOk();
+
+    expect($user->ownedTeam->subscription->fresh()->status)->toBe(Subscription::STATUS_EXPIRED);
+    Mail::assertQueued(SubscriptionExpiredMail::class, 1);
+});
+
+test('syncing again after a lapse was already reported does not re-notify', function () {
+    Mail::fake();
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
+    $user->ownedTeam->subscription->update([
+        'status' => Subscription::STATUS_ACTIVE,
+        'plan_key' => Plan::PRO,
+        'expires_at' => now()->addMonth(),
+    ]);
+
+    fakeRevenueCatSubscriber((string) $user->id, [
+        'pro:monthly' => [
+            'expires_date' => now()->subDay()->toIso8601String(),
+            'store' => 'app_store',
+            'billing_issues_detected_at' => null,
+        ],
+    ]);
+
+    // A mobile client may call sync on every launch — the second and third
+    // calls are no longer a transition, so they must stay silent.
+    test()->postJson('/api/v1/billing/sync', ['rc_app_user_id' => (string) $user->id])->assertOk();
+    test()->postJson('/api/v1/billing/sync', ['rc_app_user_id' => (string) $user->id])->assertOk();
+    test()->postJson('/api/v1/billing/sync', ['rc_app_user_id' => (string) $user->id])->assertOk();
+
+    Mail::assertQueued(SubscriptionExpiredMail::class, 1);
+});
+
+test('a purchase reconciled by sync does not email — the webhook owns that confirmation', function () {
+    Mail::fake();
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
+    // Lapsed team resubscribes; the client calls sync straight after purchase.
+    $user->ownedTeam->subscription->update([
+        'status' => Subscription::STATUS_EXPIRED,
+        'trial_ends_at' => now()->subDay(),
+        'expires_at' => now()->subDay(),
+    ]);
+
+    fakeRevenueCatSubscriber((string) $user->id, [
+        'pro:monthly' => [
+            'expires_date' => now()->addMonth()->toIso8601String(),
+            'store' => 'app_store',
+            'billing_issues_detected_at' => null,
+        ],
+    ]);
+
+    test()->postJson('/api/v1/billing/sync', ['rc_app_user_id' => (string) $user->id])->assertOk();
+
+    // Entitlement really was restored, but the confirmation is the webhook's
+    // job — notifying here too would race it and send a second, wrongly-worded
+    // email while the seller is already watching the purchase succeed.
+    expect($user->ownedTeam->subscription->fresh()->status)->toBe(Subscription::STATUS_ACTIVE);
+    Mail::assertNotQueued(SubscriptionStartedMail::class);
+    Mail::assertNotQueued(SubscriptionExpiredMail::class);
 });
 
 test('POST billing/sync picks the highest tier when multiple products are present', function () {

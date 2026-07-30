@@ -5,6 +5,7 @@ namespace App\Actions\Billing;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Team;
+use App\Support\Concurrency\IdempotencyGuard;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -34,6 +35,7 @@ class SyncRevenueCatSubscriberAction
     public function __construct(
         private readonly ApplyDowngradeFreezeAction $applyFreeze,
         private readonly ReverseDowngradeFreezeAction $reverseFreeze,
+        private readonly SendSubscriptionExpiredNotificationAction $notifyExpired,
     ) {}
 
     public function handle(Team $team, string $rcAppUserId): void
@@ -84,8 +86,28 @@ class SyncRevenueCatSubscriberAction
 
         if ($wasEntitled && ! $nowEntitled) {
             $this->applyFreeze->handle($team);
+
+            // Backfills the one notification a lost webhook would otherwise
+            // lose for good: without this, a seller whose `EXPIRATION` webhook
+            // never arrived gets their stores paused and rules switched off by
+            // the freeze above with no explanation at all — the state
+            // self-heals here, but silently.
+            //
+            // Guarded because two devices syncing at once would both read
+            // `$wasEntitled` as true before either saved. The webhook side is
+            // separately transition-gated (see `ProcessRevenueCatEventAction`),
+            // so a late-arriving webhook for a lapse discovered here won't
+            // duplicate this either.
+            IdempotencyGuard::once("subscription-expired-notice:{$team->id}", 300, fn () => $this->notifyExpired->handle($team));
         } elseif (! $wasEntitled && $nowEntitled) {
             $this->reverseFreeze->handle($team);
+
+            // Deliberately no notification on the way *up* from here. The
+            // client is told to call this endpoint immediately after a purchase
+            // or a restore, so this branch fires while the seller is watching
+            // the screen having just acted — and the webhook is about to send
+            // the real confirmation. Notifying here would race it and produce
+            // two emails, one of them wrongly worded as a "welcome back".
         }
     }
 

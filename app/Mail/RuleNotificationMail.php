@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\SendsFromModuleAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -9,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 class RuleNotificationMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SendsFromModuleAddress, SerializesModels;
 
     public function __construct(
         public readonly string $title,
@@ -18,7 +19,8 @@ class RuleNotificationMail extends Mailable implements ShouldQueue
 
     public function build(): self
     {
-        return $this->subject($this->title)
+        return $this->fromModule('notifications')
+            ->subject($this->title)
             ->view('emails.rule-notification');
     }
 }

@@ -39,10 +39,21 @@ This is the **in-app record of everything that's been sent to this user** — di
 | `trial_reminder` | Day 3/10 trial win-back (Plan §6.3) | `{trial_days_remaining: "4"}` | Subscription screen (`settings-flow-screens.md`) |
 | `quota_warning` | Added 2026-07-24 — a team crossed 80% of its monthly SMS/AI-question/email allotment (`usage-api-reference.md`'s `quota_warning` flag), checked daily, sent once per channel per calendar month | `{channel: "sms"\|"ai_questions"\|"emails", pct_used: "83.3"}` | `UsageDetailScreen` (`usage-flow-screens.md`), pre-selecting the tab matching `data.channel` |
 | `inbox_message` | A new customer message arrived (eBay member message, inbound email reply) | `{thread_id: 7}` | `ThreadDetailScreen` (`inbox-flow-screens.md`) — **a different `thread_id` namespace than `support_reply`'s** |
+| `subscription_started` | Added 2026-07-31 — the plan is active. Covers four moments: a first purchase, a tier change, a **payment recovering** out of grace, and a **lapsed seller resubscribing**. Only the copy differs; the type is the same | `{plan: "pro"}` | Subscription screen (`settings-flow-screens.md`) |
+| `subscription_payment_issue` | Added 2026-07-31 — a renewal payment failed. **Access continues** while it's retried (`subscription_status` becomes `"grace"`), so this is a fix-your-card prompt, not a cutoff notice | Empty | Subscription screen, ideally opening the platform's subscription management deep link — the card lives with Apple/Google, not in this app |
+| `subscription_expired` | Added 2026-07-31 — the subscription lapsed. Extra stores are now paused and custom rules disabled (the reversible downgrade freeze), entitlements are Free | Empty | Subscription screen, showing the upgrade paywall as primary content |
+
+### Subscription lifecycle notifications — three things to get right (added 2026-07-31)
+
+**1. A *routine* renewal notifies nothing, but a recovery does.** There's no `renewal` notification type, because a renewal fires every billing cycle and notifying each time would be spam. **But `RENEWAL` means two different things depending on the previous state**, and the server distinguishes them: if the subscription was in `grace` (a payment had failed) or already `expired` (the seller resubscribed), that same event *does* send `subscription_started` — with recovery/welcome-back copy — because we already told the seller there was a problem and owe them the resolution. A resubscribe-after-lapse can arrive as either `INITIAL_PURCHASE` or `RENEWAL` depending on store and gap length, and **both are covered**, so don't build client logic that assumes one or the other. `CANCELLATION` sends nothing (access is unaffected until it actually lapses — notifying would alarm the seller prematurely), and `UNCANCELLATION` on a still-active subscription sends nothing either. If you want every renewal visible somewhere, that's a row in `GET /billing/history`, not a notification.
+
+**2. `subscription_payment_issue` and `subscription_expired` bypass notification preferences and arrive at high priority.** Both are action-required account notices where the seller's stores are already affected, so they aren't held back by quiet hours or per-type preference toggles — same precedent as `admin_note`. **Don't build a preference toggle that implies these can be turned off**, because they can't. `subscription_started` *is* preference-gated (it confirms something the seller just deliberately did).
+
+**3. None of these count against the team's `email_monthly` quota.** Only `rule_email` does. A seller shouldn't spend their own alert allowance being told their card was declined, so `emails_remaining` won't move when these send.
 
 ### `quota_warning` is sent to the team owner only
 
-Same recipient convention as `trial_reminder` — the owner is currently the only person who sees billing/usage state at all, so this never fans out to other team members regardless of role.
+Same recipient convention as `trial_reminder` and the three `subscription_*` types — the owner is currently the only person who sees billing state at all, so these never fan out to other team members regardless of role.
 
 ### `data.trigger` and `data.platform` — "where did this alert come from" (added 2026-07-24)
 

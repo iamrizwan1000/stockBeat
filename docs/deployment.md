@@ -26,16 +26,38 @@ All of these are real, load-bearing integrations (verified in code, not placehol
 |---|---|---|
 | MySQL/MariaDB | `DB_*` | Everything |
 | Redis | `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`, `REDIS_CLIENT=phpredis` | Queue (Horizon), Reverb scaling backend |
-| Firebase (FCM) | `FIREBASE_CREDENTIALS` — a real service-account JSON file, **not committed to git**, must be uploaded to the server at the exact path this env var points to (`/var/www/html/storage/app/private/firebase/service-account.json` in `.env.example`) | Push notifications — every `SendPushNotificationAction` call needs this or it throws |
+| Firebase (FCM) | `FIREBASE_CREDENTIALS` — a real service-account JSON file, **not committed to git**, must be uploaded to the server at the exact path this env var points to (`/var/www/html/storage/app/private/firebase/service-account.json` in `.env.example`) | Push notifications. Since 2026-07-31 a missing/invalid credential **degrades** (the in-app notification is still recorded, the accompanying email still sends, a warning is logged) rather than throwing — but push genuinely won't deliver, so still fix it |
 | Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` | SMS rule actions |
-| Resend (or any SMTP) | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | All outbound email (rule emails, invites, support replies, data export) |
+| Resend (or any SMTP) | `MAIL_MAILER`, plus `RESEND_API_KEY` for the `resend` driver (or `MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD` for plain SMTP), and the sender addresses below | All outbound email (billing notices, rule emails, invites, support replies, data export) |
 | RevenueCat | `REVENUECAT_WEBHOOK_SECRET`, `REVENUECAT_SECRET_API_KEY` | Subscription billing webhook + `POST /billing/sync` — see `revenuecat-playstore-setup.md` for how to obtain these and configure the Google Play Console + RevenueCat dashboard side |
-| Inbound email | `INBOUND_EMAIL_WEBHOOK_SECRET` | Shopify/Woo customer email replies into the Inbox |
+| Inbound email | `INBOUND_EMAIL_WEBHOOK_SECRET`, `INBOUND_EMAIL_DOMAIN` | Shopify/Woo customer email replies into the Inbox, and seller replies into support chat |
 | Reverb | `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT` | Support chat real-time delivery |
 | Shopify / eBay / Etsy / TikTok Partner apps | per-platform OAuth client id/secret (see `connections-api-reference.md`) | Store OAuth connect flows |
 | Amazon SP-API | not yet issued — `POST /connections/amazon/start` always 422s until this exists | Deferred, no action needed yet |
 
-**Without the Firebase credentials file specifically**, every push send will error — this bit us in local testing (tests fail outside `ddev` for exactly this reason, since the file only exists inside the dev container). Confirm it's actually present on the server filesystem, not just referenced in `.env`.
+**Without the Firebase credentials file specifically**, push simply won't deliver — it no longer takes anything down with it (a `Messaging` resolution failure used to cascade up through the container and 500 the RevenueCat billing webhook *before* its dedup row was written, meaning a customer could be charged while entitlements never updated; `SendPushNotificationAction` now resolves it lazily and degrades). Confirm the file is actually present on the server filesystem, not just referenced in `.env`. Note that tests fail outside `ddev` for the same reason — the file only exists inside the dev container.
+
+---
+
+## 1a. Email senders — verify this or no customer ever receives mail
+
+Outbound mail is split across four per-module senders (`config/mail.php`'s `senders` block), so a reply lands somewhere a human reads and billing mail stays out of the alert-noise bucket a seller might mute:
+
+| Key | Address | Carries |
+|---|---|---|
+| `MAIL_FROM_BILLING` | `billing@` | Subscription started/payment-issue/expired, trial ending, credit grants |
+| `MAIL_FROM_SUPPORT` | `support@` | Support + contact replies — **must be a real receiving mailbox**, people reply to it |
+| `MAIL_FROM_NOTIFICATIONS` | `notifications@` | Rule alerts, broadcasts, customer inbox messages |
+| `MAIL_FROM_NO_REPLY` | `no-reply@` | OTP codes, team invites, data exports, newsletter |
+
+Each falls back to `MAIL_FROM_ADDRESS`, so a partially-configured environment still sends from something valid rather than failing.
+
+**Two things that silently break delivery:**
+
+1. **An unverified sending domain.** Verify the domain in Resend (or your provider) and add the **SPF + DKIM** DNS records it issues. Until then, mail from `billing@your-domain` bounces or lands in spam no matter what `.env` says. Watch specifically for `MAIL_FROM_ADDRESS` still being left as a provider *sandbox* sender (e.g. `onboarding@resend.dev`) — those are pre-verified but only deliver to the provider account's own address, so production mail vanishes with no error.
+2. **Sending vs. receiving are different DNS records.** SPF/DKIM govern sending; **MX** governs receiving. Adding a mailbox provider (Zoho, Google Workspace) for `support@` does not disturb Resend sending — they coexist.
+
+**`INBOUND_EMAIL_DOMAIN`** is the domain plus-addressed Reply-To values are built against (`support+42@`, `thread+17@`), which is what threads a seller's or customer's email reply back into the right conversation. Point it at a **subdomain** dedicated to inbound parsing (e.g. `mail.your-domain`) so its MX records don't collide with a normal mailbox on the root domain. Left unset it falls back to a placeholder nobody controls, and every reply silently goes nowhere. No inbound-parse provider is wired up yet, so replies aren't threaded in production regardless — `POST /hooks/email-inbound` is the boundary waiting for one.
 
 ---
 

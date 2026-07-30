@@ -57,7 +57,10 @@ class SendStaffReplyAction
             $pushStatus = 'failed';
         }
 
-        Mail::to($user->email)->queue(new SupportReplyMail($body));
+        // Thread id passed so the mail can carry a `support+{id}@` Reply-To —
+        // a seller replying from their mail client threads straight back into
+        // this conversation instead of hitting an unroutable bare address.
+        Mail::to($user->email)->queue(new SupportReplyMail($body, $thread->id));
 
         $message->update(['delivered_via' => ['websocket' => true, 'push' => $pushStatus, 'email' => 'queued']]);
 

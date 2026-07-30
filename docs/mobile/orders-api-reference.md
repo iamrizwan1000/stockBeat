@@ -157,7 +157,11 @@ All of these: **requires auth**, `owner`/`manager` role only, and only reachable
 - **200 success:** `{order: {...}}`, `message: "Order refunded."`
 - **422 — not supported:** same pattern as fulfill, `errors.order[0]` = `"This channel doesn't support refunds from here."`
 - **422 — amount too high:** `errors.amount[0]` = `"The refund amount can't exceed the order total."` — also worth a client-side max-value check on the input before submit, to avoid a round trip for an obvious mistake
-- **Repeat-safe, including a true double-tap (revised 2026-07-30):** calling this again on an already-refunded order returns **200** with `message: "This order has already been refunded."` and does **not** issue a second real refund on the platform — this is the one quick action where that guarantee matters most, since a refund moves real money. Still disable the button on tap as normal practice; this is the server-side backstop, see `network-resilience-and-edge-cases.md`.
+- **Repeat-safe, including a true double-tap (revised 2026-07-30):** a repeat never issues a second real refund on the platform — this is the one quick action where that guarantee matters most, since a refund moves real money. It returns **200** either way, with one of **two** distinct messages depending on timing, so match on both rather than just the first:
+  - `"This order has already been refunded."` — the order's status is already `refunded` (the usual case, e.g. tapping again after the first one landed).
+  - `"A refund for this order was just requested — please wait a moment before trying again."` — a *truly concurrent* second request caught by the internal lock before the first had finished writing the status. Same meaning for the user: one refund was issued, nothing went wrong.
+
+  Still disable the button on tap as normal practice; this is the server-side backstop, see `network-resilience-and-edge-cases.md`.
 
 ### `POST /orders/{id}/cancel`
 ```json

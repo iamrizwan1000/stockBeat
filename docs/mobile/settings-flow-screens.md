@@ -38,6 +38,12 @@ This tab is a menu hub, not a single screen — each row below opens its own sma
 
 **Save pattern:** either autosave per-field on change (optimistic, revert + toast on 422) or a single "Save" button batching all changed fields into one `PUT` — either works, the endpoint accepts partial bodies either way.
 
+### ⚠️ The Push toggle does not mute everything — say so on this screen (added 2026-07-31)
+
+Two notification types deliberately **ignore** these toggles and quiet hours: `subscription_payment_issue` and `subscription_expired` (see `notifications-api-reference.md`). A seller must not miss "your card was declined" because of a mute they set for order alerts — by the time they notice, their stores are paused.
+
+So this screen's copy is misleading as written. Add a short note under the toggles, e.g. *"Critical account and billing notices are always delivered."* **Do not add per-type toggles for those two** — there is no server-side way to disable them, so a switch would be a lie. Everything else here (rule alerts, digests, inbox messages) honours the toggles normally.
+
 ---
 
 ## Screen 3 — `TeamScreen` (Pro+)
@@ -76,7 +82,11 @@ This tab is a menu hub, not a single screen — each row below opens its own sma
 
 **AI question top-up** (added 2026-07-22 — previously there was nothing purchasable here, only the SMS side existed): same pattern, a separate section/sheet listing `ai_topup_packs` from `GET /me` (name, question count, price) — tap a pack, RevenueCat purchase for that `key`, then poll and watch `entitlements.ai_questions_remaining` rise. A good place to surface this is a "Buy more questions" button shown once `ai_questions_remaining` gets low (e.g. under 10) or hits 0 — and per `ai-flow-screens.md`, also from the 422 the Ask AI screen gets when the quota is genuinely exhausted, so a merchant mid-question has a direct path to fix it rather than a dead end.
 
-**Manage subscription (cancel/downgrade):** deep link to the native App Store / Play Store subscription management screen — this app has no in-house cancel flow, per Plan §4.8's IAP strategy.
+**Manage subscription (cancel/downgrade):** deep link to the native App Store / Play Store subscription management screen — this app has no in-house cancel flow, per Plan §4.8's IAP strategy. iOS: `https://apps.apple.com/account/subscriptions`. Android: `https://play.google.com/store/account/subscriptions`.
+
+**Billing history:** a plain reverse-chronological list from `GET /billing/history` (see `settings-api-reference.md`) — date, what it was, amount. Covers subscription purchases, renewals, plan changes, expirations, and SMS/AI top-up purchases. Bounded to the most recent 100 events, no pagination and **no filter UI** — a seller accrues roughly 12–24 events a year, so filtering a list that short is over-building (that's an order-invoice concern, not a billing-history one). Some rows legitimately have **no amount** (`price: null`) because the RevenueCat payload for that event type never carried one — render those without a figure rather than showing `0.00`, which would be wrong.
+
+**"Need a tax invoice?" panel:** a short explainer that the App Store / Play receipt is the seller's tax document, because Apple/Google are the merchant of record for in-app purchases — plus a link out to the platform's order history. **Never build a "Download invoice" button or any subscription-invoice PDF**; full reasoning, the platform links, and the distinction from *order* invoices (which are a real, built feature) are in `billing-topup-guide.md`'s "Where's my invoice?" section. Read that before building this panel.
 
 ---
 

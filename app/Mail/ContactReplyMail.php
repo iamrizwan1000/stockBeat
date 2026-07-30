@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\SendsFromModuleAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -9,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ContactReplyMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SendsFromModuleAddress, SerializesModels;
 
     public function __construct(
         public readonly string $body,
@@ -17,7 +18,8 @@ class ContactReplyMail extends Mailable implements ShouldQueue
 
     public function build(): self
     {
-        return $this->subject('Reply to your StockBeat inquiry')
+        return $this->fromModule('support')
+            ->subject('Reply to your StockBeat inquiry')
             ->view('emails.contact-reply');
     }
 }

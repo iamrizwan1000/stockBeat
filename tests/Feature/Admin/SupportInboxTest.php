@@ -89,6 +89,26 @@ test('a staff reply is delivered via websocket, push, and email, and moves the t
     expect(AdminAuditLog::query()->where('action', 'support.reply')->where('admin_id', $admin->id)->exists())->toBeTrue();
 });
 
+test('a staff reply email carries the plus-addressed Reply-To that threads a seller reply back', function () {
+    Event::fake([SupportMessageSent::class]);
+    Mail::fake();
+    config(['services.inbound_email.domain' => 'mail.example.test']);
+    $admin = AdminUser::factory()->create();
+    $thread = SupportThread::factory()->create();
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/support/{$thread->id}/reply", ['body' => 'Have you tried reconnecting the store?']);
+
+    Mail::assertQueued(SupportReplyMail::class, function (SupportReplyMail $mail) use ($thread) {
+        $mail->build();
+
+        // Must match what ParseInboundEmailTokenAction routes on — a bare
+        // support@ address would be dropped as unroutable, silently losing the
+        // seller's reply.
+        return collect($mail->replyTo)->contains(fn (array $address) => $address['address'] === "support+{$thread->id}@mail.example.test");
+    });
+});
+
 test('an internal note is stored but never broadcast', function () {
     Event::fake([SupportMessageSent::class]);
     $admin = AdminUser::factory()->create();
