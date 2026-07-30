@@ -11,6 +11,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
+    config(['services.connections.launched_platforms' => ['shopify', 'woo']]);
     Http::fake([
         '*/wp-json/wc/v3/orders*' => Http::response([], 200),
         '*/wp-json/wc/v3/webhooks*' => Http::response(['id' => 123], 200),

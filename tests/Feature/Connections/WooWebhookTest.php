@@ -12,6 +12,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
+    config(['services.connections.launched_platforms' => ['shopify', 'woo']]);
 });
 
 /**

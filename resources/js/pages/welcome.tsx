@@ -317,12 +317,12 @@ function NotificationDemo() {
 }
 
 const PLATFORMS = [
-    'Shopify',
-    'WooCommerce',
-    'eBay',
-    'Etsy',
-    'Amazon',
-    'TikTok Shop',
+    { name: 'Shopify', live: true },
+    { name: 'WooCommerce', live: false },
+    { name: 'eBay', live: false },
+    { name: 'Etsy', live: false },
+    { name: 'Amazon', live: false },
+    { name: 'TikTok Shop', live: false },
 ];
 
 // The animated "how it works" walkthrough — auth → connect a store →
@@ -338,7 +338,7 @@ const JOURNEY = [
         step: '02',
         icon: <PlugGlyph />,
         title: 'Connect your stores',
-        body: 'Shopify, WooCommerce, eBay, Etsy, Amazon — link as many as your plan allows in under a minute each.',
+        body: 'Shopify is live today — link as many stores as your plan allows in under a minute. WooCommerce, eBay, Etsy, Amazon, and TikTok Shop are coming soon.',
     },
     {
         step: '03',
@@ -760,10 +760,19 @@ export default function Welcome() {
                             <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
                                 {PLATFORMS.map((platform) => (
                                     <span
-                                        key={platform}
-                                        className="text-lg font-semibold text-[#757872]"
+                                        key={platform.name}
+                                        className="inline-flex items-center gap-2"
                                     >
-                                        {platform}
+                                        <span
+                                            className={`text-lg font-semibold ${platform.live ? 'text-[#191C18]' : 'text-[#757872]'}`}
+                                        >
+                                            {platform.name}
+                                        </span>
+                                        {!platform.live && (
+                                            <span className="rounded-full bg-[#EFF8D5] px-2 py-0.5 font-mono text-[10px] font-medium tracking-wide text-[#3A4D00] uppercase">
+                                                Coming soon
+                                            </span>
+                                        )}
                                     </span>
                                 ))}
                             </div>

@@ -13,6 +13,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
+    config(['services.connections.launched_platforms' => ['shopify', 'etsy']]);
     config(['services.etsy.keystring' => 'test-keystring']);
     // Connecting now dispatches an immediate first-sync job — fake the
     // queue so it doesn't actually execute synchronously here against

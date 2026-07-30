@@ -15,6 +15,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
     config([
+        'services.connections.launched_platforms' => ['shopify', 'ebay'],
         'services.ebay.env' => 'sandbox',
         'services.ebay.app_id' => 'test-app-id',
         'services.ebay.cert_id' => 'test-cert-id',

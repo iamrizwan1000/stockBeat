@@ -14,6 +14,24 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Launched storefront platforms
+    |--------------------------------------------------------------------------
+    |
+    | Every adapter (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop) is
+    | fully built and tested, but only platforms listed here can actually be
+    | connected via POST /connections/{platform}/start — everything else
+    | 422s with a "coming soon" message (ConnectionController::start()).
+    | Add a platform's key here once it's ready to launch; nothing else
+    | needs to change.
+    |
+    */
+
+    'connections' => [
+        'launched_platforms' => ['shopify'],
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

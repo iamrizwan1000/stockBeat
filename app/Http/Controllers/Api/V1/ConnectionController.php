@@ -8,6 +8,7 @@ use App\Actions\Connections\StartOAuthConnectionAction;
 use App\Actions\Connections\TriggerConnectionSyncAction;
 use App\Actions\Connections\UpdateConnectionNotificationMuteAction;
 use App\Contracts\OAuthChannelAdapter;
+use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Connections\ConnectStoreRequest;
 use App\Http\Requests\Connections\UpdateConnectionMuteRequest;
@@ -23,11 +24,13 @@ use Illuminate\Http\Request;
  * @group Connections
  *
  * Connect and manage storefront platforms (Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop).
- * WooCommerce, Shopify, eBay, Etsy, and TikTok Shop are all fully live end-to-end today
- * (real, credential-validated connect flows — see each adapter's `connect()`/
- * `completeConnection()`). **Amazon remains the one platform genuinely unconfigured**
- * (no real SP-API credentials in `.env` yet, §15.2) — `POST /connections/amazon/start`
- * always 422s via `AdapterNotReadyException`, not a special case in this controller.
+ * Every adapter is fully built and tested end-to-end (real, credential-validated connect
+ * flows — see each adapter's `connect()`/`completeConnection()`), but **only Shopify is
+ * launched right now** — `config('services.connections.launched_platforms')`. `POST
+ * /connections/{platform}/start` for any other platform always 422s via
+ * `AdapterNotReadyException`, same "coming soon" contract Amazon already used before this
+ * gate existed. Add a platform to that config list once it's ready to launch; the adapter
+ * code underneath doesn't change.
  */
 class ConnectionController extends Controller
 {
@@ -77,6 +80,10 @@ class ConnectionController extends Controller
         StartOAuthConnectionAction $startOAuth,
         ChannelAdapterManager $adapters,
     ): JsonResponse {
+        if (! in_array($platform, config('services.connections.launched_platforms', [StoreConnection::PLATFORM_SHOPIFY]), true)) {
+            throw AdapterNotReadyException::forPlatform($platform);
+        }
+
         /** @var User $user */
         $user = $request->user();
         $team = $user->currentTeam();

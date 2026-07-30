@@ -4,18 +4,20 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 
 Pair this with `connections-flow-screens.md` for the actual screen-by-screen UX, especially the OAuth-callback edge case, which is the one thing in this module that behaves differently from a typical mobile OAuth flow. Also see `network-resilience-and-edge-cases.md` for double-tap/slow-network behavior across this and every other mutating endpoint.
 
-## Platform status — verified against real code and real credentials, 2026-07-22
+## Platform status — updated 2026-07-31: only Shopify is launched
 
-| Platform | `platform` key | Connect method | Status today |
+**Every adapter below is fully built and tested end-to-end in code** — but as of 2026-07-31, `POST /connections/{platform}/start` only actually connects for `shopify`. Every other platform now 422s with a permanent "coming soon" response (`config('services.connections.launched_platforms')` on the backend — a one-line allowlist, not a capability gap), the exact same contract Amazon already used before this gate existed. **Build the platform picker accordingly: show Shopify as connectable, show every other platform as a disabled "Coming soon" row** — same treatment the Amazon row already needed, just extended to the rest for now. Don't build dead-end retry logic for the disabled ones; this is a permanent state until a platform is explicitly re-launched, not a transient failure.
+
+| Platform | `platform` key | Connect method | Launched? |
 |---|---|---|---|
-| WooCommerce | `woo` | Key intake (immediate) | **Fully real.** Connects synchronously — no browser step. |
-| Shopify | `shopify` | OAuth | **Real.** Real Partner app credentials are configured — `start` returns a genuine, working authorization URL. |
-| eBay | `ebay` | OAuth | **Real (sandbox).** Real sandbox Developer Portal credentials configured. |
-| Etsy | `etsy` | OAuth+PKCE | **Real.** Real Developer app credentials configured. |
-| TikTok Shop | `tiktok` | OAuth | **Real.** Real Partner Center app credentials configured. |
-| Amazon | `amazon` | OAuth | **Not ready.** No developer credentials exist yet (SP-API vetting takes weeks) — `POST /connections/amazon/start` always 422s with a clean message. Don't build a dead end for this one; either hide it or show "coming soon." |
+| Shopify | `shopify` | OAuth | **Yes.** Real Partner app credentials are configured — `start` returns a genuine, working authorization URL. |
+| WooCommerce | `woo` | Key intake (immediate) | **Coming soon.** Code is fully real and tested (connects synchronously, no browser step) — just not launched yet. |
+| eBay | `ebay` | OAuth | **Coming soon.** Code is fully real and tested (sandbox). |
+| Etsy | `etsy` | OAuth+PKCE | **Coming soon.** Code is fully real and tested. |
+| TikTok Shop | `tiktok` | OAuth | **Coming soon.** Code is fully real and tested. |
+| Amazon | `amazon` | OAuth | **Coming soon** (same as ever, no change) — also genuinely unconfigured (no real SP-API credentials yet, developer vetting takes weeks) on top of not being launched. |
 
-For all four OAuth platforms, "real" means the authorization URL generation and the token-exchange code are genuine, tested code paths — not that a full merchant-in-the-loop OAuth grant has been exercised end to end with a live browser session. Build and test against these for real; just know the very last mile (an actual merchant approving on Shopify's/eBay's/Etsy's/TikTok's own consent screen) hasn't been manually walked yet.
+For every OAuth platform, "fully real and tested" means the authorization URL generation and the token-exchange code are genuine, working, tested code paths — not that a full merchant-in-the-loop OAuth grant has been exercised end to end with a live browser session against that platform's own consent screen. When a platform is launched, expect the same maturity level Shopify has today.
 
 ---
 
@@ -89,7 +91,7 @@ Open this URL in a browser (see flow doc for in-app-browser vs. system-browser g
 | 422 | `name`/`credentials.*` validation failure | Standard per-field `errors` |
 | 422 | `woo` — the server tried the credentials live against the store and it failed (bad URL, bad keys, unreachable) | `"Could not connect to this WooCommerce store. Check the store URL and API keys."` under `errors.credentials` — this is a **live check**, expect it to take a second or two, show a loading state |
 | 422 | Team already at `entitlements.limits.max_stores` | `"You've reached your plan's store limit ({N}). Upgrade to connect more stores."` under `errors.platform` — this is the paywall trigger from Plan §4.11, show the upgrade sheet here |
-| 422 | `amazon` — always, regardless of input | A message explaining Amazon isn't available yet — show this as a permanent "coming soon" state, not a retry-able error |
+| 422 | **Updated 2026-07-31** — any platform other than `shopify`, always, regardless of input | A message explaining that platform isn't available yet — show this as a permanent "coming soon" state, not a retry-able error. This is now the case for `woo`/`ebay`/`etsy`/`tiktok` too, not just `amazon` — this happens before any credential validation runs, so you'll get this even with perfectly valid Woo keys. Checked once per platform is enough client-side; it doesn't vary by user or team. |
 | 422 | Profile setup incomplete | `"Complete profile setup before connecting a store."` — shouldn't be reachable if you're gating navigation correctly, but handle it |
 | 422 | **Added 2026-07-30** — a double-tap submitting identical Woo credentials within a short window | `"A connection attempt for this store is already in progress — please wait a moment and check your Connections list."` under `errors.platform` — a genuine duplicate submission was caught, not a real failure; see `network-resilience-and-edge-cases.md`. Submitting a *different* store's credentials right after is never affected by this. |
 

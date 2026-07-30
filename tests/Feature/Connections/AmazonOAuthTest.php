@@ -13,6 +13,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
     config([
+        'services.connections.launched_platforms' => ['shopify', 'amazon'],
         'services.amazon.client_id' => 'test-lwa-client-id',
         'services.amazon.client_secret' => 'test-lwa-client-secret',
         'services.amazon.app_id' => 'test-spapi-app-id',
