@@ -1,12 +1,8 @@
-<!doctype html>
-<html>
-<body style="font-family: sans-serif; color: #1a1a1a;">
-    <h2 style="margin-bottom: 8px;">{{ $title }}</h2>
-    <p>{{ $body }}</p>
+<x-mail.layout preheader="{{ $title }}">
+    <h2 style="margin:0 0 12px; font-size:19px; font-weight:600; color:#191C18; letter-spacing:-0.01em;">{{ $title }}</h2>
+    <p style="margin:0;">{{ $body }}</p>
 
-    <hr style="margin-top: 24px; border: none; border-top: 1px solid #e1e1e1;">
-    <p style="font-size: 12px; color: #8a8a8a;">
+    <div style="margin:18px 0 0; padding-top:18px; border-top:1px solid #EDEEE9; font-size:12px; color:#757872;">
         This is a message from StockBeat support about your account.
-    </p>
-</body>
-</html>
+    </div>
+</x-mail.layout>

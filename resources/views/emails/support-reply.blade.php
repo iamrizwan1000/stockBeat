@@ -1,8 +1,5 @@
-<!doctype html>
-<html>
-<body style="font-family: sans-serif; color: #1a1a1a;">
-    <h2 style="margin-bottom: 8px;">Your support request has a new reply</h2>
-    <p style="white-space: pre-wrap;">{{ $body }}</p>
-    <p>Reply from within the StockBeat app to continue the conversation.</p>
-</body>
-</html>
+<x-mail.layout preheader="Your support request has a new reply.">
+    <h2 style="margin:0 0 12px; font-size:19px; font-weight:600; color:#191C18; letter-spacing:-0.01em;">Your support request has a new reply</h2>
+    <p style="margin:0 0 14px; white-space:pre-wrap;">{{ $body }}</p>
+    <p style="margin:0; color:#454843;">Reply directly to this email, or from within the StockBeat app, to continue the conversation.</p>
+</x-mail.layout>

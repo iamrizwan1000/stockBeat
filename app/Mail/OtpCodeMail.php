@@ -17,7 +17,7 @@ class OtpCodeMail extends Mailable implements ShouldQueue
     public function build(): self
     {
         return $this->fromModule('no_reply')
-            ->subject('Your OrderPulse sign-in code')
+            ->subject('Your StockBeat sign-in code')
             ->view('emails.otp-code');
     }
 }
