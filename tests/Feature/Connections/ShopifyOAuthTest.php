@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\Connections\OAuthState;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
@@ -60,12 +61,17 @@ test('starting a shopify connection returns a properly formed authorization url'
     expect($url)->toStartWith('https://my-test-shop.myshopify.com/admin/oauth/authorize?');
     expect($url)->toContain('client_id=test-client-id');
     expect($url)->toContain('read_orders');
+    // Without this, Shopify silently issues the old non-expiring offline
+    // token, which the Admin API now rejects outright (§ the whole point
+    // of this fix) — regression-guard it directly, not just indirectly
+    // via the token-exchange tests.
+    expect($url)->toContain('expiring=1');
 });
 
 test('a valid callback completes the connection, fetches store branding, and registers webhooks', function () {
     onboardedShopifyUser();
     Http::fake([
-        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders', 'expires_in' => 86400], 200),
         'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response(['shop' => ['email' => 'owner@my-test-shop.com', 'name' => 'My Test Shop']], 200),
         'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
     ]);
@@ -94,6 +100,8 @@ test('a valid callback completes the connection, fetches store branding, and reg
     expect($connection->status)->toBe(StoreConnection::STATUS_ACTIVE);
     expect($connection->credentials['access_token'])->toBe('shpat_faketoken');
     expect($connection->credentials['shop_domain'])->toBe('my-test-shop.myshopify.com');
+    expect($connection->credentials['expires_at'])->not->toBeNull();
+    expect(Carbon::parse($connection->credentials['expires_at'])->isFuture())->toBeTrue();
     expect($connection->fingerprint)->not->toBeNull();
     expect($connection->store_contact_email)->toBe('owner@my-test-shop.com');
     expect($connection->store_display_name)->toBe('My Test Shop');
@@ -283,4 +291,32 @@ test('a tampered state is rejected', function () {
     test()->get('/hooks/shopify/oauth/callback?'.http_build_query($params))->assertOk();
 
     expect(StoreConnection::query()->count())->toBe(0);
+});
+
+test('a token response with no expires_in stores a null expires_at rather than a guessed value', function () {
+    onboardedShopifyUser();
+    Http::fake([
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response([], 500),
+        'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
+    ]);
+
+    $authUrl = test()->postJson('/api/v1/connections/shopify/start', [
+        'name' => 'My Shopify Store',
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+    ])->json('data.authorization_url');
+
+    parse_str((string) parse_url($authUrl, PHP_URL_QUERY), $startParams);
+    $callbackParams = [
+        'code' => 'fake-auth-code',
+        'shop' => 'my-test-shop.myshopify.com',
+        'state' => $startParams['state'],
+        'timestamp' => (string) time(),
+    ];
+    $callbackParams['hmac'] = shopifyQueryHmac($callbackParams, 'test-client-secret');
+
+    test()->get('/hooks/shopify/oauth/callback?'.http_build_query($callbackParams))->assertOk();
+
+    $connection = StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->first();
+    expect($connection->credentials['expires_at'])->toBeNull();
 });

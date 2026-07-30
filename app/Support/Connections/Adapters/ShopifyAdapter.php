@@ -66,6 +66,14 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             'scope' => self::SCOPES,
             'redirect_uri' => route('hooks.shopify.oauth-callback'),
             'state' => $state,
+            // Without this, Shopify silently issues the old non-expiring
+            // offline token — expiring tokens are opt-in per authorization,
+            // not automatic (shopify.dev/docs/apps/build/authentication-
+            // authorization/access-tokens/offline-access-tokens). Public
+            // apps created after 2026-04-01 are required to use expiring
+            // tokens outright; the Admin API already 403s non-expiring
+            // tokens for this app specifically, so this isn't optional.
+            'expiring' => '1',
         ]);
     }
 
@@ -100,6 +108,19 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             throw ValidationException::withMessages(['shopify' => 'Could not complete the Shopify connection.']);
         }
 
+        // `expiring=1` on the authorization URL above means this response
+        // carries `expires_in` (~1hr) and `refresh_token` (itself expiring
+        // after `refresh_token_expires_in`, ~90 days of inactivity) —
+        // `refreshAuth()` uses the refresh token to get a new access token
+        // without the merchant ever seeing a reauth prompt, same shape as
+        // EbayAdapter. Both are absent for a connection made before this
+        // shipped, or if a future app config somehow reverts to the old
+        // flow — treated as "not expiring" rather than guessed, same
+        // fallback as the pre-`expiring=1` behavior.
+        $expiresIn = $tokenResponse->json('expires_in');
+        $expiresAt = is_numeric($expiresIn) ? now()->addSeconds((int) $expiresIn)->toIso8601String() : null;
+        $refreshToken = $tokenResponse->json('refresh_token');
+
         $connection = StoreConnection::query()->create([
             'team_id' => $team->id,
             'platform' => StoreConnection::PLATFORM_SHOPIFY,
@@ -107,6 +128,8 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             'credentials' => [
                 'shop_domain' => $shop,
                 'access_token' => $accessToken,
+                'refresh_token' => is_string($refreshToken) ? $refreshToken : null,
+                'expires_at' => $expiresAt,
             ],
             'status' => StoreConnection::STATUS_ACTIVE,
         ]);
@@ -157,10 +180,59 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         throw new LogicException('ShopifyAdapter connects via OAuth — use StartOAuthConnectionAction, not connect().');
     }
 
+    /**
+     * Expiring offline tokens (`expiring=1` at authorization, see
+     * `authorizationUrl()`) refresh the same way eBay's do — a
+     * `grant_type=refresh_token` round trip to the same token endpoint,
+     * silently, with no merchant-visible reauth. Shopify rotates the
+     * refresh token on every use ("Shopify returns a new access token and
+     * a new refresh token"), so the old one is discarded here, not reused.
+     *
+     * A connection with no `refresh_token` at all — made before this
+     * shipped, back when Shopify still issued non-expiring tokens by
+     * default — has nothing to refresh with; that's a real dead end, not
+     * a bug, and routes to `needs_reauth` so the merchant reconnects once
+     * and gets a refreshable token from then on.
+     */
     public function refreshAuth(StoreConnection $connection): void
     {
-        // Offline-access tokens (the default for a non-embedded app) don't
-        // expire — nothing to refresh, same as WooCommerce's key pair.
+        /** @var array<string, mixed> $credentials */
+        $credentials = $connection->credentials ?? [];
+        $refreshToken = (string) ($credentials['refresh_token'] ?? '');
+        $shop = (string) ($credentials['shop_domain'] ?? '');
+
+        if ($refreshToken === '' || $shop === '') {
+            $connection->update(['status' => StoreConnection::STATUS_NEEDS_REAUTH]);
+
+            return;
+        }
+
+        $response = Http::post("https://{$shop}/admin/oauth/access_token", [
+            'client_id' => config('services.shopify.client_id'),
+            'client_secret' => config('services.shopify.client_secret'),
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken,
+        ]);
+
+        $accessToken = $response->json('access_token');
+        $newRefreshToken = $response->json('refresh_token');
+
+        if ($response->failed() || ! is_string($accessToken) || ! is_string($newRefreshToken)) {
+            $connection->update(['status' => StoreConnection::STATUS_NEEDS_REAUTH]);
+
+            return;
+        }
+
+        $expiresIn = (int) $response->json('expires_in', 3600);
+
+        $connection->update([
+            'credentials' => [
+                ...$credentials,
+                'access_token' => $accessToken,
+                'refresh_token' => $newRefreshToken,
+                'expires_at' => now()->addSeconds($expiresIn)->toIso8601String(),
+            ],
+        ]);
     }
 
     /**
