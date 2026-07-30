@@ -3,6 +3,7 @@
 namespace App\Actions\Admin;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Http\Resources\SubscriptionEventResource;
 use App\Models\AiUsageLedger;
 use App\Models\Device;
 use App\Models\EmailUsageLedger;
@@ -139,20 +140,20 @@ class GetCustomerDetailAction
                 'push' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_PUSH)->count(),
                 'email' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_EMAIL)->count(),
                 'sms' => Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_RULE_SMS)->count(),
+                'subscription_notices' => Notification::query()->where('user_id', $user->id)->whereIn('type', [
+                    Notification::TYPE_SUBSCRIPTION_STARTED,
+                    Notification::TYPE_SUBSCRIPTION_PAYMENT_ISSUE,
+                    Notification::TYPE_SUBSCRIPTION_EXPIRED,
+                ])->count(),
             ],
             'funnel_position' => $this->funnelPosition($user, $team),
-            'subscription_timeline' => $team === null ? [] : SubscriptionEvent::query()
-                ->where('team_id', $team->id)
-                ->orderByDesc('occurred_at')
-                ->limit(self::SUBSCRIPTION_TIMELINE_LIMIT)
-                ->get()
-                ->map(fn (SubscriptionEvent $event) => [
-                    'id' => $event->id,
-                    'event_type' => $event->event_type,
-                    'price' => $event->price,
-                    'currency' => $event->currency,
-                    'occurred_at' => $event->occurred_at,
-                ])->all(),
+            'subscription_timeline' => $team === null ? [] : SubscriptionEventResource::collection(
+                SubscriptionEvent::query()
+                    ->where('team_id', $team->id)
+                    ->orderByDesc('occurred_at')
+                    ->limit(self::SUBSCRIPTION_TIMELINE_LIMIT)
+                    ->get()
+            )->resolve(),
             'ltv' => $team === null ? null : $this->computeLtv->handle($team),
             'abuse_flags' => $team === null
                 ? ['trial_abuse_suspected' => false, 'high_sms_cost' => false]

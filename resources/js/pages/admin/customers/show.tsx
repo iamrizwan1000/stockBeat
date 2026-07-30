@@ -82,7 +82,7 @@ type CustomerDetail = {
             created_at: string | null;
         }>;
     } | null;
-    notification_volume: { push: number; email: number; sms: number };
+    notification_volume: { push: number; email: number; sms: number; subscription_notices: number };
     funnel_position: string;
     support_thread: {
         id: number;
@@ -100,6 +100,8 @@ type CustomerDetail = {
     subscription_timeline: Array<{
         id: number;
         event_type: string;
+        description: string;
+        product_id: string | null;
         price: number | null;
         currency: string | null;
         occurred_at: string | null;
@@ -444,7 +446,7 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                     <Section title="Rules & notification volume">
                         <Card>
                             <BlockStack gap="300">
-                                <InlineGrid columns={3} gap="300">
+                                <InlineGrid columns={4} gap="300">
                                     <Text as="p">
                                         <b>Push sent:</b> {customer.notification_volume.push}
                                     </Text>
@@ -453,6 +455,9 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                                     </Text>
                                     <Text as="p">
                                         <b>SMS sent:</b> {customer.notification_volume.sms}
+                                    </Text>
+                                    <Text as="p">
+                                        <b>Subscription notices:</b> {customer.notification_volume.subscription_notices}
                                     </Text>
                                 </InlineGrid>
                                 {customer.rules.length > 0 ? (
@@ -630,7 +635,8 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                                     {customer.subscription_timeline.map((event) => (
                                         <InlineStack key={event.id} align="space-between" blockAlign="center">
                                             <Text as="p">
-                                                <b>{event.event_type}</b>
+                                                <b>{event.description}</b>
+                                                {event.product_id ? ` (${event.product_id})` : ''}
                                                 {event.price !== null && event.currency
                                                     ? ` — ${event.price.toFixed(2)} ${event.currency}`
                                                     : ''}
