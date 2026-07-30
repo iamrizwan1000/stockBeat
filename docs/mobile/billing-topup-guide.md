@@ -35,13 +35,15 @@ App Store / Play Store  ──────────────►  RevenueCa
 
 Five renewing subscription products, four consumables. **These exact identifiers are load-bearing** — they're a hardcoded whitelist server-side (`ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS`, plus the `sms_topup_packs`/`ai_topup_packs` DB tables), not something the app can invent or rename.
 
+Revised 2026-07-30: subscription product IDs moved to Play Console's base-plan compound format (`{productId}:{basePlanId}`, e.g. `pro:monthly`) — one Play Store product per tier (`starter`/`pro`/`premium`) with `monthly`/`yearly` base plans underneath, replacing the old flat `starter_monthly`/`pro_monthly`/etc. naming. Confirmed against RevenueCat's actual product catalog. No backwards-compat entries were kept for the old flat ids since there were no live subscribers on them yet — if the app is live by the time you read this and still sees the old flat ids anywhere, flag it.
+
 | Product ID | Type | Grants | List price (Plan §5/§6, subject to store-region pricing) |
 |---|---|---|---|
-| `starter_monthly` | Auto-renewing subscription | Starter tier | $5.99/mo |
-| `pro_monthly` | Auto-renewing subscription | Pro tier | $17.99/mo |
-| `pro_yearly` | Auto-renewing subscription | Pro tier | $172.99/yr |
-| `premium_monthly` | Auto-renewing subscription | Premium tier | $44.99/mo |
-| `premium_yearly` | Auto-renewing subscription | Premium tier | $429.99/yr |
+| `starter:monthly` | Auto-renewing subscription | Starter tier | $5.99/mo |
+| `pro:monthly` | Auto-renewing subscription | Pro tier | $17.99/mo |
+| `pro:yearly` | Auto-renewing subscription | Pro tier | $172.99/yr |
+| `premium:monthly` | Auto-renewing subscription | Premium tier | $44.99/mo |
+| `premium:yearly` | Auto-renewing subscription | Premium tier | $429.99/yr |
 | `sms_100` | Consumable (non-renewing) | +100 SMS credits, non-expiring | $2.99 |
 | `sms_500` | Consumable (non-renewing) | +500 SMS credits, non-expiring | $9.99 |
 | `ai_50` | Consumable (non-renewing) | +50 AI questions, this calendar month only | $4.99 |

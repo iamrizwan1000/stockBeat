@@ -55,7 +55,7 @@ test('POST billing/sync activates the subscription from a real RevenueCat produc
     test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
 
     fakeRevenueCatSubscriber((string) $user->id, [
-        'pro_monthly' => [
+        'pro:monthly' => [
             'expires_date' => now()->addMonth()->toIso8601String(),
             'store' => 'app_store',
             'billing_issues_detected_at' => null,
@@ -69,7 +69,7 @@ test('POST billing/sync activates the subscription from a real RevenueCat produc
     $subscription = $user->ownedTeam->subscription->fresh();
     expect($subscription->status)->toBe(Subscription::STATUS_ACTIVE);
     expect($subscription->provider)->toBe('apple');
-    expect($subscription->product_id)->toBe('pro_monthly');
+    expect($subscription->product_id)->toBe('pro:monthly');
     expect($subscription->rc_app_user_id)->toBe((string) $user->id);
 });
 
@@ -79,7 +79,7 @@ test('POST billing/sync with a billing issue but unexpired subscription sets gra
     test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
 
     fakeRevenueCatSubscriber((string) $user->id, [
-        'pro_monthly' => [
+        'pro:monthly' => [
             'expires_date' => now()->addDays(3)->toIso8601String(),
             'store' => 'play_store',
             'billing_issues_detected_at' => now()->subDay()->toIso8601String(),
@@ -99,7 +99,7 @@ test('POST billing/sync with an expired product downgrades entitlements to free'
     test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
 
     fakeRevenueCatSubscriber((string) $user->id, [
-        'pro_monthly' => [
+        'pro:monthly' => [
             'expires_date' => now()->subDay()->toIso8601String(),
             'store' => 'app_store',
             'billing_issues_detected_at' => null,
@@ -118,12 +118,12 @@ test('POST billing/sync picks the highest tier when multiple products are presen
     test()->postJson('/api/v1/profile/setup', ['name' => 'Jamie', 'sells_on' => ['woo']])->assertOk();
 
     fakeRevenueCatSubscriber((string) $user->id, [
-        'starter_monthly' => [
+        'starter:monthly' => [
             'expires_date' => now()->addMonth()->toIso8601String(),
             'store' => 'app_store',
             'billing_issues_detected_at' => null,
         ],
-        'premium_monthly' => [
+        'premium:monthly' => [
             'expires_date' => now()->addMonth()->toIso8601String(),
             'store' => 'app_store',
             'billing_issues_detected_at' => null,

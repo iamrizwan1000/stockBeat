@@ -13,6 +13,7 @@ import {
     ClockIcon,
     CreditCardIcon,
     DiscountIcon,
+    EmailIcon,
     ExitIcon,
     FlagIcon,
     HeartIcon,
@@ -85,6 +86,12 @@ const NAV_ITEMS = [
         label: 'Support Inbox',
         url: '/admin/support',
         icon: ChatIcon,
+        exactMatch: false,
+    },
+    {
+        label: 'Contact Inbox',
+        url: '/admin/contact-inbox',
+        icon: EmailIcon,
         exactMatch: false,
     },
     {

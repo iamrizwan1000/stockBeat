@@ -29,11 +29,20 @@ use Illuminate\Support\Carbon;
  * (business-tunable numbers, deliberately DB-driven per §5), these IDs are
  * store-controlled: adding a new one means creating it in App Store
  * Connect/Play Console first, so a code change happens either way.
- * `pro_monthly`/`pro_yearly` both map to the same `Plan::PRO` (yearly is
+ * `pro:monthly`/`pro:yearly` both map to the same `Plan::PRO` (yearly is
  * just cheaper, not a different tier) — but with 4 plan tiers now, this map
  * genuinely needs to carry *which* tier each product grants, not just a
  * pro/not-pro boolean. An unrecognized product_id is a no-op, not a silent
  * Pro grant.
+ *
+ * Product ids use Play Console's base-plan compound format
+ * (`{productId}:{basePlanId}`, e.g. `pro:monthly`) since the Play Store
+ * side moved to one product per tier with monthly/yearly base plans
+ * underneath (revised 2026-07-30) — confirmed against RevenueCat's actual
+ * product catalog, not assumed from Play Console alone. The old flat
+ * `starter_monthly`/`pro_monthly`/`pro_yearly`/`premium_monthly`/
+ * `premium_yearly` ids were retired outright (no backwards-compat entries
+ * kept) since the app had no live subscribers on them yet.
  *
  * Idempotency (a redelivered webhook must never double-credit SMS) is the
  * caller's responsibility via `RevenueCatEvent` — this action assumes it's
@@ -58,11 +67,11 @@ class ProcessRevenueCatEventAction
      * webhook-driven, push-based path does — one whitelist, not two.
      */
     public const SUBSCRIPTION_PLAN_PRODUCTS = [
-        'starter_monthly' => Plan::STARTER,
-        'pro_monthly' => Plan::PRO,
-        'pro_yearly' => Plan::PRO,
-        'premium_monthly' => Plan::PREMIUM,
-        'premium_yearly' => Plan::PREMIUM,
+        'starter:monthly' => Plan::STARTER,
+        'pro:monthly' => Plan::PRO,
+        'pro:yearly' => Plan::PRO,
+        'premium:monthly' => Plan::PREMIUM,
+        'premium:yearly' => Plan::PREMIUM,
     ];
 
     public function __construct(

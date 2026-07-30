@@ -51,6 +51,28 @@ test('dashboard KPIs reflect real data', function () {
     expect($kpis['funnel']['rule_created'])->toBe(1);
 });
 
+test('dashboard subscription KPIs correctly split monthly vs yearly products and compute MRR', function () {
+    $monthlyTeam = Team::factory()->create();
+    Subscription::factory()->create([
+        'team_id' => $monthlyTeam->id,
+        'status' => Subscription::STATUS_ACTIVE,
+        'product_id' => 'pro:monthly',
+    ]);
+
+    $yearlyTeam = Team::factory()->create();
+    Subscription::factory()->create([
+        'team_id' => $yearlyTeam->id,
+        'status' => Subscription::STATUS_ACTIVE,
+        'product_id' => 'premium:yearly',
+    ]);
+
+    $kpis = app(ComputeDashboardKpisAction::class)->handle();
+
+    expect($kpis['subscriptions']['paying_monthly'])->toBe(1);
+    expect($kpis['subscriptions']['paying_yearly'])->toBe(1);
+    expect($kpis['subscriptions']['mrr'])->toBe(round(17.99 + 429.99 / 12, 2));
+});
+
 test('feature adoption reflects real data', function () {
     $team = Team::factory()->create();
 

@@ -37,6 +37,16 @@ class Notification extends Model
 
     public const TYPE_ADMIN_BROADCAST = 'admin_broadcast';
 
+    /**
+     * A direct, one-to-one admin communication about a specific account
+     * action (e.g. a bonus credit grant) — distinct from `TYPE_ADMIN_BROADCAST`
+     * (a segment/all-user marketing send) and, critically, from
+     * `TYPE_RULE_EMAIL`/`TYPE_RULE_SMS`/`TYPE_RULE_PUSH`, so it never counts
+     * against the team's own `email_monthly` quota (`emailsSentThisMonth()`
+     * below only ever counts `TYPE_RULE_EMAIL`) or debits any ledger.
+     */
+    public const TYPE_ADMIN_NOTE = 'admin_note';
+
     public const TYPE_SUPPORT_REPLY = 'support_reply';
 
     public const TYPE_TRIAL_REMINDER = 'trial_reminder';

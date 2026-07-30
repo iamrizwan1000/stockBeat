@@ -1070,6 +1070,20 @@ export default function Welcome() {
                 <footer className="border-t border-[#D8DAD4] py-10">
                     <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 font-mono text-sm text-[#757872] sm:flex-row sm:justify-between">
                         <span>© {new Date().getFullYear()} StockBeat</span>
+                        <div className="flex items-center gap-6">
+                            <a href="/terms" className="transition hover:text-[#191C18]">
+                                Terms
+                            </a>
+                            <a href="/privacy" className="transition hover:text-[#191C18]">
+                                Privacy
+                            </a>
+                            <a href="/contact" className="transition hover:text-[#191C18]">
+                                Contact
+                            </a>
+                            <a href="/newsletter" className="transition hover:text-[#191C18]">
+                                Newsletter
+                            </a>
+                        </div>
                         <span>
                             Billed via Apple &amp; Google in-app purchases · no
                             external checkout

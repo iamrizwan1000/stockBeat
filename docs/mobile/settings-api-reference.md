@@ -167,13 +167,15 @@ Compiles a real JSON export (profile, team, team members, store connections — 
 
 ### The product ID contract (must match exactly on both sides)
 
-RevenueCat product/offering identifiers are a **fixed whitelist in code**, not admin-editable — configuring a product in App Store Connect / Play Console under a different identifier than these means it's silently ignored by the webhook (`ProcessRevenueCatEventAction`'s `default => null` — an unrecognized `product_id` grants nothing, no error, no log the mobile app can see):
+RevenueCat product/offering identifiers are a **fixed whitelist in code**, not admin-editable — configuring a product in App Store Connect / Play Console under a different identifier than these means it's silently ignored by the webhook (`ProcessRevenueCatEventAction`'s `default => null` — an unrecognized `product_id` grants nothing, no error, no log the mobile app can see).
+
+Revised 2026-07-30: Play Console moved to one product per tier with `monthly`/`yearly` base plans, so the id is now the compound `{productId}:{basePlanId}` form (e.g. `pro:monthly`) rather than the old flat `pro_monthly`:
 
 | Product ID | Grants |
 |---|---|
-| `starter_monthly` | Starter |
-| `pro_monthly` / `pro_yearly` | Pro |
-| `premium_monthly` / `premium_yearly` | Premium |
+| `starter:monthly` | Starter |
+| `pro:monthly` / `pro:yearly` | Pro |
+| `premium:monthly` / `premium:yearly` | Premium |
 
 There is no Free product — Free is simply the absence of an active subscription.
 

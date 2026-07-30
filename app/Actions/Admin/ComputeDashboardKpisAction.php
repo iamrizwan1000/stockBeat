@@ -22,16 +22,17 @@ use Illuminate\Support\Facades\DB;
 class ComputeDashboardKpisAction
 {
     /**
-     * Revised 2026-07-16 for the 4-tier model (§5) — must stay in sync with
+     * Revised 2026-07-30 for Play Console's base-plan product ids (§5) —
+     * must stay in sync with
      * `ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS` by hand
      * until a real prices table exists.
      */
     private const PRODUCT_PRICES = [
-        'starter_monthly' => 5.99,
-        'pro_monthly' => 17.99,
-        'pro_yearly' => 172.99,
-        'premium_monthly' => 44.99,
-        'premium_yearly' => 429.99,
+        'starter:monthly' => 5.99,
+        'pro:monthly' => 17.99,
+        'pro:yearly' => 172.99,
+        'premium:monthly' => 44.99,
+        'premium:yearly' => 429.99,
     ];
 
     /**
@@ -118,7 +119,7 @@ class ComputeDashboardKpisAction
         $yearly = 0;
 
         foreach ($countsByProduct as $productId => $count) {
-            $isYearly = str_ends_with((string) $productId, '_yearly');
+            $isYearly = str_ends_with((string) $productId, ':yearly');
             $mrr += $isYearly ? (self::PRODUCT_PRICES[$productId] / 12) * $count : self::PRODUCT_PRICES[$productId] * $count;
 
             if ($isYearly) {

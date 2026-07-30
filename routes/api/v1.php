@@ -57,6 +57,7 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
 
     Route::get('billing/entitlements', [BillingController::class, 'entitlements'])->name('billing.entitlements');
     Route::post('billing/sync', [BillingController::class, 'sync'])->name('billing.sync');
+    Route::get('billing/plans', [BillingController::class, 'plans'])->name('billing.plans');
 
     Route::get('usage/summary', [UsageController::class, 'summary'])->name('usage.summary');
 

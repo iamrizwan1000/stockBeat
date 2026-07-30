@@ -3,6 +3,7 @@
 use App\Models\AdminAuditLog;
 use App\Models\AdminUser;
 use App\Models\AiUsageLedger;
+use App\Models\EmailUsageLedger;
 use App\Models\Plan;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
@@ -120,6 +121,19 @@ test('granting bonus AI question credits raises the current month\'s effective q
     expect(AiUsageLedger::bonusGrantedThisMonth($team->id))->toBe(20);
     expect(AiUsageLedger::effectiveMonthlyLimit($team->id, 30))->toBe(50);
     expect(AdminAuditLog::query()->where('action', 'customer.grant_bonus_ai_credits')->where('target_id', $team->id)->exists())->toBeTrue();
+});
+
+test('granting bonus email credits raises the current month\'s effective quota', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+
+    test()->actingAs($admin, 'admin')
+        ->post("/admin/customers/{$user->id}/grant-email-credits", ['credits' => 50])
+        ->assertRedirect();
+
+    expect(EmailUsageLedger::bonusGrantedThisMonth($team->id))->toBe(50);
+    expect(EmailUsageLedger::effectiveMonthlyLimit($team->id, 25))->toBe(75);
+    expect(AdminAuditLog::query()->where('action', 'customer.grant_bonus_email_credits')->where('target_id', $team->id)->exists())->toBeTrue();
 });
 
 test('force logout revokes all sanctum tokens', function () {

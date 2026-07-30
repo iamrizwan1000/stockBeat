@@ -66,6 +66,13 @@ use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
  * and maps `high`/`critical` to the FCM/APNs "deliver now" priority tier
  * (`AndroidConfig::withHighMessagePriority()`, `ApnsConfig::withImmediatePriority()`)
  * so it's a real delivery-behavior change, not just a cosmetic label.
+ *
+ * `$bypassPreferences` (added 2026-07-30), default `false` so every existing
+ * caller is unaffected, skips the `push_enabled`/quiet-hours gate entirely —
+ * used only by `NotifyCustomerOfCreditGrantAction` for a direct,
+ * account-specific admin communication (not marketing), which is meant to
+ * always reach the customer rather than wait out quiet hours or respect a
+ * mute toggle a rule-triggered alert would.
  */
 class SendPushNotificationAction
 {
@@ -76,7 +83,7 @@ class SendPushNotificationAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null, ?StoreConnection $connection = null, ?string $priority = null): string
+    public function handle(User $user, string $title, string $body, array $data = [], string $type = Notification::TYPE_RULE_PUSH, bool $deliver = true, ?string $sound = null, ?callable $onNotificationCreated = null, ?StoreConnection $connection = null, ?string $priority = null, bool $bypassPreferences = false): string
     {
         if ($connection !== null) {
             $data['platform'] ??= $connection->platform;
@@ -107,11 +114,11 @@ class SendPushNotificationAction
 
         $preference = $user->notificationPreference;
 
-        if ($preference !== null && ! $preference->push_enabled) {
+        if (! $bypassPreferences && $preference !== null && ! $preference->push_enabled) {
             return 'muted_by_preference';
         }
 
-        if ($preference !== null && $preference->isWithinQuietHours()) {
+        if (! $bypassPreferences && $preference !== null && $preference->isWithinQuietHours()) {
             return 'quiet_hours';
         }
 

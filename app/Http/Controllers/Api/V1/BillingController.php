@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Billing\ListActivePlansAction;
 use App\Actions\Billing\ResolveFullEntitlementsAction;
 use App\Actions\Billing\SyncRevenueCatSubscriberAction;
 use App\Http\Controllers\Controller;
@@ -104,5 +105,30 @@ class BillingController extends Controller
         $syncSubscriber->handle($team, $request->string('rc_app_user_id')->toString());
 
         return ApiResponse::success($resolveEntitlements->handle($team->fresh()));
+    }
+
+    /**
+     * List all active plans and their limits.
+     *
+     * For client-side plan-comparison screens (e.g. the mobile "Compare plans" screen) —
+     * unlike `entitlements`, which only resolves the caller's own plan, this returns every
+     * active plan's limits so comparison copy can be sourced from `plan_limits` instead of
+     * hardcoded numbers. No price or marketing copy is included: pricing lives in RevenueCat /
+     * the App Store / Play Store product config, outside this API's control.
+     *
+     * @response 200 scenario="success" {
+     *   "success": true,
+     *   "message": null,
+     *   "data": [
+     *     { "key": "free", "name": "Free", "limits": { "max_stores": 1, "max_rules": 0, "sms_monthly": 0, "email_monthly": 25, "history_days": 7 } },
+     *     { "key": "starter", "name": "Starter", "limits": { "max_stores": 3, "max_rules": 5, "sms_monthly": 20, "email_monthly": 250, "history_days": 30 } },
+     *     { "key": "pro", "name": "Pro", "limits": { "max_stores": 10, "max_rules": null, "sms_monthly": 100, "email_monthly": 1000, "history_days": 365 } },
+     *     { "key": "premium", "name": "Premium", "limits": { "max_stores": null, "max_rules": null, "sms_monthly": 500, "email_monthly": 5000, "history_days": null } }
+     *   ]
+     * }
+     */
+    public function plans(ListActivePlansAction $listActivePlans): JsonResponse
+    {
+        return ApiResponse::success($listActivePlans->handle());
     }
 }

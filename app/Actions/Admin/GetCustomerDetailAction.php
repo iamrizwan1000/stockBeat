@@ -5,6 +5,7 @@ namespace App\Actions\Admin;
 use App\Actions\Billing\ResolveEntitlementsAction;
 use App\Models\AiUsageLedger;
 use App\Models\Device;
+use App\Models\EmailUsageLedger;
 use App\Models\Notification;
 use App\Models\SmsLedger;
 use App\Models\SubscriptionEvent;
@@ -110,6 +111,23 @@ class GetCustomerDetailAction
                     ->limit(20)
                     ->get()
                     ->map(fn (AiUsageLedger $entry) => [
+                        'id' => $entry->id,
+                        'delta' => $entry->delta,
+                        'reason' => $entry->reason,
+                        'balance_after' => $entry->balance_after,
+                        'created_at' => $entry->created_at,
+                    ])->all(),
+            ],
+            'email_usage' => $team === null ? null : [
+                'emails_used_this_month' => Notification::emailsSentThisMonth($team),
+                'monthly_limit' => EmailUsageLedger::effectiveMonthlyLimit($team->id, $this->resolveEntitlements->handle($team)['limits']['email_monthly'] ?? null),
+                'bonus_granted_this_month' => EmailUsageLedger::bonusGrantedThisMonth($team->id),
+                'ledger' => EmailUsageLedger::query()
+                    ->where('team_id', $team->id)
+                    ->latest('id')
+                    ->limit(20)
+                    ->get()
+                    ->map(fn (EmailUsageLedger $entry) => [
                         'id' => $entry->id,
                         'delta' => $entry->delta,
                         'reason' => $entry->reason,

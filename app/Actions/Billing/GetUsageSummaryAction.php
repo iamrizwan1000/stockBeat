@@ -3,6 +3,7 @@
 namespace App\Actions\Billing;
 
 use App\Models\AiUsageLedger;
+use App\Models\EmailUsageLedger;
 use App\Models\Notification;
 use App\Models\SmsLedger;
 use App\Models\Team;
@@ -84,13 +85,14 @@ class GetUsageSummaryAction
      */
     private function emailUsage(Team $team, ?int $monthlyLimit): array
     {
+        $effectiveLimit = EmailUsageLedger::effectiveMonthlyLimit($team->id, $monthlyLimit);
         $usedThisMonth = Notification::emailsSentThisMonth($team);
 
         return [
-            'limit' => $monthlyLimit,
+            'limit' => $effectiveLimit,
             'used_this_month' => $usedThisMonth,
-            'remaining' => $monthlyLimit === null ? null : max($monthlyLimit - $usedThisMonth, 0),
-            ...$this->quotaFields($usedThisMonth, $monthlyLimit),
+            'remaining' => $effectiveLimit === null ? null : max($effectiveLimit - $usedThisMonth, 0),
+            ...$this->quotaFields($usedThisMonth, $effectiveLimit),
             'daily' => $this->fillDailySeries(Notification::dailyEmailCounts($team, self::DAILY_WINDOW_DAYS)),
         ];
     }

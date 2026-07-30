@@ -14,19 +14,19 @@ If you're only supporting Android at launch, skip the App Store–specific notes
 - The app must have at least one APK/AAB uploaded to an internal testing track before Play Billing products can be tested (Google's own requirement — you can't test IAPs against an app that's never been uploaded).
 - **A Google Cloud service account with API access to Play Console**, used later to link RevenueCat (§2.2) — create this under Play Console → Setup → API access → "Create new service account" (it walks you to Google Cloud Console to finish creation), then grant it **Finance** permissions back in Play Console for this specific app.
 
-### 1.2 Create the 5 subscription products
+### 1.2 Create the 3 subscription products, each with monthly/yearly base plans
 
-Play Console → your app → Monetize → Products → **Subscriptions**. Create one subscription product per tier, each with the base plans/prices below. The **product ID you type here must exactly match** the whitelist in `ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS` — get these wrong and a real purchase will silently grant nothing (no error visible to the buyer or to you):
+Revised 2026-07-30: Play Console → your app → Monetize → Products → **Subscriptions**. Create **one subscription product per tier** (`starter`, `pro`, `premium` — the bare tier name as the Product ID), then add `monthly`/`yearly` base plans underneath each (Starter only ever gets a `monthly` base plan — there's no Starter yearly option). The **resulting compound id (`{productId}:{basePlanId}`) must exactly match** the whitelist in `ProcessRevenueCatEventAction::SUBSCRIPTION_PLAN_PRODUCTS` — get these wrong and a real purchase will silently grant nothing (no error visible to the buyer or to you):
 
-| Product ID (exact) | Base plan | Price |
-|---|---|---|
-| `starter_monthly` | Monthly, auto-renewing | $5.99 |
-| `pro_monthly` | Monthly, auto-renewing | $17.99 |
-| `pro_yearly` | Yearly, auto-renewing | $172.99 |
-| `premium_monthly` | Monthly, auto-renewing | $44.99 |
-| `premium_yearly` | Yearly, auto-renewing | $429.99 |
+| Product ID | Base plan ID | Resulting id | Price |
+|---|---|---|---|
+| `starter` | `monthly` | `starter:monthly` | $5.99 |
+| `pro` | `monthly` | `pro:monthly` | $17.99 |
+| `pro` | `yearly` | `pro:yearly` | $172.99 |
+| `premium` | `monthly` | `premium:monthly` | $44.99 |
+| `premium` | `yearly` | `premium:yearly` | $429.99 |
 
-(`pro_monthly`/`pro_yearly` and `premium_monthly`/`premium_yearly` can be modeled as two base plans under one subscription "product" per tier in Play Console's newer subscription model, or as fully separate products — either is fine, RevenueCat/our webhook only ever sees the product id string, not Play Console's internal grouping.)
+This replaced an earlier flat-product-id scheme (`starter_monthly`, `pro_monthly`, `pro_yearly`, `premium_monthly`, `premium_yearly` as five separate products with no base plans) — confirmed via RevenueCat's Product catalog that it surfaces the new base-plan products using the `{productId}:{basePlanId}` compound identifier, matching Google Play's own base-plan id convention. The old flat products can be left in Play Console as inactive/backwards-compatible if any real subscriber ever purchased under them; this backend's whitelist only needs live entries for whichever ids can still generate events.
 
 Set regional pricing however you want per market — the *product ID* is what's load-bearing here, not the price (the price shown to the buyer always comes from the store, never from this backend).
 
@@ -94,7 +94,7 @@ RevenueCat automatically detects sandbox purchases (from a Play Console license 
 Once both sides are configured:
 
 1. Set `REVENUECAT_WEBHOOK_SECRET` and `REVENUECAT_SECRET_API_KEY` in production `.env`, then `php artisan config:cache` (a stale cached config is a common reason a freshly-set env var appears to do nothing — see `deployment.md`).
-2. From a license-tester Android account, purchase `pro_monthly` in the app.
+2. From a license-tester Android account, purchase `pro:monthly` in the app.
 3. Check RevenueCat's dashboard webhook log — confirm `INITIAL_PURCHASE` shows a successful (200) delivery to `/hooks/revenuecat`.
 4. Confirm `GET /me` for that test account now shows `plan: "pro"`, `subscription_status: "active"`.
 5. Purchase `sms_100` as the same tester — confirm `sms_balance` rises by exactly 100 and a new `NON_RENEWING_PURCHASE` webhook delivery shows success.

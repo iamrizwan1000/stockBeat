@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AiTopupPackController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CannedReplyController;
+use App\Http\Controllers\Admin\ContactInboxController;
 use App\Http\Controllers\Admin\ContentBlockController;
 use App\Http\Controllers\Admin\CustomerActionController;
 use App\Http\Controllers\Admin\CustomerController;
@@ -19,11 +20,21 @@ use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SegmentController;
 use App\Http\Controllers\Admin\SmsTopupPackController;
 use App\Http\Controllers\Admin\SupportInboxController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\NewsletterController;
 use App\Models\AiProviderSetting;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('welcome'))->name('home');
+Route::get('terms', fn () => Inertia::render('terms'))->name('terms');
+Route::get('privacy', fn () => Inertia::render('privacy'))->name('privacy');
+
+Route::get('contact', [ContactController::class, 'create'])->name('contact.create');
+Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
+
+Route::get('newsletter', [NewsletterController::class, 'create'])->name('newsletter.create');
+Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->middleware('throttle:5,1')->name('newsletter.subscribe');
 
 // Admin panel (Inertia + React + Polaris). Fortify serves /admin/login and
 // /admin/logout on the "admin" guard (the app default) — see config/fortify.php.
@@ -57,6 +68,9 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
     Route::get('support', [SupportInboxController::class, 'index'])->name('support.index');
     Route::get('support/{thread}', [SupportInboxController::class, 'show'])->name('support.show');
 
+    Route::get('contact-inbox', [ContactInboxController::class, 'index'])->name('contact-inbox.index');
+    Route::get('contact-inbox/{thread}', [ContactInboxController::class, 'show'])->name('contact-inbox.show');
+
     Route::get('canned-replies', [CannedReplyController::class, 'index'])->name('canned-replies.index');
 
     Route::get('team', [AdminUserController::class, 'index'])->name('team.index');
@@ -71,6 +85,7 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
         Route::post('customers/{user}/grant-pro', [CustomerActionController::class, 'grantPro'])->name('customers.grant-pro');
         Route::post('customers/{user}/grant-sms-credits', [CustomerActionController::class, 'grantSmsCredits'])->name('customers.grant-sms-credits');
         Route::post('customers/{user}/grant-ai-credits', [CustomerActionController::class, 'grantAiCredits'])->name('customers.grant-ai-credits');
+        Route::post('customers/{user}/grant-email-credits', [CustomerActionController::class, 'grantEmailCredits'])->name('customers.grant-email-credits');
         Route::post('customers/{user}/force-logout', [CustomerActionController::class, 'forceLogout'])->name('customers.force-logout');
         Route::post('customers/{user}/suspend', [CustomerActionController::class, 'suspend'])->name('customers.suspend');
         Route::post('customers/{user}/unsuspend', [CustomerActionController::class, 'unsuspend'])->name('customers.unsuspend');
@@ -120,6 +135,8 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
         Route::post('support/{thread}/notes', [SupportInboxController::class, 'addNote'])->name('support.notes.store');
         Route::post('support/{thread}/assign', [SupportInboxController::class, 'assign'])->name('support.assign');
         Route::post('support/{thread}/resolve', [SupportInboxController::class, 'resolve'])->name('support.resolve');
+
+        Route::post('contact-inbox/{thread}/reply', [ContactInboxController::class, 'reply'])->name('contact-inbox.reply');
 
         Route::post('canned-replies', [CannedReplyController::class, 'store'])->name('canned-replies.store');
         Route::put('canned-replies/{cannedReply}', [CannedReplyController::class, 'update'])->name('canned-replies.update');

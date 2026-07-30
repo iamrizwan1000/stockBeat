@@ -23,7 +23,7 @@ test('recording a snapshot writes a row with the expected scalar metrics', funct
     Subscription::factory()->create([
         'team_id' => $activeTeam->id,
         'status' => Subscription::STATUS_ACTIVE,
-        'product_id' => 'pro_monthly',
+        'product_id' => 'pro:monthly',
     ]);
 
     SmsLedger::factory()->create([

@@ -54,7 +54,7 @@ function revenueCatEvent(int $appUserId, array $overrides = []): array
         'id' => (string) fake()->unique()->uuid(),
         'type' => 'INITIAL_PURCHASE',
         'app_user_id' => (string) $appUserId,
-        'product_id' => 'pro_monthly',
+        'product_id' => 'pro:monthly',
         'store' => 'PLAY_STORE',
         'expiration_at_ms' => now()->addMonth()->getTimestampMs(),
     ], $overrides);
@@ -71,34 +71,34 @@ test('an INITIAL_PURCHASE activates the subscription and is reflected in /me', f
     $user = onboardedRevenueCatUser();
     expect($user->ownedTeam->subscription->status)->toBe(Subscription::STATUS_TRIAL);
 
-    postRevenueCatEvent(revenueCatEvent($user->id, ['product_id' => 'pro_monthly']))->assertOk();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['product_id' => 'pro:monthly']))->assertOk();
 
     $subscription = $user->ownedTeam->subscription->fresh();
     expect($subscription->status)->toBe(Subscription::STATUS_ACTIVE);
     expect($subscription->provider)->toBe('google');
-    expect($subscription->product_id)->toBe('pro_monthly');
+    expect($subscription->product_id)->toBe('pro:monthly');
     expect($subscription->plan_key)->toBe('pro');
     expect($subscription->expires_at)->not->toBeNull();
 
     test()->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.entitlements.plan', 'pro');
 });
 
-test('starter_monthly and premium_yearly each activate their own tier', function () {
+test('starter:monthly and premium:yearly each activate their own tier', function () {
     $starterUser = onboardedRevenueCatUser();
-    postRevenueCatEvent(revenueCatEvent($starterUser->id, ['product_id' => 'starter_monthly']))->assertOk();
+    postRevenueCatEvent(revenueCatEvent($starterUser->id, ['product_id' => 'starter:monthly']))->assertOk();
     expect($starterUser->ownedTeam->subscription->fresh()->plan_key)->toBe('starter');
 
     $premiumUser = onboardedRevenueCatUser();
-    postRevenueCatEvent(revenueCatEvent($premiumUser->id, ['product_id' => 'premium_yearly']))->assertOk();
+    postRevenueCatEvent(revenueCatEvent($premiumUser->id, ['product_id' => 'premium:yearly']))->assertOk();
     expect($premiumUser->ownedTeam->subscription->fresh()->plan_key)->toBe('premium');
 });
 
 test('a PRODUCT_CHANGE moves plan_key to the new tier', function () {
     $user = onboardedRevenueCatUser();
-    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE', 'product_id' => 'pro_monthly']))->assertOk();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'INITIAL_PURCHASE', 'product_id' => 'pro:monthly']))->assertOk();
     expect($user->ownedTeam->subscription->fresh()->plan_key)->toBe('pro');
 
-    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'PRODUCT_CHANGE', 'product_id' => 'premium_monthly']))->assertOk();
+    postRevenueCatEvent(revenueCatEvent($user->id, ['type' => 'PRODUCT_CHANGE', 'product_id' => 'premium:monthly']))->assertOk();
     expect($user->ownedTeam->subscription->fresh()->plan_key)->toBe('premium');
 });
 
@@ -206,7 +206,7 @@ test('an INITIAL_PURCHASE with price data is appended to the subscription_events
 
     postRevenueCatEvent(revenueCatEvent($user->id, [
         'type' => 'INITIAL_PURCHASE',
-        'product_id' => 'pro_monthly',
+        'product_id' => 'pro:monthly',
         'price_in_purchased_currency' => 9.99,
         'currency' => 'USD',
     ]))->assertOk();

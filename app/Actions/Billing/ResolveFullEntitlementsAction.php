@@ -3,6 +3,7 @@
 namespace App\Actions\Billing;
 
 use App\Models\AiUsageLedger;
+use App\Models\EmailUsageLedger;
 use App\Models\Notification;
 use App\Models\SmsLedger;
 use App\Models\Team;
@@ -46,16 +47,14 @@ class ResolveFullEntitlementsAction
         return max($effectiveLimit - AiUsageLedger::questionsUsedThisMonth($team->id), 0);
     }
 
-    /**
-     * Unlike SMS/AI, there's no top-up bonus to net in for email — the
-     * monthly plan limit is the whole cap.
-     */
     private function emailsRemaining(Team $team, ?int $monthlyLimit): ?int
     {
-        if ($monthlyLimit === null) {
+        $effectiveLimit = EmailUsageLedger::effectiveMonthlyLimit($team->id, $monthlyLimit);
+
+        if ($effectiveLimit === null) {
             return null;
         }
 
-        return max($monthlyLimit - Notification::emailsSentThisMonth($team), 0);
+        return max($effectiveLimit - Notification::emailsSentThisMonth($team), 0);
     }
 }

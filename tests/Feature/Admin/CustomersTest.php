@@ -68,7 +68,7 @@ test('the customer detail page shows real team, subscription, and rule data', fu
     $owner = User::factory()->create();
     $team = Team::factory()->create(['owner_id' => $owner->id]);
     TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id, 'role' => TeamMember::ROLE_OWNER]);
-    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_ACTIVE, 'product_id' => 'pro_monthly']);
+    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_ACTIVE, 'product_id' => 'pro:monthly']);
     Rule::factory()->create(['team_id' => $team->id, 'created_by' => $owner->id]);
 
     $response = test()->actingAs($admin, 'admin')->get("/admin/customers/{$owner->id}");

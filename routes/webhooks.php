@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BroadcastTrackingController;
+use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\OAuthCallbackController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -42,4 +43,11 @@ Route::get('broadcasts/track/{delivery}/open.gif', [BroadcastTrackingController:
     ->middleware('signed');
 Route::get('broadcasts/{delivery}/unsubscribe', [BroadcastTrackingController::class, 'unsubscribe'])
     ->name('broadcasts.unsubscribe')
+    ->middleware('signed');
+
+// Newsletter unsubscribe — hit directly from the link in a confirmation/
+// send email, no session, same signed-URL convention as the broadcast
+// unsubscribe above.
+Route::get('newsletter/unsubscribe/{token}', [NewsletterController::class, 'unsubscribe'])
+    ->name('newsletter.unsubscribe')
     ->middleware('signed');
