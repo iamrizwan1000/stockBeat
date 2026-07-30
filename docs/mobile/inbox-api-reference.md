@@ -1,6 +1,6 @@
 # StockBeat Mobile — Inbox API Reference
 
-Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md`.
+Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md`. **Sending here reaches a real customer — read `network-resilience-and-edge-cases.md` before building the composer**, since a retry on a slow connection can deliver the same message to the buyer twice.
 
 Tab 3 in the bottom nav (Plan §4.5/§4.10). **Requires the Pro plan or higher** (`entitlements.limits.inbox_enabled`) — Free/Starter shouldn't see this tab at all, route straight to the upgrade paywall if a Starter user somehow reaches it. **Now actually enforced server-side as of 2026-07-26** — every endpoint on this page 403s with `"The unified inbox requires the Pro plan or higher."` if called on a non-entitled team; this was previously documented but not implemented, so don't rely on any earlier testing that showed it "working" for a Free team — that was the bug, not intended behavior.
 
@@ -68,6 +68,18 @@ or
 **Common real failure reasons** (`failure_reason` text, not an enum — show it verbatim):
 - `"This thread has no customer email on file."` (Shopify/Woo threads, email channel)
 - Etsy: a message from the platform's own `AdapterNotReadyException` when conversations approval hasn't been granted yet — show as "Etsy messaging isn't available for this shop yet," not a generic error
+
+### ⚠️ A repeat send reaches a real customer — 429 on an identical body (added 2026-07-31)
+
+This endpoint sends a **real message to a real buyer** on eBay/Etsy/Amazon, or queues a real email on Shopify/Woo. A double-tap used to send it twice, which the customer sees.
+
+Sending the **identical `body`** to the same thread within **10 seconds** now returns **429** with `"This message was just sent — please wait a moment before trying again."` and sends nothing. Show it as a light "already sending" hint, not a hard error — and don't clear the composer or navigate away as if the send failed, because the *first* one succeeded.
+
+- The window is keyed to thread + message body, so sending a **genuinely different** follow-up message immediately after is never blocked.
+- **Never auto-retry this on timeout.** The message may already have gone out to the customer. Re-fetch `GET /threads/{id}/messages` and check for your `direction: "out"` message before resending.
+- Same rule as everywhere else: disable the send button on tap until the response lands. The 429 is the safety net, not the plan.
+
+A `reply_template_id` send resolves to its rendered body server-side before this check, so sending the same template twice in a row hits the same guard.
 
 ## `POST /threads/{id}/assign`
 

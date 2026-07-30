@@ -1,6 +1,6 @@
 # StockBeat Mobile — AI Assistant API Reference
 
-Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md`.
+Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md`. **Asking a question spends a real, metered question against the plan quota — read `network-resilience-and-edge-cases.md` before building the send flow**, since a careless retry on a slow connection charges the seller twice.
 
 Plan §4.12. **Not a bottom-nav tab** — this is a cross-cutting feature reachable from multiple places: a persistent "Ask AI" entry, a suggested-questions chip row on the Feed/Business Overview header, an "Ask AI about this" affordance on order detail and on notifications, and the natural-language input on the Rules create screen (`rules-flow-screens.md` already cross-references the rule-draft endpoint — this doc is its full reference).
 
@@ -70,7 +70,19 @@ A single "ask" can produce several tool round-trips (up to 5) before the final a
 | 422 | `mode: "data"` monthly quota exhausted | `"You've used all {N} AI questions included in your plan this month. Upgrade or wait for next month's reset."` under `errors.question` |
 | 422 | Profile setup incomplete | `"Complete profile setup before using the AI Assistant."` |
 | 404 | `conversation_id` doesn't exist or isn't your team's | Standard not-found |
+| **429** | The identical question was just asked and is still being answered (added 2026-07-31) | `"Your previous question is still being answered — please wait a moment."` — see below |
 | 422 (via `AiProviderException`, surfaces as a generic failure) | The model couldn't produce a usable answer after 5 tool rounds | `"The AI Assistant could not produce an answer after several tool calls — try rephrasing the question."` — show as a normal error toast with a retry, not a crash |
+
+### ⚠️ Don't resend an ask that seems to have stalled — it costs a real question
+
+An ask legitimately takes a while: up to 5 tool round-trips against the model, so **10+ seconds on a slow connection is normal, not a hang**. Each completed ask debits one question from the monthly quota, so a resend isn't free — it's a second real question the seller paid for.
+
+Since 2026-07-31 the server guards this: an identical `question` for the same conversation within **60 seconds** returns **429** instead of running a second time, so a double-tap can no longer double-charge the quota or duplicate the answer. Treat the 429 as informational — "still working on it", not an error the user must fix — and keep waiting on the original request rather than surfacing a failure.
+
+Client-side, this means:
+- **Disable the send button from the moment it's tapped until the response lands.** The 429 is a safety net for when that doesn't happen, not a substitute for it.
+- **Never auto-retry an ask on timeout.** If the request times out, the answer may well have been generated and the quota already debited — re-fetch the conversation with `GET /assistant/conversations/{id}` to see whether the answer arrived, and only re-ask if it genuinely didn't.
+- The 60s window is keyed to the exact question text plus conversation, so a **different** follow-up question sent immediately after is never blocked.
 
 ### The question quota (Data Copilot only)
 

@@ -256,6 +256,8 @@ or
 
 **Success — 201:** `{message: {...}}`, same shape as `inbox-api-reference.md`'s message objects (`direction: "out"`). **A 201 isn't proof of delivery** — check the returned message's `status`/`failure_reason` (e.g. `"This thread has no customer email on file."` for Shopify/Woo threads), same caveat as the Inbox tab's send endpoint.
 
+**Repeat-safe since 2026-07-31:** because this shares the Inbox tab's underlying send action, it shares its guard — an identical `body` to the same order's thread within 10 seconds returns **429** (`"This message was just sent — please wait a moment before trying again."`) and sends nothing, so a double-tap can't deliver the same message to the customer twice. Full guidance, including why you must never auto-retry this on timeout, is in `inbox-api-reference.md`'s send-message section.
+
 ---
 
 ## Favorite/saved filters — added 2026-07-27 (Plan §4.23)
