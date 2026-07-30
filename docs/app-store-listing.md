@@ -24,11 +24,11 @@ Copy-paste-ready content for both submission consoles. Character counts are veri
 
 | Field | Limit | Content | Count |
 |---|---|---|---|
-| Subtitle | 30 characters | `Rules, alerts & stock control` | 29 |
-| Promotional Text | 170 characters | `Instant alerts the moment a Shopify order lands, plus custom rules for low stock, reviews & more. WooCommerce, eBay, Etsy, Amazon & TikTok Shop support coming soon.` | 164 |
+| Subtitle | 30 characters | `Real-time orders. Zero stress.` | 30 |
+| Promotional Text | 170 characters | `Your phone buzzes the second an order lands — not next time you check your laptop. Smart rules watch stock, reviews & spikes so you don't have to.` | 146 |
 | Keywords | 100 characters, comma-separated | `shopify,orders,inventory,alerts,ecommerce,seller,rules,notifications,stock,dropship` | 83 |
-| What's New (v1.0) | 4,000 characters | `Welcome to StockBeat! Connect your Shopify store, set up your first rule, and get real-time order alerts wherever you are. This release includes the unified order feed, custom rules engine, inventory alerts, and analytics dashboard.` | 232 |
-| Description | 4,000 characters | See [Full description](#full-description-both-platforms) below | 2,052 |
+| What's New (v1.0) | 4,000 characters | `Your store just got a heartbeat. Connect Shopify, set your first rule, and feel every order the second it happens — right from your pocket. This release: live order feed, custom rules, stock alerts, and your business at a glance.` | 229 |
+| Description | 4,000 characters | See [Full description](#full-description-both-platforms) below | 2,253 |
 | Copyright | short text | `© 2026 StockBeat` | — |
 
 **Promotional Text is the only field you can edit without a new build review** — good place to push time-sensitive callouts (a new platform launch, a pricing change) between releases.
@@ -43,8 +43,8 @@ Copy-paste-ready content for both submission consoles. Character counts are veri
 
 | Field | Limit | Content | Count |
 |---|---|---|---|
-| Short description | 80 characters | `Real-time Shopify order alerts, custom rules, inventory tracking, on the go.` | 76 |
-| Full description | 4,000 characters | See [Full description](#full-description-both-platforms) below | 2,052 |
+| Short description | 80 characters | `Your Shopify store, watched 24/7. Instant alerts, smart rules, no laptop.` | 73 |
+| Full description | 4,000 characters | See [Full description](#full-description-both-platforms) below | 2,253 |
 | Feature graphic | 1024×500px, required | Banner — logo (`public/assets/logo1.png`) on the marketing site's background color (`#F8FAF3`), with "StockBeat" wordmark and a short tagline overlay. Design this fresh, don't stretch the app icon. | — |
 | App icon | 512×512px | Export from `public/assets/logo1.png` at full res | — |
 | Screenshots | min 2, phone required | Same shot list as Apple, sized for Play's phone/7"/10" tablet buckets | — |
@@ -55,34 +55,37 @@ Copy-paste-ready content for both submission consoles. Character counts are veri
 
 ## Full description (both platforms)
 
-*2,052 characters — same copy works for both App Store (4,000 limit) and Play Store (4,000 limit).*
+*2,253 characters — same copy works for both App Store (4,000 limit) and Play Store (4,000 limit).*
 
 ```
-StockBeat is mission control for Shopify sellers who don't want to live inside a laptop dashboard.
+Your Shopify store never sleeps. Now you don't have to babysit it either.
 
-Every order lands in one real-time feed the moment it comes in — customer, total, fulfillment and payment status, and a full timeline, all at a glance. Fulfill with tracking, issue a full or partial refund, cancel, tag, or message the customer, right from your phone. Batch it across dozens of orders when volume picks up.
+StockBeat turns your phone into mission control — the moment an order lands, you know. The second stock runs low, you know. The instant a review needs a reply, you know. No laptop, no five open tabs, no wondering what happened while you were away.
 
-RULES THAT KNOW YOUR BUSINESS
-Compose rules in plain terms — WHEN a trigger fires, IF conditions match, THEN act. New orders, low stock, stale inventory, review ratings, order and refund spikes, and more, with AND/OR conditions on total, SKU, country, and repeat-buyer status. Get notified by push, email, or SMS, with a custom sound and priority per rule, quiet hours, and cooldowns so you're alerted to what matters without being buried in noise.
+EVERY ORDER, THE SECOND IT HAPPENS
+Watch orders roll in live — customer, total, fulfillment and payment status, a full timeline on every single one. Fulfill with tracking, refund in full or in part, cancel, tag, or message the customer, all with your thumb. Batch it across dozens of orders when a launch goes big.
 
-KNOW WHERE YOU STAND, TODAY
-Today, 7-day, and 30-day revenue, order count, and average order value, plus goal tracking against your best month. A morning digest tells you what happened while you slept.
+RULES THAT ACTUALLY GET YOUR BUSINESS
+Stop drowning in notifications that don't matter. Build rules in plain English — WHEN a trigger fires, IF conditions match, THEN act. New orders, low stock, stale inventory, review ratings, order and refund spikes — combine conditions on total, SKU, country, repeat buyers, however you actually run things. Push, email, or SMS, your call, with quiet hours so 2am isn't part of the deal.
 
-INVENTORY THAT ALERTS ITSELF
-Push real stock corrections straight to Shopify, get notified the moment something drops below your threshold, and catch dead stock before it becomes a write-off. Cost price tracking means profit math is never a guess.
+YOUR NUMBERS, WITHOUT THE SPREADSHEET
+Today, this week, this month — revenue, orders, average order value, tracked against your best month ever. Wake up to a morning digest that already knows what happened while you slept.
 
-BUILT FOR TEAMS
-Invite staff with role-based permissions. Higher plans add a unified customer inbox, review replies, payout tracking, and an AI assistant that can answer questions about your business and help build rules.
+STOCK THAT WATCHES ITSELF
+Get pinged the moment something drops below your line, push corrected counts straight to Shopify, and catch dead stock before it quietly kills your margin. Cost price tracking means profit is a fact, not a guess.
 
-PLANS
-Free: 1 store, new-order alerts, daily digest.
-Starter ($5.99/mo): up to 3 stores, 5 custom rules, SMS + email alerts.
-Pro ($17.99/mo): up to 10 stores, unlimited rules, unified inbox, full analytics, team seats — 7-day free trial.
-Premium ($44.99/mo): unlimited stores, highest alert volume, priority support.
+BRING YOUR TEAM
+Add staff with real permissions, not a shared password. Upgrade for a unified inbox, review replies, payout tracking, and an AI assistant that actually knows your store — ask it anything, or let it help you build the next rule.
 
-Shopify support is live today. WooCommerce, eBay, Etsy, Amazon, and TikTok Shop connections are coming soon.
+PICK YOUR SPEED
+Free — 1 store, order alerts, daily digest, no card required.
+Starter, $5.99/mo — 3 stores, 5 custom rules, SMS + email.
+Pro, $17.99/mo — 10 stores, unlimited rules, unified inbox, full analytics, team seats. 7-day free trial.
+Premium, $44.99/mo — unlimited stores, top-tier alert volume, priority support.
 
-No password to remember — sign in with a one-time email code and you're in.
+Shopify is live right now. WooCommerce, eBay, Etsy, Amazon, and TikTok Shop are on the way.
+
+No password to remember, ever — one email code and you're in.
 ```
 
 ---
