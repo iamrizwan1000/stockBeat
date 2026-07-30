@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Rules\DispatchRuleActionsAction;
 use App\Actions\Rules\RuleEvaluationAction;
 use App\Models\Order;
 use App\Models\Rule;
@@ -267,6 +268,33 @@ test('refund_spike does not count non-refunded orders', function () {
     $execution = app(RuleEvaluationAction::class)->handle($rule, Rule::TRIGGER_REFUND_SPIKE, $order);
 
     expect($execution)->toBeNull();
+});
+
+test('a queue-job retry after a crash mid-send does not re-send (execution slot is claimed before dispatch)', function () {
+    $order = Order::factory()->create();
+    $rule = Rule::factory()->create(['team_id' => $order->team_id, 'trigger' => Rule::TRIGGER_NEW_ORDER]);
+
+    $crashingDispatch = Mockery::mock(DispatchRuleActionsAction::class);
+    $crashingDispatch->shouldReceive('handle')->once()->andThrow(new RuntimeException('simulated mid-send crash'));
+    app()->instance(DispatchRuleActionsAction::class, $crashingDispatch);
+
+    expect(fn () => app(RuleEvaluationAction::class)->handle($rule, Rule::TRIGGER_NEW_ORDER, $order))
+        ->toThrow(RuntimeException::class);
+
+    // The execution slot was claimed BEFORE the crash, so it survives even
+    // though `dispatchActions->handle()` never returned.
+    expect(RuleExecution::query()->count())->toBe(1);
+
+    // A retry (a fresh RuleEvaluationJob run reprocessing the same order)
+    // must be blocked, not re-dispatched.
+    $retryDispatch = Mockery::mock(DispatchRuleActionsAction::class);
+    $retryDispatch->shouldNotReceive('handle');
+    app()->instance(DispatchRuleActionsAction::class, $retryDispatch);
+
+    $retry = app(RuleEvaluationAction::class)->handle($rule, Rule::TRIGGER_NEW_ORDER, $order);
+
+    expect($retry)->toBeNull();
+    expect(RuleExecution::query()->count())->toBe(1);
 });
 
 test('an order-less trigger (digest) is not blocked by the hard per-order dedup', function () {

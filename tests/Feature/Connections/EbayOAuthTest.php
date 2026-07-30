@@ -1,11 +1,13 @@
 <?php
 
+use App\Jobs\PollEbayOrdersJob;
 use App\Models\StoreConnection;
 use App\Models\User;
 use App\Support\Connections\OAuthState;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -18,6 +20,13 @@ beforeEach(function () {
         'services.ebay.cert_id' => 'test-cert-id',
         'services.ebay.ru_name' => 'test-ru-name',
     ]);
+    // Connecting now dispatches an immediate first-sync job (see
+    // WooCommerceAdapter::connect()'s docblock) — fake the queue globally
+    // in this file so that dispatch doesn't actually execute synchronously
+    // (QUEUE_CONNECTION=sync in tests) against endpoints these tests don't
+    // fake, which would otherwise corrupt connection state (e.g. an
+    // unfaked orders-endpoint response getting misread as an auth failure).
+    Queue::fake();
 });
 
 function onboardedEbayUser(): User

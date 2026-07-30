@@ -22,6 +22,15 @@ class FulfillOrderAction
 
     public function handle(Order $order, string $trackingNumber, ?string $carrier): ActionResult
     {
+        // A double-tap on a slow connection re-sending the same fulfillment
+        // update is naturally idempotent on the platform's own side (setting
+        // "completed"/tracking info twice is a harmless no-op there), but
+        // short-circuiting here avoids a wasted platform API call and a
+        // duplicate OrderEvent row.
+        if ($order->status === Order::STATUS_SHIPPED) {
+            return ActionResult::success('This order has already been marked fulfilled.');
+        }
+
         $adapter = $this->adapters->driver($order->platform);
 
         if (! $adapter->capabilities()->fulfillTracking) {

@@ -16,6 +16,7 @@ use App\Models\StoreConnection;
 use App\Models\SupportThread;
 use App\Models\User;
 use App\Support\Connections\ChannelAdapterManager;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -150,10 +151,19 @@ class WebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
-        $revenueCatEvent = RevenueCatEvent::query()->firstOrCreate(
-            ['event_id' => $eventId],
-            ['event_type' => (string) ($payload['type'] ?? ''), 'processed_at' => now()],
-        );
+        try {
+            $revenueCatEvent = RevenueCatEvent::query()->firstOrCreate(
+                ['event_id' => $eventId],
+                ['event_type' => (string) ($payload['type'] ?? ''), 'processed_at' => now()],
+            );
+        } catch (QueryException) {
+            // A genuinely simultaneous redelivery can lose the `firstOrCreate`
+            // race against the real unique constraint on `event_id` — the
+            // loser hitting that constraint is itself proof this event was
+            // just (or is being) processed, so treat it the same as the
+            // normal duplicate response rather than a 500.
+            return response()->json(['status' => 'duplicate']);
+        }
 
         if (! $revenueCatEvent->wasRecentlyCreated) {
             return response()->json(['status' => 'duplicate']);

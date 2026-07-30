@@ -9,6 +9,7 @@ use App\Models\PlanLimit;
 use App\Models\Rule;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Concurrency\IdempotencyGuard;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -16,6 +17,13 @@ use Illuminate\Validation\ValidationException;
  * alerts only / 0 custom rules, Starter+ = a real quota or unlimited —
  * Plan §5) and, separately, the `advanced_triggers_enabled` gate on
  * `Rule::advancedTriggers()` (Premium-only).
+ *
+ * Guarded against a double-tap creating two identical rules — unlike a
+ * one-time duplicate (a message, a grant), a duplicate rule keeps firing
+ * *every time it matches, forever*, doubling every future notification for
+ * that trigger, not just a one-off annoyance. Keyed by the exact submitted
+ * payload (not just team+trigger), so submitting a genuinely different
+ * rule moments later is never blocked.
  */
 class CreateRuleAction
 {
@@ -26,7 +34,7 @@ class CreateRuleAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(Team $team, User $creator, array $data): Rule
+    public function handle(Team $team, User $creator, array $data): ?Rule
     {
         $limits = $this->resolveEntitlements->handle($team)['limits'];
         $maxRules = $limits['max_rules'] ?? null;
@@ -59,7 +67,9 @@ class CreateRuleAction
             ]);
         }
 
-        return Rule::query()->create([
+        $lockKey = 'create-rule:'.$team->id.':'.md5(json_encode($data) ?: '');
+
+        return IdempotencyGuard::once($lockKey, 10, fn () => Rule::query()->create([
             'team_id' => $team->id,
             'name' => $data['name'],
             'trigger' => $data['trigger'],
@@ -70,6 +80,6 @@ class CreateRuleAction
             'controls' => $data['controls'] ?? null,
             'enabled' => $data['enabled'] ?? true,
             'created_by' => $creator->id,
-        ]);
+        ]));
     }
 }

@@ -146,6 +146,7 @@ All of these: **requires auth**, `owner`/`manager` role only, and only reachable
 
 - **200 success:** `{order: {...}}`, `message: "Order marked as fulfilled."` — this is a **real call through to the platform's own API** (WooCommerce today), not just a local status flip. Show a loading state, this isn't instant.
 - **422 — platform doesn't support this here:** `errors.order[0]` = `"This channel doesn't support marking orders fulfilled from here."` — check `capabilities.fulfill_tracking` from the connection (`connections-api-reference.md`) *before* even showing this button, this error is the server-side backstop, not the primary UX.
+- **Repeat-safe (revised 2026-07-30):** calling this again on an already-fulfilled order returns **200** with `message: "This order has already been marked fulfilled."` and does not call the platform's API again — safe to have this fire twice on a double-tap, see `network-resilience-and-edge-cases.md`.
 
 ### `POST /orders/{id}/refund`
 ```json
@@ -156,6 +157,7 @@ All of these: **requires auth**, `owner`/`manager` role only, and only reachable
 - **200 success:** `{order: {...}}`, `message: "Order refunded."`
 - **422 — not supported:** same pattern as fulfill, `errors.order[0]` = `"This channel doesn't support refunds from here."`
 - **422 — amount too high:** `errors.amount[0]` = `"The refund amount can't exceed the order total."` — also worth a client-side max-value check on the input before submit, to avoid a round trip for an obvious mistake
+- **Repeat-safe, including a true double-tap (revised 2026-07-30):** calling this again on an already-refunded order returns **200** with `message: "This order has already been refunded."` and does **not** issue a second real refund on the platform — this is the one quick action where that guarantee matters most, since a refund moves real money. Still disable the button on tap as normal practice; this is the server-side backstop, see `network-resilience-and-edge-cases.md`.
 
 ### `POST /orders/{id}/cancel`
 ```json
@@ -165,6 +167,7 @@ All of these: **requires auth**, `owner`/`manager` role only, and only reachable
 
 - **200 success:** `{order: {...}}`, `message: "Order cancelled."`
 - **422 — not supported:** `errors.order[0]` = `"This channel doesn't support cancelling orders from here."`
+- **Repeat-safe (revised 2026-07-30):** same pattern as fulfill — calling this again on an already-cancelled order returns **200** with `message: "This order has already been cancelled."` without calling the platform again.
 
 **Important correction vs. what you might see in the auto-generated OpenAPI docs (`docs/api/openapi.yaml`):** those show a `200` response for the "not supported" scenario on fulfill/refund/cancel — that annotation is stale. The real, verified behavior (confirmed by calling the action directly) is **422**, with the message under `errors.order[0]`, same as any other validation failure. Handle it as a normal 422, not a `200` with `success: false`.
 

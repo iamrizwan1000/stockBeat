@@ -73,6 +73,10 @@ class SupportController extends Controller
 
         $message = $action->handle($user, $request->string('body')->toString());
 
+        if ($message === null) {
+            return ApiResponse::error('This message was just sent — please wait a moment before trying again.', status: 429);
+        }
+
         return ApiResponse::success(['message' => new SupportMessageResource($message)], status: 201);
     }
 

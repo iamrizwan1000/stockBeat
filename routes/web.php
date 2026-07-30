@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\CustomerActionController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FeatureFlagController;
+use App\Http\Controllers\Admin\NewsletterSubscriberController;
 use App\Http\Controllers\Admin\OpsController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PromoCampaignController;
@@ -70,6 +71,9 @@ Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group
 
     Route::get('contact-inbox', [ContactInboxController::class, 'index'])->name('contact-inbox.index');
     Route::get('contact-inbox/{thread}', [ContactInboxController::class, 'show'])->name('contact-inbox.show');
+
+    Route::get('newsletter-subscribers', [NewsletterSubscriberController::class, 'index'])->name('newsletter-subscribers.index');
+    Route::get('newsletter-subscribers/export', [NewsletterSubscriberController::class, 'exportCsv'])->name('newsletter-subscribers.export');
 
     Route::get('canned-replies', [CannedReplyController::class, 'index'])->name('canned-replies.index');
 

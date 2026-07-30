@@ -294,6 +294,57 @@ test('App Help works on a Free-tier team with no AI question quota, and never de
     expect(AiUsageLedger::questionsUsedThisMonth($team->id))->toBe(0);
 });
 
+test('asking the exact same question twice in a row only reaches the AI provider once', function () {
+    $user = onboardedAssistantUser();
+    activateGroqProvider();
+    fakeGroqToolCallThenAnswer();
+
+    $first = test()->postJson('/api/v1/assistant/ask', ['question' => 'How much did I make today?']);
+    $second = test()->postJson('/api/v1/assistant/ask', ['question' => 'How much did I make today?']);
+
+    $first->assertOk();
+    $second->assertStatus(429);
+    expect($second->json('message'))->toContain('Your previous question is still being answered');
+
+    Http::assertSentCount(2); // only the first question's tool-call + answer rounds
+    $team = $user->fresh()->currentTeam();
+    expect(AiUsageLedger::questionsUsedThisMonth($team->id))->toBe(1);
+});
+
+test('the same question can be asked again once the 60s guard window has passed', function () {
+    $user = onboardedAssistantUser();
+    activateGroqProvider();
+
+    // Both requests' tool-call + answer rounds must be registered in one
+    // Http::fake() call up front — see the "follow-up question" test above
+    // for why a second, separate Http::fake() call wouldn't add to this
+    // sequence (first-match-wins, not last-match-wins).
+    Http::fake([
+        'api.groq.com/*' => Http::sequence()
+            ->push(['choices' => [['message' => [
+                'role' => 'assistant', 'content' => null,
+                'tool_calls' => [['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'get_sales_summary', 'arguments' => json_encode(['range' => 'today'])]]],
+            ]]]], 200)
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => 'You made $120.00 today across 3 orders.']]]], 200)
+            ->push(['choices' => [['message' => [
+                'role' => 'assistant', 'content' => null,
+                'tool_calls' => [['id' => 'call_2', 'type' => 'function', 'function' => ['name' => 'get_sales_summary', 'arguments' => json_encode(['range' => 'today'])]]],
+            ]]]], 200)
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => 'You made $150.00 today across 4 orders.']]]], 200),
+    ]);
+
+    test()->postJson('/api/v1/assistant/ask', ['question' => 'How much did I make today?'])->assertOk();
+
+    test()->travel(61)->seconds();
+
+    $second = test()->postJson('/api/v1/assistant/ask', ['question' => 'How much did I make today?']);
+    $second->assertOk();
+
+    Http::assertSentCount(4);
+    $team = $user->fresh()->currentTeam();
+    expect(AiUsageLedger::questionsUsedThisMonth($team->id))->toBe(2);
+});
+
 test('App Help mode never offers data tools, even on a plan that has the Data Copilot', function () {
     onboardedAssistantUser();
     activateGroqProvider();

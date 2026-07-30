@@ -7,6 +7,7 @@ use App\Actions\Teams\RedeemTeamInviteAction;
 use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Support\Concurrency\IdempotencyGuard;
 
 /**
  * Completes onboarding Screen 3 (Plan §4.1): sets the user's profile and,
@@ -54,7 +55,18 @@ class SetupProfileAction
 
         $user->save();
 
-        if (! $user->teamMemberships()->exists() && ! $this->redeemTeamInvite->handle($user)) {
+        // The `teamMemberships()->exists()` check below is a read-then-write:
+        // two racing setup submits (a double-tap on a slow connection) could
+        // both pass it and each create their own Team + membership + trial
+        // subscription, leaving the user owning two teams and holding two
+        // trials' worth of Premium SMS credit. The lock is what actually
+        // makes the "never creates a second team, membership, or trial"
+        // guarantee in this class's docblock true under concurrency.
+        IdempotencyGuard::once("profile-setup-team:{$user->id}", 30, function () use ($user, $name, $businessName) {
+            if ($user->teamMemberships()->exists() || $this->redeemTeamInvite->handle($user)) {
+                return null;
+            }
+
             $team = Team::query()->create([
                 'owner_id' => $user->id,
                 'name' => $businessName ?: $name,
@@ -67,8 +79,10 @@ class SetupProfileAction
             ]);
 
             $this->grantTrialSubscription->handle($team);
-        }
 
-        return $user;
+            return $team;
+        });
+
+        return $user->fresh() ?? $user;
     }
 }

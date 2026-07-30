@@ -495,6 +495,10 @@ class OrderController extends Controller
 
         $message = $sendMessage->handle($user, $thread, $body);
 
+        if ($message === null) {
+            return ApiResponse::error('This message was just sent — please wait a moment before trying again.', status: 429);
+        }
+
         return ApiResponse::success(['message' => new InboxMessageResource($message)], status: 201);
     }
 

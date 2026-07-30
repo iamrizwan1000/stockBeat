@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Actions\Connections\ComputeStoreConnectionFingerprintAction;
 use App\Contracts\OAuthChannelAdapter;
+use App\Models\StoreConnection;
 use App\Models\Team;
+use App\Support\Concurrency\IdempotencyGuard;
 use App\Support\Connections\ChannelAdapterManager;
 use App\Support\Connections\OAuthState;
 use Illuminate\Http\Request;
@@ -49,6 +51,23 @@ class OAuthCallbackController extends Controller
         return $this->complete('tiktok', $request, $adapters, $fingerprint);
     }
 
+    /**
+     * Guarded against duplicate connections two ways: `OAuthState` has no
+     * single-use enforcement at all (the same `state`/nonce can be decoded
+     * and replayed indefinitely) — the lock below, keyed to the exact
+     * nonce (one per `/start` call), closes a literal replay of the same
+     * callback URL (a client retry, a redirect firing twice) without
+     * blocking a *different* `/start` attempt (a different nonce) for a
+     * different store moments later. For Shopify specifically (the one
+     * OAuth platform with a real, stable store identity —
+     * `ComputeStoreConnectionFingerprintAction`), an existing-connection
+     * check by fingerprint also catches a genuine reconnect-to-the-same-
+     * store retry minutes/hours later (past the lock's window, a fresh
+     * nonce), not just a same-link replay; eBay/Etsy/Amazon/TikTok have no
+     * such identity available without extra OAuth scope (a documented,
+     * pre-existing scope cut), so a reconnect to the same store on those
+     * four platforms via a genuinely new `/start` call can still duplicate.
+     */
     private function complete(string $platform, Request $request, ChannelAdapterManager $adapters, ComputeStoreConnectionFingerprintAction $fingerprintAction): View
     {
         $rawState = (string) $request->query('state', '');
@@ -68,17 +87,39 @@ class OAuthCallbackController extends Controller
         $adapter = $adapters->driver($platform);
 
         try {
-            $connection = $adapter->completeConnection($team, $state->name, $state->credentials, $state->nonce, $request);
+            $connection = IdempotencyGuard::once("oauth-callback:{$state->nonce}", 120, function () use ($platform, $team, $state, $adapter, $fingerprintAction, $request) {
+                $fingerprint = $fingerprintAction->handle($platform, $state->credentials);
+
+                if ($fingerprint !== null) {
+                    $existing = StoreConnection::query()
+                        ->where('team_id', $team->id)
+                        ->where('fingerprint', $fingerprint)
+                        ->where('status', '!=', StoreConnection::STATUS_DISCONNECTED)
+                        ->first();
+
+                    if ($existing !== null) {
+                        return $existing;
+                    }
+                }
+
+                $connection = $adapter->completeConnection($team, $state->name, $state->credentials, $state->nonce, $request);
+
+                $fingerprint ??= $fingerprintAction->handle($platform, $connection->credentials ?? []);
+
+                if ($fingerprint !== null) {
+                    $connection->update(['fingerprint' => $fingerprint]);
+                }
+
+                return $connection;
+            });
         } catch (\Throwable $e) {
             report($e);
 
             return $this->result($platform, false, 'We could not complete the connection. Please try again from the app.');
         }
 
-        $fingerprintValue = $fingerprintAction->handle($platform, $connection->credentials ?? []);
-
-        if ($fingerprintValue !== null) {
-            $connection->update(['fingerprint' => $fingerprintValue]);
+        if ($connection === null) {
+            return $this->result($platform, false, 'This connection link has already been used. Please try connecting again from the app.');
         }
 
         return $this->result($platform, true, "{$connection->name} is connected. You can return to the app now.");

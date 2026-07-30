@@ -22,6 +22,16 @@ test('subscribing creates a subscriber and queues a confirmation email', functio
     Mail::assertQueued(NewsletterConfirmationMail::class);
 });
 
+test('a double-tap subscribing an already-active address only sends one confirmation email', function () {
+    Mail::fake();
+
+    test()->post('/newsletter/subscribe', ['email' => 'visitor@example.com'])->assertRedirect();
+    test()->post('/newsletter/subscribe', ['email' => 'visitor@example.com'])->assertRedirect();
+
+    expect(NewsletterSubscriber::query()->where('email', 'visitor@example.com')->count())->toBe(1);
+    Mail::assertQueued(NewsletterConfirmationMail::class, 1);
+});
+
 test('subscribing requires a valid email', function () {
     test()->post('/newsletter/subscribe', ['email' => 'not-an-email'])
         ->assertSessionHasErrors('email');

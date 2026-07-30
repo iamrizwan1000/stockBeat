@@ -8,6 +8,8 @@ Every response, success or failure, shares one envelope:
 ```
 `errors` is only present on validation failures (422) and has the shape `{"field_name": ["message 1", "message 2"]}`. **Important:** on a 422, the top-level `message` is a generic string ("The given data was invalid.") — the actual user-facing text you want to show lives inside `errors.<field>[0]`, not `message`. Always read from `errors`, never assume `message` is display-ready for 422s.
 
+**Read `network-resilience-and-edge-cases.md` before building any screen with a submit button** — it's the cross-cutting reference for slow-network/double-tap/in-flight-request behavior across every mutating endpoint in this API, rather than repeating that guidance in every other doc.
+
 Authenticated endpoints require `Authorization: Bearer {token}`. A missing/invalid token returns `401` with `{"success": false, "message": "Unauthenticated.", "data": null}`.
 
 ---

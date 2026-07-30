@@ -37,6 +37,18 @@ test('sending a message creates it, updates the thread, and broadcasts', functio
     Event::assertDispatched(SupportMessageSent::class);
 });
 
+test('a double-tap sending the identical message only creates one', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    $first = test()->postJson('/api/v1/support/messages', ['body' => 'My orders stopped syncing']);
+    $second = test()->postJson('/api/v1/support/messages', ['body' => 'My orders stopped syncing']);
+
+    $first->assertCreated();
+    $second->assertStatus(429);
+    expect(SupportMessage::query()->where('direction', SupportMessage::DIRECTION_USER)->count())->toBe(1);
+});
+
 test('sending a message reopens a resolved thread', function () {
     $user = User::factory()->create();
     $thread = SupportThread::factory()->create(['user_id' => $user->id, 'status' => SupportThread::STATUS_RESOLVED]);

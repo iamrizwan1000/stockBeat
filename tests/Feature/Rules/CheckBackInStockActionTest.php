@@ -99,6 +99,27 @@ test('does not fire again for the same in-stock streak, but fires again after a 
     expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(2);
 });
 
+test('two overlapping poll runs seeing the same stale in-memory product only fire once', function () {
+    $team = Team::factory()->create();
+    $rule = Rule::factory()->create(['team_id' => $team->id, 'trigger' => Rule::TRIGGER_BACK_IN_STOCK]);
+    $product = Product::factory()->create(['team_id' => $team->id, 'stock_quantity' => 15]);
+    ProductStockSnapshot::factory()->create(['product_id' => $product->id, 'stock_quantity' => 0, 'recorded_at' => now()->subDay()]);
+    ProductStockSnapshot::factory()->create(['product_id' => $product->id, 'stock_quantity' => 15, 'recorded_at' => now()]);
+
+    // Deliberately reuse the SAME in-memory $product instance for both
+    // calls (not ->fresh()) — this simulates two overlapping poll runs each
+    // loading the product *before* either write happened, so both see
+    // `back_in_stock_notified_at` as null in memory. Only the atomic
+    // `UPDATE ... WHERE back_in_stock_notified_at IS NULL` claim (not the
+    // in-memory check) can stop the second call from firing again.
+    $action = app(\App\Actions\Rules\CheckBackInStockAction::class);
+    $action->handle($product);
+    $action->handle($product);
+
+    expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
+    expect($product->fresh()->back_in_stock_notified_at)->not->toBeNull();
+});
+
 test('the product\'s store connection is passed through and mutes the push when muted', function () {
     $team = Team::factory()->create();
     $connection = StoreConnection::factory()->create(['team_id' => $team->id, 'notifications_muted' => true]);

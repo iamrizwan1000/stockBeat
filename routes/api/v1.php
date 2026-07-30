@@ -80,6 +80,9 @@ Route::middleware(['auth:sanctum', 'user.not_suspended', 'team.not_suspended'])-
         ->name('connections.start');
     Route::get('connections', [ConnectionController::class, 'index'])->name('connections.index');
     Route::get('connections/{connection}/health', [ConnectionController::class, 'health'])->name('connections.health');
+    Route::post('connections/{connection}/sync-now', [ConnectionController::class, 'syncNow'])
+        ->middleware('team.role:owner,manager')
+        ->name('connections.sync-now');
     Route::patch('connections/{connection}', [ConnectionController::class, 'mute'])
         ->middleware('team.role:owner,manager')
         ->name('connections.mute');

@@ -66,6 +66,26 @@ test('action-specific config survives validation (tag, user_id do not get stripp
     expect($response->json('data.rule.actions.1.user_id'))->toBe(42);
 });
 
+test('a double-tap with the identical payload creates only one rule', function () {
+    onboardedRuleUser();
+
+    $first = test()->postJson('/api/v1/rules', validRulePayload());
+    $second = test()->postJson('/api/v1/rules', validRulePayload());
+
+    $first->assertCreated();
+    $second->assertStatus(429);
+    expect(Rule::query()->count())->toBe(1);
+});
+
+test('submitting a genuinely different rule right after is not blocked', function () {
+    onboardedRuleUser();
+
+    test()->postJson('/api/v1/rules', validRulePayload())->assertCreated();
+    test()->postJson('/api/v1/rules', validRulePayload(['name' => 'A different rule']))->assertCreated();
+
+    expect(Rule::query()->count())->toBe(2);
+});
+
 test('a rule can be created and updated', function () {
     onboardedRuleUser();
 

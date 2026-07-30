@@ -25,6 +25,20 @@ test('submitting the contact form creates a thread and its first guest message',
     expect($message->body)->toBe('How do I upgrade my plan?');
 });
 
+test('a double-tap submitting the identical message only creates one thread', function () {
+    $payload = [
+        'name' => 'Jamie Rivera',
+        'email' => 'jamie@example.com',
+        'subject' => 'Question about billing',
+        'message' => 'How do I upgrade my plan?',
+    ];
+
+    test()->post('/contact', $payload)->assertRedirect();
+    test()->post('/contact', $payload)->assertRedirect();
+
+    expect(ContactThread::query()->where('email', 'jamie@example.com')->count())->toBe(1);
+});
+
 test('submitting without a required field fails validation', function () {
     test()->post('/contact', [
         'name' => 'Jamie Rivera',

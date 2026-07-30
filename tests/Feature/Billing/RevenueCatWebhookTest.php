@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AiUsageLedger;
+use App\Models\RevenueCatEvent;
 use App\Models\SmsLedger;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
@@ -8,6 +9,7 @@ use App\Models\User;
 use Database\Seeders\AiTopupPackSeeder;
 use Database\Seeders\PlanSeeder;
 use Database\Seeders\SmsTopupPackSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -187,6 +189,34 @@ test('a duplicate event id is processed only once', function () {
 
     expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe($baseline + 500);
     expect(SmsLedger::query()->where('team_id', $user->ownedTeam->id)->count())->toBe($baselineRowCount + 1);
+});
+
+test('a genuinely simultaneous redelivery that loses the DB race returns a clean duplicate response, not a 500', function () {
+    // A true concurrent race can't be forced synchronously in a test, so this
+    // simulates it deterministically: a `creating` listener throws the exact
+    // exception type (`QueryException`, standing in for the real unique
+    // constraint on `event_id`) that a genuinely-simultaneous redelivery
+    // would hit, proving the controller's catch block returns a clean
+    // "duplicate" response instead of letting it bubble into a 500.
+    $user = onboardedRevenueCatUser();
+    $baseline = SmsLedger::currentBalance($user->ownedTeam->id);
+    $event = revenueCatEvent($user->id, ['type' => 'NON_RENEWING_PURCHASE', 'product_id' => 'sms_100']);
+
+    RevenueCatEvent::creating(function (RevenueCatEvent $model) use ($event) {
+        if ($model->event_id === $event['id']) {
+            throw new QueryException(
+                'mysql',
+                'insert into `revenuecat_events` (`event_id`, `event_type`, `processed_at`) values (?, ?, ?)',
+                [],
+                new Exception("SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '{$event['id']}' for key 'revenuecat_events_event_id_unique'"),
+            );
+        }
+    });
+
+    postRevenueCatEvent($event)->assertOk()->assertJsonPath('status', 'duplicate');
+
+    // This request lost the race, so it must not have applied its own credit.
+    expect(SmsLedger::currentBalance($user->ownedTeam->id))->toBe($baseline);
 });
 
 test('an unknown app_user_id is safely ignored', function () {

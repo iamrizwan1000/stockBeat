@@ -17,7 +17,17 @@ class UpdateOrderTagsAction
      */
     public function handle(Order $order, array $tags): Order
     {
-        $order->update(['tags' => array_values(array_unique($tags))]);
+        $newTags = array_values(array_unique($tags));
+
+        if ($newTags === array_values($order->tags ?? [])) {
+            // A repeat submission (e.g. a bulk-tag double-tap) resulting in
+            // the identical tag list is a no-op — skip the redundant write
+            // and the duplicate timeline entry, same treatment
+            // fulfill/cancel already got for their own repeat case.
+            return $order;
+        }
+
+        $order->update(['tags' => $newTags]);
 
         OrderEvent::query()->create([
             'order_id' => $order->id,

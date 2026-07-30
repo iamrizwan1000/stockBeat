@@ -53,7 +53,13 @@ class AssistantController extends Controller
         }
 
         $mode = $request->string('mode')->toString() ?: AskAssistantAction::MODE_DATA;
-        $conversation = $action->handle($team, $user, $request->string('question')->toString(), $conversation, $mode);
+        $result = $action->handle($team, $user, $request->string('question')->toString(), $conversation, $mode);
+
+        if ($result === null) {
+            return ApiResponse::error('Your previous question is still being answered — please wait a moment.', status: 429);
+        }
+
+        $conversation = $result;
         $conversation->load('messages');
 
         return ApiResponse::success(['conversation' => new AiConversationResource($conversation)]);

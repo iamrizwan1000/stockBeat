@@ -7,6 +7,7 @@ use App\Models\PaywallHit;
 use App\Models\PlanLimit;
 use App\Models\StoreConnection;
 use App\Models\Team;
+use App\Support\Concurrency\IdempotencyGuard;
 use App\Support\Connections\ChannelAdapterManager;
 use App\Support\Connections\ConnectRequest;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +15,18 @@ use Illuminate\Validation\ValidationException;
 /**
  * Connects a new store, enforcing the plan's `max_stores` limit (Plan §4.11:
  * connecting a second store is the paywall trigger for Free-tier teams).
+ *
+ * Guarded against creating duplicate `StoreConnection` rows for the same
+ * store two ways: an `IdempotencyGuard` lock — keyed to team+platform+the
+ * exact submitted credentials, not just team+platform, so connecting a
+ * genuinely *different* Woo store moments later is never blocked, only a
+ * true resubmission of the identical request — closes the true-concurrent
+ * "double-tap on a slow connection" race, and — since WooCommerce
+ * credentials carry a real, stable store identity (`store_url`) — an
+ * existing-connection check by fingerprint, computed *before* creating,
+ * catches a retry minutes/hours later too (past the lock's window), not
+ * just a same-moment double-tap. Nothing here previously prevented this at
+ * all: no unique DB constraint, no existing-row check.
  */
 class ConnectStoreAction
 {
@@ -42,14 +55,40 @@ class ConnectStoreAction
             }
         }
 
-        $connection = $this->adapters->driver($platform)->connect(
-            new ConnectRequest($team, $name, $credentials),
-        );
+        $lockKey = 'connect:'.$team->id.':'.$platform.':'.md5(json_encode($credentials) ?: '');
 
-        $fingerprint = $this->computeFingerprint->handle($platform, $connection->credentials ?? []);
+        $connection = IdempotencyGuard::once($lockKey, 30, function () use ($team, $platform, $name, $credentials) {
+            $fingerprint = $this->computeFingerprint->handle($platform, $credentials);
 
-        if ($fingerprint !== null) {
-            $connection->update(['fingerprint' => $fingerprint]);
+            if ($fingerprint !== null) {
+                $existing = StoreConnection::query()
+                    ->where('team_id', $team->id)
+                    ->where('fingerprint', $fingerprint)
+                    ->where('status', '!=', StoreConnection::STATUS_DISCONNECTED)
+                    ->first();
+
+                if ($existing !== null) {
+                    return $existing;
+                }
+            }
+
+            $connection = $this->adapters->driver($platform)->connect(
+                new ConnectRequest($team, $name, $credentials),
+            );
+
+            $fingerprint ??= $this->computeFingerprint->handle($platform, $connection->credentials ?? []);
+
+            if ($fingerprint !== null) {
+                $connection->update(['fingerprint' => $fingerprint]);
+            }
+
+            return $connection;
+        });
+
+        if ($connection === null) {
+            throw ValidationException::withMessages([
+                'platform' => 'A connection attempt for this store is already in progress — please wait a moment and check your Connections list.',
+            ]);
         }
 
         return $connection;

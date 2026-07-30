@@ -139,6 +139,9 @@ Each condition item: `{ "field": "...", "operator": "...", "value": ... }`.
 | 422 | `ai_insight` without `ai_proactive_insights_enabled` | `errors.trigger[0]` = `"Proactive AI Insights requires the Premium plan."` |
 | 422 | Bad condition field/operator | `errors["conditions.all.0.operator"][0]` (or `.field`) — standard nested-key validation error, same pattern as anywhere else in this API |
 | 422 | Profile setup incomplete | `"Complete profile setup before creating rules."` |
+| 429 | A duplicate submission — the *identical* `name`/`trigger`/`conditions`/`actions`/`controls` payload was just submitted seconds ago | `"This rule was just submitted — please wait a moment before trying again."` |
+
+**Revised 2026-07-30 — a double-tap creating two identical rules is now guarded server-side.** This one mattered more than a typical duplicate: an accidentally-duplicated rule doesn't just create clutter once, it keeps firing on every future match *forever*, doubling every push/email/SMS for that trigger until someone notices and deletes the extra rule. The guard is keyed to the exact payload, so submitting a genuinely different rule (even seconds later) is never blocked — only resubmitting the identical one. Still disable the "Create rule" button on tap as normal practice; this is the server-side backstop, see `network-resilience-and-edge-cases.md`.
 
 ## `PUT /rules/{id}`
 

@@ -74,6 +74,9 @@ test('the scheduled command grants credits to every entitled team and skips alre
 
     // Simulate the trial-grant firing on the old Premium plan_key before the
     // downgrade above — reset the ledger to isolate this test's own run.
+    // Also clear the signup flow's own 30s idempotency lock so this test's
+    // deliberately-reset ledger state isn't itself blocked by a stale lock.
+    test()->travel(31)->seconds();
     SmsLedger::query()->where('team_id', $team->id)->delete();
 
     test()->artisan('sms:grant-monthly-credits')
@@ -99,4 +102,80 @@ test('an expired subscription is not granted anything by the scheduled command',
     test()->artisan('sms:grant-monthly-credits')->assertSuccessful();
 
     expect(SmsLedger::currentBalance($team->id))->toBe(0);
+});
+
+test('two rapid back-to-back calls for the same team only ever create one grant row', function () {
+    $user = onboardedGrantTestUser();
+    $team = $user->currentTeam()->fresh();
+    // The signup flow already granted once (and holds its own 30s lock) —
+    // travel past that lock and reset the ledger so this test starts clean
+    // and exercises the action's own idempotency guard directly, not the
+    // signup flow's.
+    test()->travel(31)->seconds();
+    SmsLedger::query()->where('team_id', $team->id)->delete();
+
+    $first = app(GrantMonthlySmsCreditsAction::class)->handle($team);
+    $second = app(GrantMonthlySmsCreditsAction::class)->handle($team);
+
+    expect($first)->toBeTrue();
+    expect($second)->toBeFalse();
+    expect(
+        SmsLedger::query()
+            ->where('team_id', $team->id)
+            ->where('reason', SmsLedger::REASON_MONTHLY_GRANT)
+            ->count()
+    )->toBe(1);
+});
+
+test('a call made after the lock expires but still in the same month is still blocked by the durable exists() check', function () {
+    $user = onboardedGrantTestUser();
+    $team = $user->currentTeam()->fresh();
+    // Clear the signup flow's own lock before this test's first real call.
+    test()->travel(31)->seconds();
+    SmsLedger::query()->where('team_id', $team->id)->delete();
+
+    $first = app(GrantMonthlySmsCreditsAction::class)->handle($team);
+    // Past the action's 30s IdempotencyGuard lock TTL, but the calendar
+    // month hasn't changed — the lock expiring must not reopen the door to
+    // a second real grant this month.
+    test()->travel(31)->seconds();
+    $second = app(GrantMonthlySmsCreditsAction::class)->handle($team);
+
+    expect($first)->toBeTrue();
+    expect($second)->toBeFalse();
+    expect(
+        SmsLedger::query()
+            ->where('team_id', $team->id)
+            ->where('reason', SmsLedger::REASON_MONTHLY_GRANT)
+            ->count()
+    )->toBe(1);
+});
+
+test('a call made in a genuinely new calendar month grants again', function () {
+    $user = onboardedGrantTestUser();
+    $team = $user->currentTeam()->fresh();
+    // Force an active, non-trial subscription so travelling a month forward
+    // doesn't lapse the trial and fall back to a Free (no-allotment) plan —
+    // that would fail this test for an unrelated reason.
+    $team->subscription->update(['status' => Subscription::STATUS_ACTIVE, 'plan_key' => Plan::STARTER]);
+    // Clear the signup flow's own lock before this test's first real call.
+    test()->travel(31)->seconds();
+    SmsLedger::query()->where('team_id', $team->id)->delete();
+
+    $first = app(GrantMonthlySmsCreditsAction::class)->handle($team->fresh());
+
+    // Travel to an absolute date in the next calendar month, rather than a
+    // computed diffInSeconds() — clearer and avoids sign-confusion on a
+    // forward-diff.
+    test()->travelTo(now()->addMonthNoOverflow()->startOfMonth()->addMinutes(5));
+    $second = app(GrantMonthlySmsCreditsAction::class)->handle($team->fresh());
+
+    expect($first)->toBeTrue();
+    expect($second)->toBeTrue();
+    expect(
+        SmsLedger::query()
+            ->where('team_id', $team->id)
+            ->where('reason', SmsLedger::REASON_MONTHLY_GRANT)
+            ->count()
+    )->toBe(2);
 });

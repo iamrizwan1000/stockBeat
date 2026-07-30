@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Admin\ExtendTrialAction;
 use App\Models\AdminAuditLog;
 use App\Models\AdminUser;
 use App\Models\AiUsageLedger;
@@ -97,6 +98,47 @@ test('granting complimentary pro sets an active comp subscription', function () 
     expect($team->subscription->provider)->toBe('comp');
 });
 
+test('double-clicking extend trial does not hand out twice the days', function () {
+    $admin = AdminUser::factory()->create();
+    [, $team] = customerWithTeam();
+    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_TRIAL, 'trial_ends_at' => now()->addDay()]);
+
+    $first = app(ExtendTrialAction::class)->handle($admin, $team->fresh(), 7);
+    $second = app(ExtendTrialAction::class)->handle($admin, $team->fresh(), 7);
+
+    expect($first)->not->toBeNull();
+    expect($second)->toBeNull();
+    // The extension is cumulative off a still-future trial_ends_at, so an
+    // unguarded double-click landed on ~15 days (1 + 7 + 7), not 8.
+    expect($team->fresh()->subscription->trial_ends_at->diffInDays(now()->addDays(8)))->toBeLessThan(1);
+});
+
+test('a genuinely intentional second trial extension after the guard window still works', function () {
+    $admin = AdminUser::factory()->create();
+    [, $team] = customerWithTeam();
+    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_TRIAL, 'trial_ends_at' => now()->addDay()]);
+
+    app(ExtendTrialAction::class)->handle($admin, $team->fresh(), 7);
+    test()->travel(11)->seconds();
+    $second = app(ExtendTrialAction::class)->handle($admin, $team->fresh(), 7);
+
+    expect($second)->not->toBeNull();
+    expect($team->fresh()->subscription->trial_ends_at->diffInDays(now()->addDays(15)))->toBeLessThan(1);
+});
+
+test('double-clicking the extend trial endpoint flashes a wait-a-moment status', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+    Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_TRIAL, 'trial_ends_at' => now()->addDay()]);
+
+    $first = test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/extend-trial", ['days' => 7]);
+    $second = test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/extend-trial", ['days' => 7]);
+
+    $first->assertRedirect();
+    $second->assertRedirect()->assertSessionHas('status', fn ($status) => str_contains($status, 'wait a moment'));
+    expect($team->fresh()->subscription->trial_ends_at->diffInDays(now()->addDays(8)))->toBeLessThan(1);
+});
+
 test('granting bonus sms credits increases the ledger balance', function () {
     $admin = AdminUser::factory()->create();
     [$user, $team] = customerWithTeam();
@@ -110,6 +152,19 @@ test('granting bonus sms credits increases the ledger balance', function () {
     expect($latest->balance_after)->toBe(150);
 });
 
+test('double-clicking grant bonus sms credits only grants once', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+
+    $first = test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/grant-sms-credits", ['credits' => 100]);
+    $second = test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/grant-sms-credits", ['credits' => 100]);
+
+    $first->assertRedirect();
+    $second->assertRedirect()->assertSessionHas('status', fn ($status) => str_contains($status, 'wait a moment'));
+    expect(SmsLedger::query()->where('team_id', $team->id)->count())->toBe(1);
+    expect(SmsLedger::query()->where('team_id', $team->id)->latest('id')->first()->balance_after)->toBe(100);
+});
+
 test('granting bonus AI question credits raises the current month\'s effective quota', function () {
     $admin = AdminUser::factory()->create();
     [$user, $team] = customerWithTeam();
@@ -121,6 +176,26 @@ test('granting bonus AI question credits raises the current month\'s effective q
     expect(AiUsageLedger::bonusGrantedThisMonth($team->id))->toBe(20);
     expect(AiUsageLedger::effectiveMonthlyLimit($team->id, 30))->toBe(50);
     expect(AdminAuditLog::query()->where('action', 'customer.grant_bonus_ai_credits')->where('target_id', $team->id)->exists())->toBeTrue();
+});
+
+test('double-clicking grant bonus AI credits only grants once', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+
+    test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/grant-ai-credits", ['credits' => 20]);
+    test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/grant-ai-credits", ['credits' => 20]);
+
+    expect(AiUsageLedger::bonusGrantedThisMonth($team->id))->toBe(20);
+});
+
+test('double-clicking grant bonus email credits only grants once', function () {
+    $admin = AdminUser::factory()->create();
+    [$user, $team] = customerWithTeam();
+
+    test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/grant-email-credits", ['credits' => 50]);
+    test()->actingAs($admin, 'admin')->post("/admin/customers/{$user->id}/grant-email-credits", ['credits' => 50]);
+
+    expect(EmailUsageLedger::bonusGrantedThisMonth($team->id))->toBe(50);
 });
 
 test('granting bonus email credits raises the current month\'s effective quota', function () {

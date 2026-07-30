@@ -98,6 +98,10 @@ class RuleController extends Controller
 
         $rule = $action->handle($team, $user, $request->validated());
 
+        if ($rule === null) {
+            return ApiResponse::error('This rule was just submitted — please wait a moment before trying again.', status: 429);
+        }
+
         return ApiResponse::success(['rule' => new RuleResource($rule)], status: 201);
     }
 

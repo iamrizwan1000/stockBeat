@@ -4,6 +4,7 @@ namespace App\Actions\Billing;
 
 use App\Models\SmsLedger;
 use App\Models\Team;
+use App\Support\Concurrency\IdempotencyGuard;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
@@ -64,23 +65,29 @@ class GrantMonthlySmsCreditsAction
             return false;
         }
 
-        $alreadyGrantedThisMonth = SmsLedger::query()
-            ->where('team_id', $team->id)
-            ->where('reason', SmsLedger::REASON_MONTHLY_GRANT)
-            ->where('created_at', '>=', now()->startOfMonth())
-            ->exists();
+        // The lock only serializes concurrent callers (an overlapping
+        // manual+scheduled run, or two renewal-webhook calls close
+        // together) — the `exists()` check inside remains the durable,
+        // month-scoped source of truth, not the lock's short TTL.
+        return IdempotencyGuard::once("grant-monthly-sms:{$team->id}", 30, function () use ($team, $allotment) {
+            $alreadyGrantedThisMonth = SmsLedger::query()
+                ->where('team_id', $team->id)
+                ->where('reason', SmsLedger::REASON_MONTHLY_GRANT)
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->exists();
 
-        if ($alreadyGrantedThisMonth) {
-            return false;
-        }
+            if ($alreadyGrantedThisMonth) {
+                return false;
+            }
 
-        SmsLedger::query()->create([
-            'team_id' => $team->id,
-            'delta' => $allotment,
-            'reason' => SmsLedger::REASON_MONTHLY_GRANT,
-            'balance_after' => SmsLedger::currentBalance($team->id) + $allotment,
-        ]);
+            SmsLedger::query()->create([
+                'team_id' => $team->id,
+                'delta' => $allotment,
+                'reason' => SmsLedger::REASON_MONTHLY_GRANT,
+                'balance_after' => SmsLedger::currentBalance($team->id) + $allotment,
+            ]);
 
-        return true;
+            return true;
+        }) ?? false;
     }
 }

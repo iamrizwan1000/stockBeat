@@ -13,6 +13,7 @@ test('granting credits records the cumulative bonus granted this month', functio
     $team = Team::factory()->create();
 
     app(GrantBonusEmailCreditsAction::class)->handle($admin, $team, 15);
+    test()->travel(11)->seconds();
     $entry = app(GrantBonusEmailCreditsAction::class)->handle($admin, $team, 5);
 
     expect($entry->balance_after)->toBe(20);

@@ -91,6 +91,12 @@ This polling approach is a deliberate, real workaround for a real, current backe
 
 **If this was reached from Settings** (not first-run onboarding), skip the push-permission prompt (already handled) and just return to the connections list (Screen 5) or Settings.
 
+### What the Feed should show right after this, before the first order arrives (added 2026-07-30)
+
+**Revised 2026-07-30 — first sync is now dispatched immediately on connect**, not left for the next scheduled poll tick. Previously a fresh connection could sit at `last_sync_at: null` for anywhere from a few minutes to (in eBay/Etsy's worst case) up to 30 minutes before any data appeared, with nothing telling the user why the Feed was empty. Now, connecting any platform immediately queues that store's first order-sync job — in practice this typically resolves in a few seconds to under a minute (one queue pickup + one API call), though it's still asynchronous, not instant, so **the Feed will still be briefly empty for a genuinely new connection with no real orders synced yet.**
+
+**Don't just show a bare empty order list during this window.** The connection-health endpoint (`GET /connections/{id}/health`, Screen 6) already returns the right copy for exactly this state — `last_sync_at === null` → `"We haven't synced {name} yet — this can take a minute after connecting."`, `fix_action: null` (no button, this isn't an error). Surface that same message as the Feed's empty-state text (or a dismissible banner above an otherwise-empty Feed) whenever the newly-connected store's `last_sync_at` is still null, rather than a generic "no orders yet" — a seller landing on an empty Feed seconds after connecting should read this as "still working," not "did something break." Once `GET /orders` (or a `GET /connections` refresh) shows a non-null `last_sync_at`, drop back to the normal Feed/empty-state treatment.
+
 ---
 
 ## Screen 5 — `ConnectionsListScreen` (Settings → Connected Stores)
@@ -105,6 +111,14 @@ This polling approach is a deliberate, real workaround for a real, current backe
 
 **Disconnect action:** swipe-to-delete or an overflow menu → confirm dialog ("Disconnect {name}? Historical orders stay, but it'll stop syncing.") → `DELETE /connections/{id}` → remove from list on success.
 
+**"Sync now" action (added 2026-07-30):** an overflow-menu item (or a small icon button) per row → `POST /connections/{id}/sync-now`. **This is the one place a real "go check with the platform right now" trigger belongs** — see the API reference's full rationale. On tap: show a brief inline spinner/toast ("Syncing…"), disable that row's sync action for ~60 seconds (matching the server-side per-connection cooldown), and on success just leave it at that — don't block the UI waiting for the sync to actually finish, since the response only confirms the job was queued. If the API returns 429 (still in cooldown, e.g. from a very recent connect or another rapid tap), just show the button as already-disabled/cooling-down rather than surfacing an error toast — this isn't a failure state.
+
+**This screen is the only place `POST /connections/{id}/sync-now` should be wired up.** Do not attach it to pull-to-refresh on the Feed/Orders tab, or to any other list's pull-to-refresh gesture — see the next note.
+
+### Pull-to-refresh elsewhere in the app (Feed, Orders, Reviews, etc.) — added 2026-07-30
+
+Pull-to-refresh on any order/data list should **only** refetch that screen's own endpoint (`GET /orders`, `GET /reviews`, etc.) against this app's own database — the same as pull-to-refresh works in virtually every app (Twitter, Gmail). It should **never** call `POST /connections/{id}/sync-now` or otherwise trigger a live platform API call. Real new orders already arrive continuously via webhook (where the platform supports it) and the background reconciliation poller regardless of whether the merchant ever pulls to refresh — pull-to-refresh here is just "did anything land since I last looked," not "go ask Shopify right now." Wiring a data-list's pull-to-refresh to a live platform call would risk burning through that store's platform-side rate limit every time a merchant impatiently yanks the list down, with no real benefit since the data's already flowing in on its own.
+
 ---
 
 ## Screen 6 — `ConnectionHealthScreen`
@@ -115,7 +129,7 @@ This polling approach is a deliberate, real workaround for a real, current backe
 
 **On load:** call `GET /connections/{id}/health`.
 
-**Content:** show `message` as the primary text, `last_sync_at` as a relative timestamp ("Last synced 2 hours ago"), and a button driven by `fix_action`:
+**Content:** show `message` as the primary text, `last_sync_at` as a relative timestamp ("Last synced 2 hours ago") **when it's non-null** — when `last_sync_at` is `null` (a brand-new connection, first sync still in flight), don't render "Last synced never" or attempt relative-time formatting on a null value; just omit that line and let `message` alone carry the "we haven't synced yet, this can take a minute" explanation. And a button driven by `fix_action`:
 | `fix_action` | Button |
 |---|---|
 | `null` | No button |

@@ -35,18 +35,25 @@ class SendTrialReminders extends Command
                     // day-5/"2 days left" bucket.
                     $daysRemaining = (int) floor(now()->diffInHours($subscription->trial_ends_at, false) / 24);
 
+                    // Each guard column is *claimed* with an atomic
+                    // conditional UPDATE before the real push+email goes out,
+                    // not written after it. Written after, two overlapping
+                    // runs could both read the column as null and both send a
+                    // genuine duplicate reminder.
                     if ($daysRemaining <= 2 && $daysRemaining > 0 && $subscription->trial_reminder_day5_sent_at === null) {
-                        $action->handle($subscription, $daysRemaining);
-                        $subscription->update(['trial_reminder_day5_sent_at' => now()]);
-                        $sent++;
+                        if ($this->claim($subscription, 'trial_reminder_day5_sent_at')) {
+                            $action->handle($subscription, $daysRemaining);
+                            $sent++;
+                        }
 
                         continue;
                     }
 
                     if ($daysRemaining <= 0 && $subscription->trial_reminder_day7_sent_at === null) {
-                        $action->handle($subscription, 0);
-                        $subscription->update(['trial_reminder_day7_sent_at' => now()]);
-                        $sent++;
+                        if ($this->claim($subscription, 'trial_reminder_day7_sent_at')) {
+                            $action->handle($subscription, 0);
+                            $sent++;
+                        }
                     }
                 }
             });
@@ -54,5 +61,17 @@ class SendTrialReminders extends Command
         $this->info("Sent {$sent} trial reminder(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Wins the right to send one reminder, or returns false if a concurrent
+     * run already claimed it.
+     */
+    private function claim(Subscription $subscription, string $column): bool
+    {
+        return Subscription::query()
+            ->where('id', $subscription->id)
+            ->whereNull($column)
+            ->update([$column => now()]) > 0;
     }
 }

@@ -94,14 +94,14 @@ Schedule::command('fx:sync-rates')->dailyAt('00:05');
 Schedule::command('orders:backfill-base-currency')->dailyAt('00:10');
 
 // Trial lifecycle (Plan §6.3/§6.4).
-Schedule::command('trials:send-reminders')->hourly();
-Schedule::command('subscriptions:expire-trials')->hourly();
+Schedule::command('trials:send-reminders')->hourly()->withoutOverlapping();
+Schedule::command('subscriptions:expire-trials')->hourly()->withoutOverlapping();
 
 // Monthly SMS allotment (Plan §5) — reconciliation safety net; the real-time
 // triggers are trial start (GrantTrialSubscriptionAction) and a RevenueCat
 // purchase/renewal event (ProcessRevenueCatEventAction). Idempotent per
 // team per calendar month, so daily is safe.
-Schedule::command('sms:grant-monthly-credits')->daily();
+Schedule::command('sms:grant-monthly-credits')->daily()->withoutOverlapping();
 
 // 80%-quota upsell push (Plan §5.1) — idempotent per team per channel per
 // calendar month, so daily is safe.

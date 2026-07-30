@@ -19,6 +19,13 @@ class CancelOrderAction
 
     public function handle(Order $order, ?string $reason): ActionResult
     {
+        // See FulfillOrderAction's identical note — the platform's own PUT
+        // is naturally idempotent, this just avoids a wasted call and a
+        // duplicate OrderEvent row on a double-tap.
+        if ($order->status === Order::STATUS_CANCELLED) {
+            return ActionResult::success('This order has already been cancelled.');
+        }
+
         $adapter = $this->adapters->driver($order->platform);
 
         if (! $adapter->capabilities()->cancel) {

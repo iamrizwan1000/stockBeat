@@ -90,6 +90,37 @@ test('sending a free-text message to a thread creates it', function () {
     expect(InboxMessage::query()->where('thread_id', $thread->id)->count())->toBe(1);
 });
 
+test('a double-tap sending the identical message only creates one', function () {
+    [$user, $connection] = onboardedInboxSeller();
+    $thread = InboxThread::factory()->create([
+        'team_id' => $user->ownedTeam->id,
+        'connection_id' => $connection->id,
+        'customer_email' => 'buyer@example.com',
+    ]);
+
+    $first = test()->postJson("/api/v1/threads/{$thread->id}/messages", ['body' => 'Hi there!']);
+    $second = test()->postJson("/api/v1/threads/{$thread->id}/messages", ['body' => 'Hi there!']);
+
+    $first->assertCreated();
+    $second->assertStatus(429);
+    expect($second->json('message'))->toContain('wait a moment');
+    expect(InboxMessage::query()->where('thread_id', $thread->id)->count())->toBe(1);
+});
+
+test('a genuinely different message sent right after is not blocked', function () {
+    [$user, $connection] = onboardedInboxSeller();
+    $thread = InboxThread::factory()->create([
+        'team_id' => $user->ownedTeam->id,
+        'connection_id' => $connection->id,
+        'customer_email' => 'buyer@example.com',
+    ]);
+
+    test()->postJson("/api/v1/threads/{$thread->id}/messages", ['body' => 'Hi there!'])->assertCreated();
+    test()->postJson("/api/v1/threads/{$thread->id}/messages", ['body' => 'A different follow-up'])->assertCreated();
+
+    expect(InboxMessage::query()->where('thread_id', $thread->id)->count())->toBe(2);
+});
+
 test('sending a message via a saved reply template renders its variables', function () {
     [$user, $connection] = onboardedInboxSeller();
     $order = Order::factory()->create([

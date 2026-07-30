@@ -5,6 +5,7 @@ namespace App\Support\Connections\Adapters;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Jobs\PollAmazonOrdersJob;
 use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\Product;
@@ -155,7 +156,7 @@ class AmazonAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $expiresIn = (int) $tokenResponse->json('expires_in', 3600);
 
-        return StoreConnection::query()->create([
+        $connection = StoreConnection::query()->create([
             'team_id' => $team->id,
             'platform' => StoreConnection::PLATFORM_AMAZON,
             'name' => $name,
@@ -167,6 +168,16 @@ class AmazonAdapter implements ChannelAdapter, OAuthChannelAdapter
             ],
             'status' => StoreConnection::STATUS_ACTIVE,
         ]);
+
+        // Amazon has no webhook mechanism wired up yet — polling is the
+        // *only* sync path, so this immediate dispatch is the real
+        // first-sync trigger, not just a speed-up. Safe: per-connection
+        // overlap lock + IngestOrderAction's idempotent upsert prevent any
+        // double-processing against the scheduled poller landing around
+        // the same time.
+        PollAmazonOrdersJob::dispatch($connection->id);
+
+        return $connection;
     }
 
     /**

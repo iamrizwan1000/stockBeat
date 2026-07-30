@@ -9,6 +9,7 @@ use App\Models\AdminUser;
 use App\Models\Notification;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Concurrency\IdempotencyGuard;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -20,6 +21,10 @@ use Illuminate\Support\Facades\Mail;
  * `SendBroadcastToRecipientJob`'s marketing channels), and the SMS channel
  * never touches the customer's own `SmsLedger` balance
  * (`SendAdminSmsNotificationAction`).
+ *
+ * Guarded against a double-click sending the same "you got bonus credits"
+ * notification twice — same `IdempotencyGuard` pattern as the grant
+ * actions themselves.
  */
 class NotifyCustomerOfCreditGrantAction
 {
@@ -37,9 +42,18 @@ class NotifyCustomerOfCreditGrantAction
 
     /**
      * @param  array<int, string>  $channels
+     * @return array<string, string>|null
+     */
+    public function handle(AdminUser $admin, User $user, Team $team, array $channels, string $creditType, int $credits, string $note = ''): ?array
+    {
+        return IdempotencyGuard::once("notify-grant:{$team->id}", 10, fn () => $this->send($admin, $user, $team, $channels, $creditType, $credits, $note));
+    }
+
+    /**
+     * @param  array<int, string>  $channels
      * @return array<string, string>
      */
-    public function handle(AdminUser $admin, User $user, Team $team, array $channels, string $creditType, int $credits, string $note = ''): array
+    private function send(AdminUser $admin, User $user, Team $team, array $channels, string $creditType, int $credits, string $note): array
     {
         $title = "You've received {$credits} bonus {$creditType} credits";
         $body = $note !== '' ? $note : "Your account was credited with {$credits} bonus {$creditType} credits.";

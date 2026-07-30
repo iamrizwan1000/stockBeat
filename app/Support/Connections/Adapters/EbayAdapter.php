@@ -5,6 +5,7 @@ namespace App\Support\Connections\Adapters;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Jobs\PollEbayOrdersJob;
 use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\Product;
@@ -113,7 +114,7 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $expiresIn = (int) $tokenResponse->json('expires_in', 7200);
 
-        return StoreConnection::query()->create([
+        $connection = StoreConnection::query()->create([
             'team_id' => $team->id,
             'platform' => StoreConnection::PLATFORM_EBAY,
             'name' => $name,
@@ -124,6 +125,16 @@ class EbayAdapter implements ChannelAdapter, OAuthChannelAdapter
             ],
             'status' => StoreConnection::STATUS_ACTIVE,
         ]);
+
+        // eBay has no webhook mechanism at all (see registerWebhooks()'s own
+        // docblock) — polling is the *only* sync path, so this immediate
+        // dispatch isn't just a speed-up here, it's the real first-sync
+        // trigger. Safe: per-connection overlap lock + IngestOrderAction's
+        // idempotent upsert prevent any double-processing against the
+        // scheduled poller landing around the same time.
+        PollEbayOrdersJob::dispatch($connection->id);
+
+        return $connection;
     }
 
     /**

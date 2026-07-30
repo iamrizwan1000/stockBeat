@@ -13,6 +13,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Support\Ai\AiProviderManager;
 use App\Support\Ai\AssistantToolRegistry;
+use App\Support\Concurrency\IdempotencyGuard;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -68,7 +69,20 @@ class AskAssistantAction
         private readonly AssistantToolRegistry $tools,
     ) {}
 
-    public function handle(Team $team, User $user, string $question, ?AiConversation $conversation, string $mode = self::MODE_DATA): AiConversation
+    /**
+     * Guarded by a 60s lock (long enough to cover the real latency of up to
+     * `MAX_TOOL_ROUNDS` provider round trips, not just a typical double-tap
+     * window) — without it, a double-tap/retry fires a genuine duplicate LLM
+     * call and double-debits the team's monthly AI question quota.
+     */
+    public function handle(Team $team, User $user, string $question, ?AiConversation $conversation, string $mode = self::MODE_DATA): ?AiConversation
+    {
+        $lockKey = "ai-ask:{$team->id}:{$user->id}:".($conversation?->id ?? 'new').':'.md5($question);
+
+        return IdempotencyGuard::once($lockKey, 60, fn () => $this->ask($team, $user, $question, $conversation, $mode));
+    }
+
+    private function ask(Team $team, User $user, string $question, ?AiConversation $conversation, string $mode): AiConversation
     {
         $limits = $this->resolveEntitlements->handle($team)['limits'];
         $monthlyLimit = null;

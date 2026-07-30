@@ -5,6 +5,7 @@ namespace App\Support\Connections\Adapters;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Jobs\PollTikTokOrdersJob;
 use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\Product;
@@ -158,6 +159,13 @@ class TikTokAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $this->populateAuthorizedShop($connection);
         $this->registerWebhooks($connection);
+
+        // See WooCommerceAdapter::connect()'s equivalent comment — don't
+        // make the merchant wait for the next scheduled poll tick for
+        // their first sync. Safe: per-connection overlap lock +
+        // IngestOrderAction's idempotent upsert prevent any double-processing
+        // against webhooks or the scheduled poller.
+        PollTikTokOrdersJob::dispatch($connection->id);
 
         return $connection;
     }

@@ -1,6 +1,8 @@
 <?php
 
+use App\Actions\Orders\UpdateOrderTagsAction;
 use App\Models\Order;
+use App\Models\OrderEvent;
 use App\Models\StoreConnection;
 use App\Models\Subscription;
 use App\Models\TeamMember;
@@ -138,6 +140,38 @@ test('bulk-tagging with an already-applied tag does not duplicate it', function 
     test()->postJson('/api/v1/orders/bulk-tag', ['ids' => [$order->id], 'tag' => 'urgent'])->assertOk();
 
     expect($order->fresh()->tags)->toBe(['urgent']);
+});
+
+test('re-submitting the identical tag list is a no-op — no duplicate timeline entry, no redundant write', function () {
+    $user = onboardedBulkActionsUser();
+    $team = $user->currentTeam();
+    $connection = StoreConnection::factory()->create(['team_id' => $team->id]);
+    $order = Order::factory()->create(['team_id' => $team->id, 'connection_id' => $connection->id, 'tags' => ['sale', 'fragile']]);
+
+    $beforeUpdatedAt = $order->updated_at;
+    $beforeEventCount = OrderEvent::query()->where('order_id', $order->id)->where('type', OrderEvent::TYPE_TAGS_UPDATED)->count();
+
+    $result = app(UpdateOrderTagsAction::class)->handle($order, ['sale', 'fragile']);
+
+    expect($result->tags)->toBe(['sale', 'fragile']);
+    expect($order->fresh()->updated_at->eq($beforeUpdatedAt))->toBeTrue();
+    expect(OrderEvent::query()->where('order_id', $order->id)->where('type', OrderEvent::TYPE_TAGS_UPDATED)->count())
+        ->toBe($beforeEventCount);
+});
+
+test('submitting a genuinely different tag list still writes normally', function () {
+    $user = onboardedBulkActionsUser();
+    $team = $user->currentTeam();
+    $connection = StoreConnection::factory()->create(['team_id' => $team->id]);
+    $order = Order::factory()->create(['team_id' => $team->id, 'connection_id' => $connection->id, 'tags' => ['sale', 'fragile']]);
+
+    $beforeEventCount = OrderEvent::query()->where('order_id', $order->id)->where('type', OrderEvent::TYPE_TAGS_UPDATED)->count();
+
+    $result = app(UpdateOrderTagsAction::class)->handle($order, ['sale', 'fragile', 'new-tag']);
+
+    expect($result->tags)->toBe(['sale', 'fragile', 'new-tag']);
+    expect(OrderEvent::query()->where('order_id', $order->id)->where('type', OrderEvent::TYPE_TAGS_UPDATED)->count())
+        ->toBe($beforeEventCount + 1);
 });
 
 test('a bulk tag touching another team\'s order is rejected entirely, nothing tagged', function () {

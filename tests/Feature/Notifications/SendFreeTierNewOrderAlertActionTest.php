@@ -118,6 +118,29 @@ test('the preset alert stamps platform and trigger onto the Notification row', f
     expect($notification->data)->toMatchArray(['platform' => 'woo', 'trigger' => 'new_order']);
 });
 
+test('a double-tap / job retry for the same order only sends once', function () {
+    $team = freeTierTeamForAlerts();
+    Device::factory()->create(['user_id' => $team->owner_id, 'push_token' => 'tok']);
+
+    $order = Order::factory()->create([
+        'team_id' => $team->id,
+        'order_number' => '#99',
+        'currency' => 'USD',
+        'total' => 50,
+        'total_base_currency' => 50,
+    ]);
+
+    $messaging = Mockery::mock(Messaging::class);
+    $messaging->shouldReceive('send')->once()->andReturn([]);
+    app()->instance(Messaging::class, $messaging);
+
+    $first = app(SendFreeTierNewOrderAlertAction::class)->handle($order);
+    $second = app(SendFreeTierNewOrderAlertAction::class)->handle($order);
+
+    expect($first)->toBe('sent');
+    expect($second)->toBe('already_sent');
+});
+
 test('a paid-tier team never gets the free-tier preset alert, high-value or not', function () {
     $team = paidTierTeamForAlerts(Plan::PREMIUM);
     Device::factory()->create(['user_id' => $team->owner_id, 'push_token' => 'tok']);

@@ -7,6 +7,7 @@ use App\Mail\InboxMessageMail;
 use App\Models\InboxMessage;
 use App\Models\InboxThread;
 use App\Models\User;
+use App\Support\Concurrency\IdempotencyGuard;
 use App\Support\Connections\ChannelAdapterManager;
 use Illuminate\Support\Facades\Mail;
 
@@ -36,7 +37,12 @@ class SendInboxMessageAction
         private readonly ChannelAdapterManager $adapters,
     ) {}
 
-    public function handle(User $sender, InboxThread $thread, string $body): InboxMessage
+    public function handle(User $sender, InboxThread $thread, string $body): ?InboxMessage
+    {
+        return IdempotencyGuard::once("inbox-send:{$thread->id}:".md5($body), 10, fn () => $this->send($sender, $thread, $body));
+    }
+
+    private function send(User $sender, InboxThread $thread, string $body): InboxMessage
     {
         $message = InboxMessage::query()->create([
             'thread_id' => $thread->id,

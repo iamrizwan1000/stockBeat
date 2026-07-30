@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Billing\SendTrialReminderNotificationAction;
 use App\Mail\TrialEndingMail;
 use App\Models\Rule;
 use App\Models\StoreConnection;
@@ -52,6 +53,34 @@ test('a trial with 5 days left gets no reminder yet', function () {
 
     expect($subscription->fresh()->trial_reminder_day5_sent_at)->toBeNull();
     Mail::assertNothingQueued();
+});
+
+test('the reminder guard column is claimed before the send, so a crashed send is never re-sent', function () {
+    Mail::fake();
+    $owner = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    $subscription = Subscription::factory()->create(['team_id' => $team->id, 'status' => Subscription::STATUS_TRIAL, 'trial_ends_at' => now()->addDays(2)]);
+
+    test()->mock(SendTrialReminderNotificationAction::class, function ($mock) {
+        $mock->shouldReceive('handle')->once()->andThrow(new RuntimeException('push provider down'));
+    });
+
+    try {
+        Artisan::call('trials:send-reminders');
+    } catch (RuntimeException) {
+        // The send blew up *after* the claim landed — precisely the crash this
+        // ordering exists to survive.
+    }
+
+    // Claimed despite the send failing. Written after the send instead, this
+    // would still be null and the next run would re-send for real.
+    expect($subscription->fresh()->trial_reminder_day5_sent_at)->not->toBeNull();
+
+    test()->mock(SendTrialReminderNotificationAction::class, function ($mock) {
+        $mock->shouldNotReceive('handle');
+    });
+
+    Artisan::call('trials:send-reminders');
 });
 
 test('a lapsed trial is expired and frozen exactly once', function () {

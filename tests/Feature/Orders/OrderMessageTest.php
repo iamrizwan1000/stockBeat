@@ -66,6 +66,25 @@ test('messaging the same order twice reuses the same thread', function () {
     expect($thread->messages()->count())->toBe(2);
 });
 
+test('a double-tap messaging an order with the identical body only creates one message', function () {
+    [$user, $connection] = onboardedOrderMessenger();
+    $order = Order::factory()->create([
+        'team_id' => $user->ownedTeam->id,
+        'connection_id' => $connection->id,
+        'customer_email' => 'buyer@example.com',
+    ]);
+
+    $first = test()->postJson("/api/v1/orders/{$order->id}/message", ['body' => 'Just checking in.']);
+    $second = test()->postJson("/api/v1/orders/{$order->id}/message", ['body' => 'Just checking in.']);
+
+    $first->assertCreated();
+    $second->assertStatus(429);
+    expect($second->json('message'))->toContain('wait a moment');
+
+    $thread = InboxThread::query()->where('order_id', $order->id)->firstOrFail();
+    expect(InboxMessage::query()->where('thread_id', $thread->id)->count())->toBe(1);
+});
+
 test('messaging an order outside the callers team is not found', function () {
     onboardedOrderMessenger();
     $otherOrder = Order::factory()->create();

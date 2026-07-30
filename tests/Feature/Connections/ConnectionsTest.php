@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\PollWooOrdersJob;
 use App\Models\StoreConnection;
 use App\Models\Subscription;
 use App\Models\User;
@@ -7,6 +8,7 @@ use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -87,6 +89,42 @@ test('a woo store connects successfully and credentials are encrypted at rest', 
 
     $connection = StoreConnection::query()->find($connectionId);
     expect($connection->credentials['consumer_secret'])->toBe('cs_super_secret_value');
+});
+
+test('a double-tap connecting the identical woo store within the lock window is rejected, not duplicated', function () {
+    fakeWooApiSuccess();
+    onboardedUser();
+
+    $first = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+    $second = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+
+    $first->assertCreated();
+    $second->assertStatus(422);
+    expect($second->json('message'))->toContain('already in progress');
+    expect(StoreConnection::query()->count())->toBe(1);
+});
+
+test('reconnecting the same woo store minutes later (past the lock window) still returns the existing connection', function () {
+    fakeWooApiSuccess();
+    onboardedUser();
+
+    $first = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+    test()->travel(35)->seconds();
+    $second = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+
+    expect($second->json('data.connection.id'))->toBe($first->json('data.connection.id'));
+    expect(StoreConnection::query()->count())->toBe(1);
+});
+
+test('connecting a woo store dispatches an immediate first-sync job rather than waiting for the next poll tick', function () {
+    Queue::fake();
+    fakeWooApiSuccess();
+    onboardedUser();
+
+    $response = test()->postJson('/api/v1/connections/woo/start', wooCredentials());
+    $connectionId = $response->json('data.connection.id');
+
+    Queue::assertPushed(PollWooOrdersJob::class, fn (PollWooOrdersJob $job) => $job->connectionId === $connectionId);
 });
 
 test('invalid woo credentials are rejected before a connection is ever created', function () {
@@ -196,8 +234,14 @@ test('a pro-trial team can connect more than one store', function () {
     onboardedUser();
 
     test()->postJson('/api/v1/connections/woo/start', wooCredentials())->assertCreated();
-    test()->postJson('/api/v1/connections/woo/start', array_merge(wooCredentials(), ['name' => 'Second Store']))
-        ->assertCreated();
+    // A genuinely different store (not a second connection to the same
+    // store_url — that's the exact duplicate-connection case ConnectStoreAction
+    // now guards against) so this actually tests "multiple distinct stores
+    // allowed," not an accidental duplicate.
+    test()->postJson('/api/v1/connections/woo/start', array_merge(wooCredentials(), [
+        'name' => 'Second Store',
+        'credentials' => array_merge(wooCredentials()['credentials'], ['store_url' => 'https://second-shop.test']),
+    ]))->assertCreated();
 
     expect(StoreConnection::query()->count())->toBe(2);
 });

@@ -54,6 +54,25 @@ test('a reply from a mismatched email address is silently dropped', function () 
     expect(InboxMessage::query()->where('thread_id', $thread->id)->count())->toBe(0);
 });
 
+test('a redelivered webhook with the identical reply only creates one message and one notification', function () {
+    $assignee = User::factory()->create();
+    $owner = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    $thread = InboxThread::factory()->create([
+        'team_id' => $team->id,
+        'customer_email' => 'buyer@example.com',
+        'assigned_to' => $assignee->id,
+    ]);
+
+    $first = app(ReceiveInboxReplyAction::class)->handle($thread, 'buyer@example.com', 'Where is my order?');
+    $second = app(ReceiveInboxReplyAction::class)->handle($thread, 'buyer@example.com', 'Where is my order?');
+
+    expect($first)->not->toBeNull();
+    expect($second)->toBeNull();
+    expect(InboxMessage::query()->where('thread_id', $thread->id)->where('direction', InboxMessage::DIRECTION_IN)->count())->toBe(1);
+    expect(Notification::query()->where('user_id', $assignee->id)->where('type', Notification::TYPE_INBOX_MESSAGE)->count())->toBe(1);
+});
+
 test('a reply on a thread with no customer email on file is dropped', function () {
     $owner = User::factory()->create();
     $team = Team::factory()->create(['owner_id' => $owner->id]);

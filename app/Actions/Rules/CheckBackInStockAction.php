@@ -75,6 +75,20 @@ class CheckBackInStockAction
             return;
         }
 
+        // Atomically claim this restock event *before* firing anything —
+        // the conditional `WHERE back_in_stock_notified_at IS NULL` means
+        // only one of two overlapping/concurrent poll runs can ever win
+        // this, closing the same read-then-write race that let a real
+        // restock alert double-fire.
+        $claimed = Product::query()
+            ->where('id', $product->id)
+            ->whereNull('back_in_stock_notified_at')
+            ->update(['back_in_stock_notified_at' => now()]);
+
+        if ($claimed === 0) {
+            return;
+        }
+
         foreach ($rules as $rule) {
             $this->evaluation->handle($rule, Rule::TRIGGER_BACK_IN_STOCK, null, [
                 'title' => $product->title,
@@ -83,7 +97,5 @@ class CheckBackInStockAction
                 'connection_id' => $product->connection_id,
             ]);
         }
-
-        $product->update(['back_in_stock_notified_at' => now()]);
     }
 }

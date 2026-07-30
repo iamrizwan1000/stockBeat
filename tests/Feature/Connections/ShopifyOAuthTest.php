@@ -1,11 +1,13 @@
 <?php
 
+use App\Jobs\PollShopifyOrdersJob;
 use App\Models\StoreConnection;
 use App\Models\User;
 use App\Support\Connections\OAuthState;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -16,6 +18,13 @@ beforeEach(function () {
         'services.shopify.client_id' => 'test-client-id',
         'services.shopify.client_secret' => 'test-client-secret',
     ]);
+    // Connecting now dispatches an immediate first-sync job — fake the
+    // queue globally in this file so it doesn't actually execute
+    // synchronously (QUEUE_CONNECTION=sync in tests) against endpoints
+    // these tests don't fake, which would otherwise corrupt connection
+    // state (e.g. an unfaked orders-endpoint response getting misread as
+    // an auth failure and flipping status to needs_reauth).
+    Queue::fake();
 });
 
 /**
@@ -91,6 +100,107 @@ test('a valid callback completes the connection, fetches store branding, and reg
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'orders/create');
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'inventory_levels/update');
+});
+
+test('a valid callback dispatches an immediate first-sync job rather than waiting for the next poll tick', function () {
+    Queue::fake();
+    onboardedShopifyUser();
+    Http::fake([
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response(['shop' => ['email' => 'owner@my-test-shop.com', 'name' => 'My Test Shop']], 200),
+        'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
+    ]);
+
+    $authUrl = test()->postJson('/api/v1/connections/shopify/start', [
+        'name' => 'My Shopify Store',
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+    ])->json('data.authorization_url');
+
+    parse_str((string) parse_url($authUrl, PHP_URL_QUERY), $startParams);
+    $state = $startParams['state'];
+
+    $callbackParams = [
+        'code' => 'fake-auth-code',
+        'shop' => 'my-test-shop.myshopify.com',
+        'state' => $state,
+        'timestamp' => (string) time(),
+    ];
+    $callbackParams['hmac'] = shopifyQueryHmac($callbackParams, 'test-client-secret');
+
+    test()->get('/hooks/shopify/oauth/callback?'.http_build_query($callbackParams))->assertOk();
+
+    $connection = StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->first();
+    Queue::assertPushed(PollShopifyOrdersJob::class, fn (PollShopifyOrdersJob $job) => $job->connectionId === $connection->id);
+});
+
+test('replaying the exact same callback link does not create a second connection', function () {
+    onboardedShopifyUser();
+    Http::fake([
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response(['shop' => ['email' => 'owner@my-test-shop.com', 'name' => 'My Test Shop']], 200),
+        'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
+    ]);
+
+    $authUrl = test()->postJson('/api/v1/connections/shopify/start', [
+        'name' => 'My Shopify Store',
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+    ])->json('data.authorization_url');
+
+    parse_str((string) parse_url($authUrl, PHP_URL_QUERY), $startParams);
+    $state = $startParams['state'];
+
+    $callbackParams = [
+        'code' => 'fake-auth-code',
+        'shop' => 'my-test-shop.myshopify.com',
+        'state' => $state,
+        'timestamp' => (string) time(),
+    ];
+    $callbackParams['hmac'] = shopifyQueryHmac($callbackParams, 'test-client-secret');
+    $callbackUrl = '/hooks/shopify/oauth/callback?'.http_build_query($callbackParams);
+
+    test()->get($callbackUrl)->assertOk();
+    // Replaying the identical link (same nonce/state) a second time —
+    // simulates a dropped connection causing a client/browser retry, or
+    // the redirect firing twice.
+    test()->get($callbackUrl)->assertOk();
+
+    expect(StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->count())->toBe(1);
+});
+
+test('reconnecting the same shop via a fresh oauth attempt returns the existing connection, not a duplicate', function () {
+    onboardedShopifyUser();
+    Http::fake([
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => Http::response(['access_token' => 'shpat_faketoken', 'scope' => 'read_orders'], 200),
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response(['shop' => ['email' => 'owner@my-test-shop.com', 'name' => 'My Test Shop']], 200),
+        'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
+    ]);
+
+    $completeOauth = function () {
+        $authUrl = test()->postJson('/api/v1/connections/shopify/start', [
+            'name' => 'My Shopify Store',
+            'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+        ])->json('data.authorization_url');
+
+        parse_str((string) parse_url($authUrl, PHP_URL_QUERY), $startParams);
+
+        $callbackParams = [
+            'code' => 'fake-auth-code',
+            'shop' => 'my-test-shop.myshopify.com',
+            'state' => $startParams['state'],
+            'timestamp' => (string) time(),
+        ];
+        $callbackParams['hmac'] = shopifyQueryHmac($callbackParams, 'test-client-secret');
+
+        return test()->get('/hooks/shopify/oauth/callback?'.http_build_query($callbackParams));
+    };
+
+    $completeOauth()->assertOk();
+    // A genuinely new /start call (fresh nonce, past any lock window) for
+    // the identical shop_domain — the fingerprint-based existing-connection
+    // check is what catches this, not the nonce lock.
+    $completeOauth()->assertOk();
+
+    expect(StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->count())->toBe(1);
 });
 
 test('a valid callback still completes the connection when the shop.json branding lookup fails', function () {

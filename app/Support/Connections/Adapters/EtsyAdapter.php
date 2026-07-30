@@ -5,6 +5,7 @@ namespace App\Support\Connections\Adapters;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Jobs\PollEtsyOrdersJob;
 use App\Models\InboxThread;
 use App\Models\Order;
 use App\Models\Product;
@@ -108,7 +109,7 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $expiresIn = (int) $tokenResponse->json('expires_in', 3600);
 
-        return StoreConnection::query()->create([
+        $connection = StoreConnection::query()->create([
             'team_id' => $team->id,
             'platform' => StoreConnection::PLATFORM_ETSY,
             'name' => $name,
@@ -120,6 +121,15 @@ class EtsyAdapter implements ChannelAdapter, OAuthChannelAdapter
             ],
             'status' => StoreConnection::STATUS_ACTIVE,
         ]);
+
+        // Etsy has no webhook mechanism at all — polling is the *only* sync
+        // path, so this immediate dispatch is the real first-sync trigger,
+        // not just a speed-up. Safe: per-connection overlap lock +
+        // IngestOrderAction's idempotent upsert prevent any double-processing
+        // against the scheduled poller landing around the same time.
+        PollEtsyOrdersJob::dispatch($connection->id);
+
+        return $connection;
     }
 
     /**

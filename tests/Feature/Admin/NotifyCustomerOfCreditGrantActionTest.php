@@ -75,6 +75,22 @@ test('email notification does not count toward the team\'s email_monthly quota',
     expect(Notification::query()->where('user_id', $user->id)->where('type', Notification::TYPE_ADMIN_NOTE)->exists())->toBeTrue();
 });
 
+test('double-clicking notify only sends the notification once', function () {
+    Mail::fake();
+
+    $admin = AdminUser::factory()->create();
+    $user = User::factory()->create(['marketing_opt_in' => false]);
+    $team = Team::factory()->create(['owner_id' => $user->id]);
+
+    $action = app(NotifyCustomerOfCreditGrantAction::class);
+    $first = $action->handle($admin, $user, $team, ['email'], 'email', 50);
+    $second = $action->handle($admin, $user, $team, ['email'], 'email', 50);
+
+    expect($first)->not->toBeNull();
+    expect($second)->toBeNull();
+    Mail::assertQueued(AdminCreditGrantMail::class, 1);
+});
+
 test('the notify step is audit-logged with channels and credit details', function () {
     Mail::fake();
 

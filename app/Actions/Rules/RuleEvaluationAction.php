@@ -7,6 +7,7 @@ use App\Models\Rule;
 use App\Models\RuleExecution;
 use App\Support\Rules\ConditionEvaluator;
 use Closure;
+use Illuminate\Database\QueryException;
 
 /**
  * Evaluates one rule against a trigger event (Plan §8.4) and, if it fires,
@@ -51,9 +52,39 @@ class RuleEvaluationAction
             return $this->log($rule, $trigger, $order, [['status' => 'skipped_quiet_hours']]);
         }
 
+        // Claim the execution slot via the real DB unique constraint on
+        // `rule_executions(rule_id, order_id, trigger)` *before* sending
+        // anything for real — a queue-job retry after a crash mid-send
+        // must never re-send. `alreadyFired()` above is only a fast
+        // pre-check; this atomic claim is what actually closes the race
+        // (a caught unique-violation means another concurrent/retried run
+        // already claimed it).
+        $execution = $this->claim($rule, $trigger, $order);
+
+        if ($execution === null) {
+            return null;
+        }
+
         $actionsResult = $this->dispatchActions->handle($rule, $rule->actions, $order, $context);
 
-        return $this->log($rule, $trigger, $order, $actionsResult);
+        $execution->update(['actions_result' => $actionsResult]);
+
+        return $execution;
+    }
+
+    private function claim(Rule $rule, string $trigger, ?Order $order): ?RuleExecution
+    {
+        try {
+            return RuleExecution::query()->create([
+                'rule_id' => $rule->id,
+                'order_id' => $order?->id,
+                'trigger' => $trigger,
+                'actions_result' => [],
+                'fired_at' => now(),
+            ]);
+        } catch (QueryException) {
+            return null;
+        }
     }
 
     /**

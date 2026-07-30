@@ -6,6 +6,7 @@ use App\Actions\Notifications\SendPushNotificationAction;
 use App\Models\InboxMessage;
 use App\Models\InboxThread;
 use App\Models\Notification;
+use App\Support\Concurrency\IdempotencyGuard;
 use Illuminate\Support\Str;
 
 /**
@@ -34,6 +35,21 @@ class ReceiveInboxReplyAction
             return null;
         }
 
+        // No stable external message id is available from this webhook's
+        // payload shape (`to`/`from`/`text` only — see this class's own
+        // docblock), so a redelivery is deduped by content instead: a real
+        // provider redelivers within seconds to a couple of minutes, so 60s
+        // covers the realistic window without blocking a genuinely new,
+        // identical-looking follow-up message sent much later.
+        return IdempotencyGuard::once(
+            "inbox-reply:{$thread->id}:".md5($fromEmail.$body),
+            60,
+            fn () => $this->receive($thread, $body),
+        );
+    }
+
+    private function receive(InboxThread $thread, string $body): InboxMessage
+    {
         $message = InboxMessage::query()->create([
             'thread_id' => $thread->id,
             'direction' => InboxMessage::DIRECTION_IN,

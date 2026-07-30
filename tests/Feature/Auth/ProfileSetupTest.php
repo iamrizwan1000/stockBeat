@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\SmsLedger;
+use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -55,6 +59,44 @@ test('calling profile setup twice does not create a duplicate team', function ()
 
     expect(Team::query()->where('owner_id', $user->id)->count())->toBe(1);
     expect($user->refresh()->name)->toBe('Updated Name');
+});
+
+test('a double-submitted onboarding creates only one team, membership, subscription, and trial SMS grant', function () {
+    test()->seed(PlanSeeder::class);
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    test()->postJson('/api/v1/profile/setup', validProfilePayload())->assertOk();
+    test()->postJson('/api/v1/profile/setup', validProfilePayload())->assertOk();
+
+    expect(Team::query()->where('owner_id', $user->id)->count())->toBe(1);
+    expect(TeamMember::query()->where('user_id', $user->id)->count())->toBe(1);
+    expect(Subscription::query()->count())->toBe(1);
+    // Two trials' worth of Premium SMS credit is the money-shaped half of
+    // this bug — one grant row, not two.
+    expect(
+        SmsLedger::query()->where('reason', SmsLedger::REASON_MONTHLY_GRANT)->count()
+    )->toBe(1);
+});
+
+test('a concurrent in-flight setup submit cannot create a second team', function () {
+    test()->seed(PlanSeeder::class);
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    // Hold the very lock the action claims, standing in for another request
+    // whose team creation is still in flight. The `teamMemberships()->exists()`
+    // check alone would let this request through and create a rival team; the
+    // lock is what actually stops it.
+    Cache::lock("idempotency:profile-setup-team:{$user->id}", 30)->get();
+
+    test()->postJson('/api/v1/profile/setup', validProfilePayload())->assertOk();
+
+    expect(Team::query()->where('owner_id', $user->id)->count())->toBe(0);
+    expect(TeamMember::query()->where('user_id', $user->id)->count())->toBe(0);
+    expect(Subscription::query()->count())->toBe(0);
+    // The profile fields themselves still save — only team creation is gated.
+    expect($user->refresh()->name)->toBe('Jamie Seller');
 });
 
 test('sells_on is required', function () {

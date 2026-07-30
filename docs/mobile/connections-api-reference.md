@@ -2,7 +2,7 @@
 
 Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules as `auth-api-reference.md` — read that first if you haven't.
 
-Pair this with `connections-flow-screens.md` for the actual screen-by-screen UX, especially the OAuth-callback edge case, which is the one thing in this module that behaves differently from a typical mobile OAuth flow.
+Pair this with `connections-flow-screens.md` for the actual screen-by-screen UX, especially the OAuth-callback edge case, which is the one thing in this module that behaves differently from a typical mobile OAuth flow. Also see `network-resilience-and-edge-cases.md` for double-tap/slow-network behavior across this and every other mutating endpoint.
 
 ## Platform status — verified against real code and real credentials, 2026-07-22
 
@@ -69,6 +69,8 @@ For all four OAuth platforms, "real" means the authorization URL generation and 
 }
 ```
 
+**`last_sync_at: null` here is expected, not a bug — but revised 2026-07-30, it shouldn't stay that way for long.** Every connect path (this one and the OAuth callback below) now immediately dispatches that platform's order-sync job the moment the connection row is created, rather than waiting for the next scheduled poll tick — in practice this typically resolves in a few seconds to under a minute. It's still asynchronous though, so don't assume `last_sync_at` is populated by the time this response returns; poll `GET /connections/{id}/health` (or refetch `GET /connections`) and see `connections-flow-screens.md`'s Screen 4 note on what to show the Feed in the meantime.
+
 **Success — 200 (Shopify/eBay/Etsy/TikTok — OAuth redirect, no connection created yet):**
 ```json
 {
@@ -89,6 +91,9 @@ Open this URL in a browser (see flow doc for in-app-browser vs. system-browser g
 | 422 | Team already at `entitlements.limits.max_stores` | `"You've reached your plan's store limit ({N}). Upgrade to connect more stores."` under `errors.platform` — this is the paywall trigger from Plan §4.11, show the upgrade sheet here |
 | 422 | `amazon` — always, regardless of input | A message explaining Amazon isn't available yet — show this as a permanent "coming soon" state, not a retry-able error |
 | 422 | Profile setup incomplete | `"Complete profile setup before connecting a store."` — shouldn't be reachable if you're gating navigation correctly, but handle it |
+| 422 | **Added 2026-07-30** — a double-tap submitting identical Woo credentials within a short window | `"A connection attempt for this store is already in progress — please wait a moment and check your Connections list."` under `errors.platform` — a genuine duplicate submission was caught, not a real failure; see `network-resilience-and-edge-cases.md`. Submitting a *different* store's credentials right after is never affected by this. |
+
+**Reconnecting the same Woo store later (not a double-tap, a genuine repeat submission minutes/hours later) doesn't error at all** — it silently returns the existing connection (still 201, same shape) rather than creating a duplicate. Safe to let a merchant resubmit the connect form for a store they may have already connected without worrying about ending up with two rows for it.
 
 ---
 
@@ -104,6 +109,8 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
 - Use an **in-app browser** (e.g. `expo-web-browser`'s `openAuthSessionAsync`, or `SFSafariViewController`/Custom Tabs) rather than the system browser — both because it's the better UX regardless of the deep link, and because `openAuthSessionAsync` specifically is what makes the redirect back to your registered scheme actually resolve the browser session's promise.
 - **Register the `stockbeat://` scheme** in the app (Expo: the `"scheme"` key in `app.json`/`app.config`; bare RN: `Info.plist`/`AndroidManifest.xml`) and add a `Linking` listener for the `oauth-callback` host that reads `platform`/`success`/`message` off the query string.
 - **Still keep the poll-and-diff fallback — don't remove it.** The redirect silently no-ops if the scheme isn't registered, if the OS blocks it, or on an older app build that hasn't shipped the scheme yet. When the browser sheet closes (deep-link-triggered or user-dismissed), call `GET /connections` and diff against what you had before opening the sheet as the reliability net; polling every few seconds while the sheet is open covers the case where neither the deep link nor a dismissal event fires.
+
+**Revised 2026-07-30 — replaying the same callback (or completing a fresh OAuth attempt for a store you're already connected to) is guarded server-side, not just client-side.** If the app is killed/backgrounded mid-OAuth and the merchant retries from scratch, or the redirect somehow fires twice, you will **not** end up with two `StoreConnection` rows for Shopify (matched by its stable `shop_domain` identity) or for a literal replay of the same link on any of the four platforms. The one honest gap: **eBay/Etsy/Amazon/TikTok have no stable store identity available** without extra OAuth scope this app doesn't request — a genuinely *new* `/start` → approve → callback cycle for a store already connected on one of those four platforms can still create a second row. If you ever see a merchant with an obviously-duplicate eBay/Etsy/Amazon/TikTok connection, that's this known limitation, not a client bug — direct them to disconnect the extra one from Settings.
 
 ---
 
@@ -224,6 +231,28 @@ Muting/unmuting takes effect immediately for any rule that fires after this call
 | `"check_connection"` | Hasn't synced in 2+ hours despite being `active` | No user action possible — show the message ("we'll keep retrying automatically"), no button |
 
 Treat any *other* non-null value defensively (show the `message` text, no button) since new ones could be added server-side without a client release.
+
+---
+
+## `POST /connections/{id}/sync-now` (added 2026-07-30)
+
+**Requires auth**, `owner`/`manager` role (same `team.role` gate as `mute`/`destroy`/`start`). A manual "sync now" trigger — dispatches the same platform-specific order-poll job the automatic scheduler and connect-time first-sync already use, just on demand. No request body.
+
+**This is specifically for the Connections list screen, not pull-to-refresh on the Feed/Orders list.** Pull-to-refresh on any order list should just refetch `GET /orders` — this app's own database — the same as every other pull-to-refresh pattern (Twitter, Gmail, etc.): cheap, instant, no external API call. This endpoint is the one place "go check with the platform right now" is the actual intent, and it's rate-limited accordingly (see below) — don't wire it up behind a generic list's pull-to-refresh gesture, or a merchant refreshing their Feed repeatedly could burn through that store's platform-side API rate limit for no benefit (the Feed already gets new orders via webhook + the background poller regardless).
+
+**Success — 200:**
+```json
+{ "success": true, "message": "Sync started.", "data": null }
+```
+This confirms the job was *queued*, not that syncing has *finished* — it's asynchronous, same as the connect-time first-sync. Refresh the connection (`GET /connections` or `GET /connections/{id}/health`) a few seconds later to see `last_sync_at` update, rather than treating this response as proof new data has arrived.
+
+**429 — cooldown active (one per connection, 60 seconds):**
+```json
+{ "success": false, "message": "Sync already requested recently — try again in 42 seconds.", "errors": null }
+```
+The cooldown is **per connection, not per team** — syncing one store never blocks syncing another store on the same team. Parse the seconds out of `message` if you want to show a countdown/disable the button for that long, or just disable the "Sync now" button for a flat ~60s after tapping and re-enable on the next successful (non-429) response — either is fine, there's no separate machine-readable `retry_after_seconds` field in the response body today.
+
+**Errors:** `404` if the connection doesn't belong to the caller's team (same pattern as `DELETE`/`mute`). `403` if the caller's role isn't `owner`/`manager`.
 
 **Errors:** `404` — same ownership check as `DELETE`.
 

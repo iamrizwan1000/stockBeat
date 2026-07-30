@@ -7,6 +7,7 @@ use App\Models\AdminUser;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Team;
+use App\Support\Concurrency\IdempotencyGuard;
 
 /**
  * Plan §8.7.2: "extend trial (n days)". Extends from the current
@@ -30,7 +31,18 @@ class ExtendTrialAction
         private readonly ReverseDowngradeFreezeAction $reverseFreeze,
     ) {}
 
-    public function handle(AdminUser $admin, Team $team, int $days): Subscription
+    /**
+     * Guarded against an admin double-clicking "Extend" on a slow connection:
+     * the extension is cumulative (it adds to a still-future `trial_ends_at`),
+     * so two rapid calls genuinely hand out twice the days asked for — the
+     * same real double-grant shape as `GrantBonusSmsCreditsAction` et al.
+     */
+    public function handle(AdminUser $admin, Team $team, int $days): ?Subscription
+    {
+        return IdempotencyGuard::once("extend-trial:{$team->id}", 10, fn () => $this->extend($admin, $team, $days));
+    }
+
+    private function extend(AdminUser $admin, Team $team, int $days): Subscription
     {
         $subscription = $team->subscription;
         $wasExpired = $subscription?->status === Subscription::STATUS_EXPIRED;

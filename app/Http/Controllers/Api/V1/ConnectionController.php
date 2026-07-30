@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Connections\ConnectStoreAction;
 use App\Actions\Connections\GetConnectionHealthAction;
 use App\Actions\Connections\StartOAuthConnectionAction;
+use App\Actions\Connections\TriggerConnectionSyncAction;
 use App\Actions\Connections\UpdateConnectionNotificationMuteAction;
 use App\Contracts\OAuthChannelAdapter;
 use App\Http\Controllers\Controller;
@@ -223,6 +224,48 @@ class ConnectionController extends Controller
         $connection = $action->handle($connection, $request->boolean('notifications_muted'));
 
         return ApiResponse::success(['connection' => new StoreConnectionResource($connection)]);
+    }
+
+    /**
+     * Sync this store now.
+     *
+     * A manual "sync now" trigger for the Connections list screen — dispatches the same
+     * order-poll job the automatic scheduler and connect-time first-sync already use, just
+     * on demand. This is deliberately per-connection, not a "refresh everything" action: each
+     * connection has its own 60-second cooldown (every platform's API has its own per-store
+     * rate limit repeated manual triggers could otherwise burn through), so a team with
+     * multiple stores can sync one without waiting on another's cooldown.
+     *
+     * Pull-to-refresh on the Feed/Orders list should NOT call this — that should just refetch
+     * from `GET /orders` (this app's own database), the same as every other pull-to-refresh
+     * pattern. This endpoint is for the Connections screen specifically, where "go check with
+     * the platform right now" is the actual intent.
+     *
+     * @response 200 scenario="sync started" {
+     *   "success": true,
+     *   "message": "Sync started.",
+     *   "data": null
+     * }
+     * @response 429 scenario="cooldown active" {
+     *   "success": false,
+     *   "message": "Sync already requested recently — try again in 42 seconds.",
+     *   "errors": null
+     * }
+     */
+    public function syncNow(Request $request, StoreConnection $connection, TriggerConnectionSyncAction $action): JsonResponse
+    {
+        $this->authorizeConnectionAccess($request, $connection);
+
+        $result = $action->handle($connection);
+
+        if (! $result['dispatched']) {
+            return ApiResponse::error(
+                "Sync already requested recently — try again in {$result['retry_after_seconds']} seconds.",
+                status: 429,
+            );
+        }
+
+        return ApiResponse::success(message: 'Sync started.');
     }
 
     private function authorizeConnectionAccess(Request $request, StoreConnection $connection): void

@@ -3,6 +3,7 @@
 namespace App\Support\Connections\Adapters;
 
 use App\Contracts\ChannelAdapter;
+use App\Jobs\PollWooOrdersJob;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\InboxThread;
 use App\Models\Order;
@@ -69,6 +70,15 @@ class WooCommerceAdapter implements ChannelAdapter
 
         $this->fetchStoreBranding($connection);
         $this->registerWebhooks($connection);
+
+        // Don't make the merchant wait for the next scheduled poll tick
+        // (up to 15 min) for their first sync — webhooks cover ongoing
+        // orders, but there's nothing to backfill the history a brand-new
+        // connection needs right now. Safe to fire immediately: the
+        // per-connection WithoutOverlapping lock plus IngestOrderAction's
+        // idempotent upsert mean this can never race/duplicate against a
+        // webhook or the scheduled poller landing around the same time.
+        PollWooOrdersJob::dispatch($connection->id);
 
         return $connection;
     }

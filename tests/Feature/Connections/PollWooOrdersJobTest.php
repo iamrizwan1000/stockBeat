@@ -10,6 +10,7 @@ use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ResponseSequence;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -25,6 +26,13 @@ beforeEach(function () {
  */
 function pollableWooConnection(?ResponseSequence $ordersSequence = null): StoreConnection
 {
+    // Connecting now also dispatches an immediate first-sync job
+    // (WooCommerceAdapter::connect()) — fake the queue so it doesn't
+    // actually execute synchronously here and consume/exhaust the
+    // orders-endpoint sequence these tests construct for their own
+    // explicit runPollJob() call below.
+    Queue::fake();
+
     Http::fake([
         '*/wp-json/wc/v3/orders*' => $ordersSequence ?? Http::sequence()->push([], 200),
         '*/wp-json/wc/v3/webhooks*' => Http::response(['id' => 123], 200),

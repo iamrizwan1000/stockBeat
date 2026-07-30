@@ -5,6 +5,7 @@ namespace App\Support\Connections\Adapters;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
+use App\Jobs\PollShopifyOrdersJob;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\InboxThread;
 use App\Models\Order;
@@ -112,6 +113,13 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $this->fetchStoreBranding($connection);
         $this->registerWebhooks($connection);
+
+        // See WooCommerceAdapter::connect()'s equivalent comment — don't
+        // make the merchant wait for the next scheduled poll tick for
+        // their first sync. Safe: per-connection overlap lock +
+        // IngestOrderAction's idempotent upsert prevent any double-processing
+        // against webhooks or the scheduled poller.
+        PollShopifyOrdersJob::dispatch($connection->id);
 
         return $connection;
     }

@@ -6,6 +6,7 @@ use App\Support\Connections\OAuthState;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -13,6 +14,11 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(PlanSeeder::class);
     config(['services.etsy.keystring' => 'test-keystring']);
+    // Connecting now dispatches an immediate first-sync job — fake the
+    // queue so it doesn't actually execute synchronously here against
+    // endpoints these tests don't fake (see ShopifyOAuthTest.php's
+    // identical note).
+    Queue::fake();
 });
 
 function onboardedEtsyUser(): User

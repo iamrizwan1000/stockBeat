@@ -28,7 +28,9 @@ class CustomerActionController extends Controller
     {
         $team = $this->requireTeam($user);
 
-        $action->handle($this->admin($request), $team, (int) $request->input('days'));
+        if ($action->handle($this->admin($request), $team, (int) $request->input('days')) === null) {
+            return back()->with('status', 'This trial was just extended — wait a moment before extending again.');
+        }
 
         return back()->with('status', 'Trial extended.');
     }
@@ -47,7 +49,10 @@ class CustomerActionController extends Controller
         $team = $this->requireTeam($user);
         $credits = (int) $request->input('credits');
 
-        $action->handle($this->admin($request), $team, $credits);
+        if ($action->handle($this->admin($request), $team, $credits) === null) {
+            return back()->with('status', 'A grant was just processed for this team — wait a moment before granting again.');
+        }
+
         $this->notifyIfRequested($request, $notify, $user, $team, 'SMS', $credits);
 
         return back()->with('status', 'SMS credits granted.');
@@ -58,7 +63,10 @@ class CustomerActionController extends Controller
         $team = $this->requireTeam($user);
         $credits = (int) $request->input('credits');
 
-        $action->handle($this->admin($request), $team, $credits);
+        if ($action->handle($this->admin($request), $team, $credits) === null) {
+            return back()->with('status', 'A grant was just processed for this team — wait a moment before granting again.');
+        }
+
         $this->notifyIfRequested($request, $notify, $user, $team, 'AI question', $credits);
 
         return back()->with('status', 'AI question credits granted.');
@@ -69,7 +77,10 @@ class CustomerActionController extends Controller
         $team = $this->requireTeam($user);
         $credits = (int) $request->input('credits');
 
-        $action->handle($this->admin($request), $team, $credits);
+        if ($action->handle($this->admin($request), $team, $credits) === null) {
+            return back()->with('status', 'A grant was just processed for this team — wait a moment before granting again.');
+        }
+
         $this->notifyIfRequested($request, $notify, $user, $team, 'email', $credits);
 
         return back()->with('status', 'Email credits granted.');
