@@ -576,9 +576,11 @@ export default function Welcome() {
                 >
                     <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
                         <div className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#191C18] text-sm font-bold text-white">
-                                S
-                            </div>
+                            <img
+                                src="/assets/logo1.png"
+                                alt="StockBeat"
+                                className="h-8 w-8 rounded object-cover"
+                            />
                             <span
                                 className="text-base font-semibold tracking-tight"
                                 style={{

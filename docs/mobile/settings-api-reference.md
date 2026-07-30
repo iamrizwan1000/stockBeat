@@ -212,6 +212,23 @@ There is no Free product — Free is simply the absence of an active subscriptio
 
 **Errors:** `422` validation (missing `rc_app_user_id`) or the same `"Complete profile setup first."` as above.
 
+### `GET /billing/plans` — all plans' limits, for comparison screens (added 2026-07-30)
+
+**Requires auth**, but deliberately **not team-specific** — unlike every other billing endpoint on this page, this returns every active plan's limits, not just the caller's own. Closes a real gap: until this existed, there was no way to build an in-app plan-comparison screen (`plans-flow-screens.md`'s "Compare plans") without hardcoding numbers that could silently drift from the real, admin-editable `plan_limits` table.
+
+```json
+{ "success": true, "message": null, "data": [
+  { "key": "free", "name": "Free", "limits": { "max_stores": 1, "max_rules": 0, "sms_monthly": 0, "email_monthly": 25, "history_days": 7 } },
+  { "key": "starter", "name": "Starter", "limits": { "max_stores": 3, "max_rules": 5, "sms_monthly": 20, "email_monthly": 250, "history_days": 30 } },
+  { "key": "pro", "name": "Pro", "limits": { "max_stores": 10, "max_rules": null, "sms_monthly": 100, "email_monthly": 1000, "history_days": 365 } },
+  { "key": "premium", "name": "Premium", "limits": { "max_stores": null, "max_rules": null, "sms_monthly": 500, "email_monthly": 5000, "history_days": null } }
+] }
+```
+
+`limits` is the same key set `entitlements.limits` already carries for the caller's own plan (`ai_questions_monthly`, `inbox_enabled`, `advanced_triggers_enabled`, etc. — full list in `Plan §5`) — `null` on a numeric key means unlimited, same convention everywhere else in this API. **No price is included** — pricing lives entirely in App Store Connect / Play Console via RevenueCat, not this backend, so a comparison screen still needs its own price strings (see `billing-topup-guide.md`'s product table) or to read them from the RevenueCat SDK's `Offerings`.
+
+**Use this to replace hardcoded plan-comparison copy, not just to add new copy:** if `ComparePlansScreen` currently hardcodes numbers like "Up to 3 stores" per tier, fetch this endpoint instead and interpolate — an admin changing a limit in `/admin/plans` now reaches the comparison screen on next fetch, instead of requiring an app update.
+
 ### `GET /me`'s billing-relevant fields (full shape in `auth-api-reference.md`)
 
 ```json
@@ -221,7 +238,9 @@ There is no Free product — Free is simply the absence of an active subscriptio
 
 `ai_questions_remaining` (added 2026-07-22, closing a previous gap — there used to be no way to know your quota standing short of hitting a 422): the Data Copilot's remaining question budget for **this calendar month**, already netting the plan's `ai_questions_monthly` against questions asked so far and any top-up credit purchased this month. `null` means unlimited (a plan with no monthly cap). This resets to the plan's base allotment on the 1st of each month — a purchased top-up only raises *that month's* cap, it doesn't roll over or bank for future months (same deliberate simplification `ai-api-reference.md`'s quota section describes). Use this instead of client-side counting for a "questions remaining" indicator in the AI Assistant UI (`ai-flow-screens.md`).
 
-`emails_remaining` (added 2026-07-23, same pattern as `ai_questions_remaining` — previously `limits.email_monthly` was enforced server-side but nothing told the client how much of it was left): rule/digest emails remaining for **this calendar month**, netting `limits.email_monthly` against emails already sent to any team member this month. `null` means unlimited. No top-up pack exists for email (unlike SMS/AI) — this resets on the 1st, and the only way to raise it mid-month is a plan upgrade. **This is the field for the "Usage this month" section on the Billing/Subscription screen** (`settings-flow-screens.md` Screen 4) alongside `sms_balance` and `ai_questions_remaining` — deliberately not surfaced on the Notification Preferences screen, to keep "usage against my plan" (a billing concern) separate from "how alerts are delivered to me" (a notification-preferences concern).
+`emails_remaining` (added 2026-07-23, same pattern as `ai_questions_remaining` — previously `limits.email_monthly` was enforced server-side but nothing told the client how much of it was left): rule/digest emails remaining for **this calendar month**, netting `limits.email_monthly` against emails already sent to any team member this month. `null` means unlimited. **This is the field for the "Usage this month" section on the Billing/Subscription screen** (`settings-flow-screens.md` Screen 4) alongside `sms_balance` and `ai_questions_remaining` — deliberately not surfaced on the Notification Preferences screen, to keep "usage against my plan" (a billing concern) separate from "how alerts are delivered to me" (a notification-preferences concern).
+
+**Revised 2026-07-30 — there is still no purchasable IAP top-up pack for email, but there is now an admin-comp path.** An admin can grant bonus email credits from the Customer Detail screen (mirroring the pre-existing SMS/AI bonus-grant actions), which raises `emails_remaining` for the current calendar month exactly like an AI top-up does — same "this month only, doesn't roll over" caveat. This means `emails_remaining` (and `sms_balance`/`ai_questions_remaining`, which already had this via IAP top-ups or admin comps) can jump upward with **no corresponding purchase event on the device** — don't treat a rise in these numbers as proof of a purchase; just display whatever the field says. The admin may also optionally notify the customer about the grant (push/email/SMS — see `notifications-api-reference.md`'s `admin_note` type) but isn't required to, so the balance can change silently.
 
 ### SMS & AI question top-up packs (consumable IAP)
 

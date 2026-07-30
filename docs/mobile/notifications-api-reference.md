@@ -34,6 +34,7 @@ This is the **in-app record of everything that's been sent to this user** — di
 | `rule_email` | A rule fired and delivered (or attempted) email | Same as `rule_push` minus `order_id` — email never carries it | No sensible deep link; tapping can just mark it read, or go to Feed |
 | `digest` | The **free-tier** daily/weekly digest sent (`SendMorningDigestAction`) | Always `{}` | Feed tab (the digest is a summary, not tied to one order) |
 | `admin_broadcast` | An admin-sent broadcast (push or in-app banner channel only — see below) | `{broadcast_id: 5}` | No merchant-facing screen shows a single broadcast by id — treat as informational only, no navigation |
+| `admin_note` | Added 2026-07-30 — an admin notified this customer about a bonus SMS/AI/email credit grant (Customer Detail screen's optional "notify customer" step). **Distinct from `admin_broadcast`**: this is a direct one-to-one message about a specific account action, never a segment/all-user marketing send | Empty/absent — don't assume a specific shape (may be `{}`, `[]`, or missing depending on which channel created the row, see the quirk below) | No merchant-facing screen for this either — informational only, same as `admin_broadcast` |
 | `support_reply` | Staff replied in your support chat | `{thread_id: 3}` | `SupportChatScreen` (`settings-flow-screens.md`) — **this `thread_id` is a support thread, not an inbox thread** (see the warning below) |
 | `trial_reminder` | Day 3/10 trial win-back (Plan §6.3) | `{trial_days_remaining: "4"}` | Subscription screen (`settings-flow-screens.md`) |
 | `quota_warning` | Added 2026-07-24 — a team crossed 80% of its monthly SMS/AI-question/email allotment (`usage-api-reference.md`'s `quota_warning` flag), checked daily, sent once per channel per calendar month | `{channel: "sms"\|"ai_questions"\|"emails", pct_used: "83.3"}` | `UsageDetailScreen` (`usage-flow-screens.md`), pre-selecting the tab matching `data.channel` |
@@ -58,6 +59,12 @@ Both fields are **added directly to the FCM push data payload too** (for push), 
 ### ⚠️ SMS-delivered rule actions never appear here
 
 A rule action of type `sms` (`rules-api-reference.md`) is sent directly via Twilio and **never creates a Notification Center row** — there's no `TYPE_RULE_SMS` entry actually written anywhere in the backend today, only push/email/digest/broadcast/support-reply/inbox-message do. Don't build an SMS-specific empty-state or filter expecting rows that will never exist; if a merchant asks "why don't I see my text alerts in the notification list," the honest answer is that only the SMS itself (on their phone, outside this app) is the record — there's nothing to show here.
+
+**The same is true for `admin_note`'s SMS channel** (added 2026-07-30) — if an admin notifies a customer about a credit grant via SMS, that SMS is sent directly and creates no Notification Center row either, same reasoning as above.
+
+### ⚠️ `admin_note` can produce two near-identical rows for one grant
+
+If an admin picks **both** push and email when notifying a customer about a credit grant, you'll see **two separate `admin_note` rows** with the same title/body — push and email each independently log their own row, there's no dedup between channels (unlike, say, a single rule firing once). This is expected behavior, not a duplicate-fetch bug — don't collapse/merge `admin_note` rows by title+body similarity, since a merchant could legitimately receive two distinct grants with identical wording.
 
 ### `POST /notifications/read`
 
