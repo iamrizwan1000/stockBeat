@@ -15,6 +15,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Etsy's only order-sync path (Plan §7.4: "No webhooks — polling only").
@@ -78,7 +79,16 @@ class PollEtsyOrdersJob implements ShouldQueue
         }
 
         if ($response->failed()) {
-            // Transient failure — the next scheduled run retries.
+            // Transient failure — the next scheduled run retries. Logged
+            // so a persistent failure is diagnosable instead of a silent,
+            // permanent "never synced" with nothing in Horizon to show it.
+            Log::warning('Etsy order poll failed', [
+                'connection_id' => $connection->id,
+                'shop_id' => $shopId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
             return;
         }
 

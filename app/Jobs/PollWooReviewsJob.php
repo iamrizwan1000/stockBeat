@@ -14,6 +14,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Polls the most recent reviews for one Woo connection (Plan §4.4's
@@ -52,6 +53,15 @@ class PollWooReviewsJob implements ShouldQueue
             ]);
 
         if ($response->failed()) {
+            // Transient failure — the next scheduled run retries. Logged
+            // so this is diagnosable rather than a silent, permanent gap
+            // in negative/positive review alerts.
+            Log::warning('WooCommerce review poll failed', [
+                'connection_id' => $connection->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
             return;
         }
 

@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Reconciliation poller (Plan §7.1 gotcha: "webhook deliveries can drop —
@@ -60,7 +61,18 @@ class PollShopifyOrdersJob implements ShouldQueue
         }
 
         if ($response->failed()) {
-            // Transient failure — the next scheduled run retries.
+            // Transient failure — the next scheduled run retries. Logged
+            // because this used to fail completely silently: the queue
+            // sees a "successful" job (it returned, didn't throw), so
+            // nothing showed in Horizon's failed-jobs list no matter how
+            // many times this kept not-syncing.
+            Log::warning('Shopify order poll failed', [
+                'connection_id' => $connection->id,
+                'shop' => $shop,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
             return;
         }
 

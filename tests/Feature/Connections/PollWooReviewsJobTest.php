@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Rules\CheckNegativeReviewAction;
+use App\Actions\Rules\CheckPositiveReviewAction;
 use App\Jobs\PollWooReviewsJob;
 use App\Models\Review;
 use App\Models\Rule;
@@ -38,8 +39,8 @@ test('the poller ingests new reviews idempotently', function () {
         ], 200),
     ]);
 
-    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class));
-    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class));
+    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class), app(CheckPositiveReviewAction::class));
+    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class), app(CheckPositiveReviewAction::class));
 
     expect(Review::query()->where('connection_id', $connection->id)->count())->toBe(1);
     expect(Review::query()->first()->rating)->toBe(2);
@@ -59,12 +60,12 @@ test('the poller triggers a negative_review rule only for a genuinely new review
         ], 200),
     ]);
 
-    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class));
-    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class));
+    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class), app(CheckPositiveReviewAction::class));
+    (new PollWooReviewsJob($connection->id))->handle(app(CheckNegativeReviewAction::class), app(CheckPositiveReviewAction::class));
 
     expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
 });
 
 test('polling a non-woo or missing connection is a safe no-op', function () {
-    (new PollWooReviewsJob(999999))->handle(app(CheckNegativeReviewAction::class));
+    (new PollWooReviewsJob(999999))->handle(app(CheckNegativeReviewAction::class), app(CheckPositiveReviewAction::class));
 })->throwsNoExceptions();

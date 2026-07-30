@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Reconciliation poller (Plan §7.2, §17.2/§17.3): webhooks can drop, so this
@@ -57,6 +58,16 @@ class PollWooOrdersJob implements ShouldQueue
         if ($response->failed()) {
             // Transient failure — the next scheduled run retries (§17.2:
             // adaptive retry with backoff, never a silent permanent gap).
+            // Logged so a persistent failure (bad keys, revoked access) is
+            // actually diagnosable — this used to fail with zero trace
+            // anywhere, since a caught HTTP failure never reaches Horizon's
+            // failed-jobs list.
+            Log::warning('WooCommerce order poll failed', [
+                'connection_id' => $connection->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
             return;
         }
 

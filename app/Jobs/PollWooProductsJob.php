@@ -15,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Polls the full product catalog for one Woo connection (Plan §4.4's
@@ -55,6 +56,15 @@ class PollWooProductsJob implements ShouldQueue
 
             if ($response->failed()) {
                 // Transient failure — the next scheduled run retries.
+                // Logged so this is diagnosable rather than a permanent,
+                // invisible gap in low-stock/back-in-stock alerts.
+                Log::warning('WooCommerce product poll failed', [
+                    'connection_id' => $connection->id,
+                    'page' => $page,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
                 return;
             }
 
