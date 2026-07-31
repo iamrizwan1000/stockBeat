@@ -85,7 +85,11 @@ class PollShopifyProductsJob implements ShouldQueue
             ->acceptJson();
 
         $path = '/products.json';
-        $query = ['limit' => 100];
+        // Without `status`, Shopify returns products of every status —
+        // active, archived, AND draft (unpublished, not yet sellable) —
+        // which would put meaningless low-stock/back-in-stock alerts on
+        // something the merchant hasn't even launched yet.
+        $query = ['limit' => 100, 'status' => 'active'];
         $page = 0;
 
         do {

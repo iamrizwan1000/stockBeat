@@ -168,6 +168,16 @@ test('an expired token with no refresh token goes straight to needs_reauth witho
     Http::assertNothingSent();
 });
 
+test('only active products are requested, not draft or archived ones', function () {
+    $connection = shopifyConnectionForProductPolling();
+
+    Http::fake(['*/products.json*' => Http::response(['products' => []], 200)]);
+
+    pollShopifyProducts($connection->id);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/products.json') && $request['status'] === 'active');
+});
+
 test('polling a non-shopify or missing connection is a safe no-op', function () {
     pollShopifyProducts(999999);
 })->throwsNoExceptions();
