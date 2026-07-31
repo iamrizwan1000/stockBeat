@@ -134,6 +134,8 @@ class PollShopifyProductsJob implements ShouldQueue
                 'pages_fetched' => $page,
             ]);
         }
+
+        $connection->update(['products_synced_at' => now()]);
     }
 
     /**

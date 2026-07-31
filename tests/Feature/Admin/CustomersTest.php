@@ -111,6 +111,32 @@ test('the customer detail page includes subscription timeline, LTV, and abuse fl
         );
 });
 
+test('the customer detail page surfaces the same plain-language connection health message and fix action as the mobile app, plus products sync recency', function () {
+    $admin = AdminUser::factory()->create();
+    $owner = User::factory()->create();
+    $team = Team::factory()->create(['owner_id' => $owner->id]);
+    TeamMember::factory()->create(['team_id' => $team->id, 'user_id' => $owner->id, 'role' => TeamMember::ROLE_OWNER]);
+
+    $connection = StoreConnection::factory()->create([
+        'team_id' => $team->id,
+        'platform' => 'shopify',
+        'name' => 'Needs Reauth Store',
+        'status' => StoreConnection::STATUS_NEEDS_REAUTH,
+        'last_sync_at' => now()->subDay(),
+        'products_synced_at' => now()->subHours(3),
+    ]);
+
+    test()->actingAs($admin, 'admin')
+        ->get("/admin/customers/{$owner->id}")
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/customers/show')
+            ->where('customer.store_connections.0.id', $connection->id)
+            ->where('customer.store_connections.0.message', "Your connection to {$connection->name} needs to be reconnected.")
+            ->where('customer.store_connections.0.fix_action', 'reauth')
+            ->has('customer.store_connections.0.products_synced_at')
+        );
+});
+
 test('an admin can filter customers by a country they have actually shipped to', function () {
     $admin = AdminUser::factory()->create();
 

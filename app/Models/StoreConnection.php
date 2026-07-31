@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property bool $notifications_muted
  * @property Carbon|null $paused_at
  * @property Carbon|null $last_sync_at
+ * @property Carbon|null $products_synced_at
  * @property Carbon|null $last_message_sync_at
  * @property string|null $webhook_status
  * @property string|null $region
@@ -30,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'platform', 'name', 'store_contact_email', 'store_display_name', 'credentials', 'fingerprint', 'status', 'notifications_muted', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'last_message_sync_at'])]
+#[Fillable(['team_id', 'platform', 'name', 'store_contact_email', 'store_display_name', 'credentials', 'fingerprint', 'status', 'notifications_muted', 'paused_at', 'region', 'settings', 'webhook_status', 'last_sync_at', 'products_synced_at', 'last_message_sync_at'])]
 #[Hidden(['credentials'])]
 class StoreConnection extends Model
 {
@@ -90,6 +91,7 @@ class StoreConnection extends Model
             'settings' => 'array',
             'notifications_muted' => 'boolean',
             'last_sync_at' => 'datetime',
+            'products_synced_at' => 'datetime',
             'last_message_sync_at' => 'datetime',
             'paused_at' => 'datetime',
         ];

@@ -3,6 +3,7 @@
 namespace App\Actions\Admin;
 
 use App\Actions\Billing\ResolveEntitlementsAction;
+use App\Actions\Connections\GetConnectionHealthAction;
 use App\Http\Resources\SubscriptionEventResource;
 use App\Models\AiUsageLedger;
 use App\Models\Device;
@@ -34,6 +35,7 @@ class GetCustomerDetailAction
         private readonly ResolveEntitlementsAction $resolveEntitlements,
         private readonly ComputeCustomerLtvAction $computeLtv,
         private readonly DetectAccountAbuseSignalsAction $detectAbuseSignals,
+        private readonly GetConnectionHealthAction $getConnectionHealth,
     ) {}
 
     /**
@@ -76,14 +78,21 @@ class GetCustomerDetailAction
                 'platform' => $device->platform,
                 'last_seen_at' => $device->last_seen_at,
             ])->all(),
-            'store_connections' => $team === null ? [] : $team->storeConnections->map(fn ($connection) => [
-                'id' => $connection->id,
-                'platform' => $connection->platform,
-                'name' => $connection->name,
-                'status' => $connection->status,
-                'last_sync_at' => $connection->last_sync_at,
-                'webhook_status' => $connection->webhook_status,
-            ])->all(),
+            'store_connections' => $team === null ? [] : $team->storeConnections->map(function ($connection) {
+                [$message, $fixAction] = $this->getConnectionHealth->resolveMessage($connection);
+
+                return [
+                    'id' => $connection->id,
+                    'platform' => $connection->platform,
+                    'name' => $connection->name,
+                    'status' => $connection->status,
+                    'last_sync_at' => $connection->last_sync_at,
+                    'products_synced_at' => $connection->products_synced_at,
+                    'webhook_status' => $connection->webhook_status,
+                    'message' => $message,
+                    'fix_action' => $fixAction,
+                ];
+            })->all(),
             'rules' => $team === null ? [] : $team->rules->map(fn ($rule) => [
                 'id' => $rule->id,
                 'name' => $rule->name,

@@ -48,7 +48,10 @@ type CustomerDetail = {
         name: string;
         status: string;
         last_sync_at: string | null;
+        products_synced_at: string | null;
         webhook_status: string | null;
+        message: string;
+        fix_action: string | null;
     }>;
     rules: Array<{ id: number; name: string; trigger: string; enabled: boolean }>;
     sms_ledger: Array<{
@@ -426,13 +429,27 @@ export default function CustomerShow({ customer }: { customer: CustomerDetail })
                         <Card>
                             {customer.store_connections.length > 0 ? (
                                 <DataTable
-                                    columnContentTypes={['text', 'text', 'text', 'text']}
-                                    headings={['Platform', 'Name', 'Status', 'Last sync']}
+                                    columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text']}
+                                    headings={['Platform', 'Name', 'Status', 'Orders synced', 'Products synced', 'Health']}
                                     rows={customer.store_connections.map((c) => [
                                         c.platform,
                                         c.name,
                                         c.status,
                                         formatDate(c.last_sync_at),
+                                        formatDate(c.products_synced_at),
+                                        // Same plain-language message + fix_action the mobile
+                                        // app shows a seller (GetConnectionHealthAction) — one
+                                        // source of truth instead of admin decoding raw status
+                                        // codes on its own.
+                                        <span key={c.id}>
+                                            {c.message}
+                                            {c.fix_action ? (
+                                                <>
+                                                    {' '}
+                                                    <Badge tone="attention">{c.fix_action}</Badge>
+                                                </>
+                                            ) : null}
+                                        </span>,
                                     ])}
                                 />
                             ) : (

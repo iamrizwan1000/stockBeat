@@ -432,7 +432,7 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             }
         }
 
-        return Product::query()->updateOrCreate(
+        $product = Product::query()->updateOrCreate(
             ['connection_id' => $connection->id, 'external_id' => (string) $variant['id']],
             [
                 'team_id' => $connection->team_id,
@@ -442,6 +442,10 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
                 'stock_quantity' => $available,
             ],
         );
+
+        $connection->update(['products_synced_at' => now()]);
+
+        return $product;
     }
 
     /**

@@ -32,8 +32,9 @@ class GetConnectionHealthAction
     }
 
     /**
-     * Shared with `StoreConnectionResource` so the connections *list*
-     * carries the same plain-language reason as the dedicated health
+     * Shared with `StoreConnectionResource` (and, since 2026-07-31,
+     * `GetCustomerDetailAction` for the admin panel) so the connections
+     * *list* carries the same plain-language reason as the dedicated health
      * endpoint, not just a bare `status` code the client has to decode
      * into its own copy — one source of truth for both.
      *

@@ -109,5 +109,7 @@ class PollWooProductsJob implements ShouldQueue
             $totalPages = $totalPagesHeader !== '' ? (int) $totalPagesHeader : 1;
             $page++;
         } while ($page <= $totalPages);
+
+        $connection->update(['products_synced_at' => now()]);
     }
 }
