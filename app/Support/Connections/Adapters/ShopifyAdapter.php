@@ -590,7 +590,67 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             // Real — Shopify Payments exposes a genuine Payouts API
             // (Plan §4.14); see fetchPayouts() below.
             payoutsAvailable: true,
+            tagSync: true,
         );
+    }
+
+    /**
+     * Pushes a StockBeat tag edit to the order's real `tags` field in
+     * Shopify — merges rather than overwrites, since a naive "set tags to
+     * exactly what StockBeat has" would silently erase a tag added
+     * directly in Shopify Admin or by another app on the very next edit.
+     * `$previousTags` is the order's StockBeat tag list *before* this
+     * edit — diffing it against Shopify's current tags isolates which of
+     * Shopify's tags weren't StockBeat's to begin with ("external"); those
+     * survive untouched, `$newTags` is applied on top of them. This is
+     * also what makes *removing* a StockBeat-added tag actually work:
+     * a tag that was in `$previousTags` but not `$newTags` is dropped,
+     * not re-added from Shopify's own copy, because it was never
+     * classified as external in the first place.
+     *
+     * Best-effort and silent on failure by design — `UpdateOrderTagsAction`
+     * guarantees the local tag write always succeeds (Plan §4.3/§4.17), and
+     * Shopify staying out of sync for one edit isn't worth breaking that
+     * guarantee over. Logged so a persistent failure is still diagnosable.
+     *
+     * @param  array<int, string>  $previousTags
+     * @param  array<int, string>  $newTags
+     */
+    public function updateOrderTags(Order $order, array $previousTags, array $newTags): void
+    {
+        $connection = $order->connection;
+
+        $response = $this->http($connection)->get("/orders/{$order->external_id}.json", ['fields' => 'tags']);
+
+        if ($response->failed()) {
+            Log::warning('Shopify order tag sync: could not read current tags', [
+                'order_id' => $order->id,
+                'status' => $response->status(),
+            ]);
+
+            return;
+        }
+
+        $shopifyTags = collect(explode(',', (string) $response->json('order.tags', '')))
+            ->map(fn (string $tag) => trim($tag))
+            ->filter(fn (string $tag) => $tag !== '');
+
+        $externalTags = $shopifyTags->diff($previousTags);
+        $finalTags = $externalTags->merge($newTags)->unique()->values();
+
+        $updateResponse = $this->http($connection)->put("/orders/{$order->external_id}.json", [
+            'order' => [
+                'id' => $order->external_id,
+                'tags' => $finalTags->implode(', '),
+            ],
+        ]);
+
+        if ($updateResponse->failed()) {
+            Log::warning('Shopify order tag sync failed', [
+                'order_id' => $order->id,
+                'status' => $updateResponse->status(),
+            ]);
+        }
     }
 
     /**

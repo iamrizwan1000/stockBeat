@@ -174,6 +174,37 @@ test('submitting a genuinely different tag list still writes normally', function
         ->toBe($beforeEventCount + 1);
 });
 
+test('updating tags on a shopify order pushes the change to Shopify, but a woo order never calls out', function () {
+    $user = onboardedBulkActionsUser();
+    $team = $user->currentTeam();
+
+    $wooConnection = StoreConnection::factory()->create(['team_id' => $team->id, 'platform' => StoreConnection::PLATFORM_WOO]);
+    $wooOrder = Order::factory()->create(['team_id' => $team->id, 'connection_id' => $wooConnection->id, 'platform' => StoreConnection::PLATFORM_WOO, 'tags' => []]);
+
+    app(UpdateOrderTagsAction::class)->handle($wooOrder, ['sale']);
+
+    Http::assertNothingSent();
+
+    $shopifyConnection = StoreConnection::factory()->create([
+        'team_id' => $team->id,
+        'platform' => StoreConnection::PLATFORM_SHOPIFY,
+        'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com', 'access_token' => 'shpat_faketoken'],
+    ]);
+    $shopifyOrder = Order::factory()->create([
+        'team_id' => $team->id,
+        'connection_id' => $shopifyConnection->id,
+        'platform' => StoreConnection::PLATFORM_SHOPIFY,
+        'external_id' => '999888',
+        'tags' => [],
+    ]);
+
+    Http::fake(['*/orders/999888.json*' => Http::response(['order' => ['tags' => '']], 200)]);
+
+    app(UpdateOrderTagsAction::class)->handle($shopifyOrder, ['sale']);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/orders/999888.json') && $request->method() === 'PUT');
+});
+
 test('a bulk tag touching another team\'s order is rejected entirely, nothing tagged', function () {
     $user = onboardedBulkActionsUser();
     $team = $user->currentTeam();

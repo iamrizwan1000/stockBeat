@@ -172,6 +172,50 @@ test('a failed cancel API call reports failure without changing local status', f
     expect($order->fresh()->status)->toBe(Order::STATUS_NEW);
 });
 
+test('updateOrderTags merges: keeps a tag added directly in Shopify, applies the new StockBeat list', function () {
+    Http::fake([
+        '*/orders/5551234.json*' => Http::response(['order' => ['tags' => 'sale, vip-customer']], 200),
+    ]);
+
+    $order = shopifyOrderForActions(['tags' => ['sale']]);
+
+    // Previously StockBeat only knew about "sale" — "vip-customer" must
+    // have been added directly in Shopify (or by another app), so it's
+    // "external" and must survive. The new StockBeat list drops "sale"
+    // and adds "fragile".
+    app(ShopifyAdapter::class)->updateOrderTags($order, previousTags: ['sale'], newTags: ['fragile']);
+
+    Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/orders/5551234.json') || $request->method() !== 'PUT') {
+            return false;
+        }
+
+        $tags = collect(explode(',', $request['order']['tags']))->map(fn ($t) => trim($t))->sort()->values();
+
+        return $tags->all() === ['fragile', 'vip-customer'];
+    });
+});
+
+test('updateOrderTags is silent and non-blocking when the Shopify read fails', function () {
+    Http::fake(['*/orders/5551234.json*' => Http::response([], 500)]);
+
+    $order = shopifyOrderForActions(['tags' => ['sale']]);
+
+    app(ShopifyAdapter::class)->updateOrderTags($order, previousTags: ['sale'], newTags: ['fragile']);
+})->throwsNoExceptions();
+
+test('updateOrderTags is silent and non-blocking when the Shopify write fails', function () {
+    Http::fake([
+        '*/orders/5551234.json*' => Http::sequence()
+            ->push(['order' => ['tags' => '']], 200)
+            ->push([], 500),
+    ]);
+
+    $order = shopifyOrderForActions(['tags' => []]);
+
+    app(ShopifyAdapter::class)->updateOrderTags($order, previousTags: [], newTags: ['fragile']);
+})->throwsNoExceptions();
+
 test('updateInventory resolves the variant and location then sets availability', function () {
     Http::fake([
         '*/variants/778899.json' => Http::response(['variant' => ['id' => 778899, 'inventory_item_id' => 42]], 200),
@@ -205,11 +249,12 @@ test('updateInventory fails cleanly when the variant lookup fails, leaving stock
     expect($product->fresh()->stock_quantity)->toBe(3);
 });
 
-test('capabilities report payouts as supported and reviews feedback as unsupported', function () {
+test('capabilities report payouts and tag sync as supported and reviews feedback as unsupported', function () {
     $capabilities = app(ShopifyAdapter::class)->capabilities();
 
     expect($capabilities->payoutsAvailable)->toBeTrue();
     expect($capabilities->reviewsFeedback)->toBeFalse();
+    expect($capabilities->tagSync)->toBeTrue();
 });
 
 test('replyToReview throws since Shopify has no first-party review system', function () {

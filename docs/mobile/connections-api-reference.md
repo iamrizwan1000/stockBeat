@@ -64,7 +64,8 @@ For every OAuth platform, "fully real and tested" means the authorization URL ge
         "inventory_update": true,
         "reviews_feedback": true,
         "payouts_available": false,
-        "review_reply": false
+        "review_reply": false,
+        "tag_sync": false
       }
     }
   }
@@ -134,7 +135,7 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
         "status": "active",
         "last_sync_at": "2026-07-16T01:45:00.000000Z",
         "webhook_status": "registered",
-        "capabilities": { "realtime_orders": true, "fulfill_tracking": true, "refunds": true, "cancel": true, "messaging_mode": "email", "inventory_update": true, "reviews_feedback": true, "payouts_available": false, "review_reply": false }
+        "capabilities": { "realtime_orders": true, "fulfill_tracking": true, "refunds": true, "cancel": true, "messaging_mode": "email", "inventory_update": true, "reviews_feedback": true, "payouts_available": false, "review_reply": false, "tag_sync": false }
       }
     ]
   }
@@ -163,6 +164,7 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
 | `reviews_feedback` | Whether the `negative_review`/`positive_review` rule triggers and the Reviews screen (`reviews-api-reference.md`) have real data for this connection — `true` for WooCommerce/eBay only |
 | `payouts_available` | **Added 2026-07-28, was previously undocumented despite always being present in the response.** `true` for Shopify only — whether the Payouts screen (`payouts-api-reference.md`) has real data for this connection. `false` everywhere else, including WooCommerce (no native payout concept). |
 | `review_reply` | **Added 2026-07-28, was previously undocumented despite always being present in the response.** `true` for eBay only — whether the reply control on the Reviews screen should show for reviews sourced from this connection. `false` for WooCommerce even though its reviews are real and listable (`reviews_feedback: true`) — Woo's API has no reply mechanism at all, listing and replying are gated separately. |
+| `tag_sync` | **Added 2026-07-31.** `true` for Shopify only — tagging an order via `PATCH /orders/{id}/tags` (`orders-api-reference.md`) also pushes that tag onto the order's real `tags` field in Shopify, merged with whatever's already there (never overwritten). `false` everywhere else means tagging stays StockBeat-only, invisible in the platform's own admin — no UI change needed either way, this is purely informational (there's no separate "sync to platform" toggle to show), but worth knowing if a seller reports a tag not appearing in Shopify/Woo/etc. Sync is best-effort and silent on failure — a seller's tag edit always succeeds locally even if the platform push fails. |
 
 ---
 

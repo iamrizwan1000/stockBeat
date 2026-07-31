@@ -18,6 +18,11 @@ final readonly class CapabilitySet
         public bool $reviewsFeedback,
         public bool $payoutsAvailable = false,
         public bool $reviewReply = false,
+        // Whether tagging an order in StockBeat also pushes that tag to
+        // the platform's own order (merge, not overwrite — see
+        // ShopifyAdapter::updateOrderTags()). False everywhere except
+        // Shopify for now; no other adapter has this wired up yet.
+        public bool $tagSync = false,
     ) {}
 
     /**
@@ -35,6 +40,7 @@ final readonly class CapabilitySet
             'reviews_feedback' => $this->reviewsFeedback,
             'payouts_available' => $this->payoutsAvailable,
             'review_reply' => $this->reviewReply,
+            'tag_sync' => $this->tagSync,
         ];
     }
 }
