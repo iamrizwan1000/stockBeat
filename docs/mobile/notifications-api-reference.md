@@ -133,3 +133,9 @@ Admin-authored banners (Plan §8.7.5-adjacent), audience-targeted, **not the sam
 | 401 | Missing/invalid/revoked bearer token |
 | 404 | Announcement doesn't exist (dismiss only) |
 | 422 | `ids.*` not an integer (malformed mark-read request), or dismissing a non-dismissible announcement |
+
+---
+
+## See also
+
+- `session-resilience-and-reconnect.md` — how to wire a native OS push-tap handler (`onNotificationOpenedApp`/`getInitialNotification`) using the `trigger`/`platform` FCM data-payload fields described above, reusing the same `type`-based routing table as `NotificationCenterScreen.handleTap()` rather than building a second one.

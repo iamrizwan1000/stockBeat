@@ -178,3 +178,4 @@ Identical mechanics to SMS, different ledger and one important semantic differen
 - `notifications-api-reference.md` — `quota_warning`/`trial_reminder` notification types.
 - `ai-api-reference.md` / `ai-flow-screens.md` — the AI question 422/quota UX this top-up flow feeds into.
 - `../revenuecat-playstore-setup.md` — what to configure in RevenueCat's dashboard and Google Play Console for all of the above to actually work end-to-end.
+- `session-resilience-and-reconnect.md` — what the client needs to build so the polling/reconciliation patterns in §3 above (and `POST /billing/sync`'s fail-open behavior) actually get triggered at the right moments: reconnect detection, foreground resync, and surviving a connectivity gap at cold launch without losing the session.

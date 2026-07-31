@@ -47,3 +47,9 @@ Added 2026-07-30 and extended 2026-07-31, prompted by two real audits that found
 ## What to do when a "sync doesn't work" — the actual failure modes
 
 If a store's `last_sync_at` stays `null` well past the expected window (see `connections-flow-screens.md`'s "first sync" note) or a `GET /connections/{id}/health` keeps returning `fix_action: "check_connection"`, that's a server/ops-side issue (the queue worker or scheduler not running — see `deployment.md`), not something the client can resolve by retrying harder. The right client behavior is exactly what `connections-flow-screens.md`'s health screen already specifies: show the message, don't offer a retry button that doesn't exist server-side, and let the "we'll keep retrying automatically" framing be honest — because it is automatic, on the server, not something tapping a button again will speed up.
+
+---
+
+## See also
+
+- `session-resilience-and-reconnect.md` — the client-side counterpart to this doc, specifically for session/subscription state: what to build so a device that was offline at launch or mid-session reconciles correctly once connectivity returns (connectivity-change detection, foreground resync, entitlement caching). This doc covers per-request safety; that one covers the app-lifetime session/entitlement lifecycle.
