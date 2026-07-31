@@ -211,6 +211,63 @@ test('reconnecting the same shop via a fresh oauth attempt returns the existing 
     expect(StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->count())->toBe(1);
 });
 
+test('reconnecting a needs_reauth connection updates it with a fresh token instead of silently no-opping', function () {
+    // The actual bug: OAuthCallbackController's fingerprint short-circuit
+    // used to return ANY existing non-disconnected connection as-is,
+    // including a needs_reauth one — a merchant tapping "Reconnect" would
+    // see a success message while the connection stayed exactly as broken
+    // as before (same dead token, same needs_reauth status), because
+    // completeConnection() never even ran.
+    onboardedShopifyUser();
+
+    // A single fake for the token endpoint, branching on the `code` param
+    // rather than calling Http::fake() a second time — Http::fake() calls
+    // don't replace earlier matching stubs, they append to a list resolved
+    // by first-match, so a second Http::fake() for the same URL pattern
+    // would silently never win and this test would exercise nothing new.
+    Http::fake([
+        'my-test-shop.myshopify.com/admin/oauth/access_token' => function ($request) {
+            $token = $request['code'] === 'fake-auth-code-2' ? 'fresh-reconnected-token' : 'stale-dead-token';
+
+            return Http::response(['access_token' => $token, 'scope' => 'read_orders'], 200);
+        },
+        'my-test-shop.myshopify.com/admin/api/*/shop.json' => Http::response(['shop' => ['email' => 'owner@my-test-shop.com', 'name' => 'My Test Shop']], 200),
+        'my-test-shop.myshopify.com/admin/api/*/webhooks.json' => Http::response(['webhook' => ['id' => 555]], 201),
+    ]);
+
+    $completeOauth = function (string $code) {
+        $authUrl = test()->postJson('/api/v1/connections/shopify/start', [
+            'name' => 'My Shopify Store',
+            'credentials' => ['shop_domain' => 'my-test-shop.myshopify.com'],
+        ])->json('data.authorization_url');
+
+        parse_str((string) parse_url($authUrl, PHP_URL_QUERY), $startParams);
+
+        $callbackParams = [
+            'code' => $code,
+            'shop' => 'my-test-shop.myshopify.com',
+            'state' => $startParams['state'],
+            'timestamp' => (string) time(),
+        ];
+        $callbackParams['hmac'] = shopifyQueryHmac($callbackParams, 'test-client-secret');
+
+        return test()->get('/hooks/shopify/oauth/callback?'.http_build_query($callbackParams));
+    };
+
+    $completeOauth('fake-auth-code')->assertOk();
+    $original = StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->firstOrFail();
+    $original->update(['status' => StoreConnection::STATUS_NEEDS_REAUTH]);
+
+    $completeOauth('fake-auth-code-2')->assertOk();
+
+    expect(StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->count())->toBe(1);
+
+    $reconnected = $original->fresh();
+    expect($reconnected->id)->toBe($original->id);
+    expect($reconnected->status)->toBe(StoreConnection::STATUS_ACTIVE);
+    expect($reconnected->credentials['access_token'])->toBe('fresh-reconnected-token');
+});
+
 test('a valid callback still completes the connection when the shop.json branding lookup fails', function () {
     onboardedShopifyUser();
     Http::fake([

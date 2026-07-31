@@ -97,7 +97,20 @@ class OAuthCallbackController extends Controller
                         ->where('status', '!=', StoreConnection::STATUS_DISCONNECTED)
                         ->first();
 
-                    if ($existing !== null) {
+                    // Short-circuits (skips the OAuth token exchange and
+                    // webhook re-registration entirely) only for a
+                    // genuinely healthy existing connection — a merchant
+                    // retrying `/start` for a store they're already
+                    // connected to shouldn't burn an extra token exchange.
+                    // A `needs_reauth` connection must NOT short-circuit
+                    // here: that's exactly what a "Reconnect" tap is for,
+                    // and returning the stale row as-is would silently
+                    // no-op it — same status, same dead token, forever
+                    // (the actual bug this comment used to not mention).
+                    // `completeConnection()` itself re-finds this same row
+                    // by fingerprint and updates it in place rather than
+                    // creating a duplicate.
+                    if ($existing !== null && $existing->status === StoreConnection::STATUS_ACTIVE) {
                         return $existing;
                     }
                 }

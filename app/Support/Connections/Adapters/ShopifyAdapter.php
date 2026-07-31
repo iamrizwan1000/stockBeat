@@ -2,6 +2,7 @@
 
 namespace App\Support\Connections\Adapters;
 
+use App\Actions\Connections\ComputeStoreConnectionFingerprintAction;
 use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
@@ -50,6 +51,7 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
 
     public function __construct(
         private readonly ShopifyOrderMapper $orderMapper,
+        private readonly ComputeStoreConnectionFingerprintAction $fingerprintAction,
     ) {}
 
     /**
@@ -121,18 +123,48 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         $expiresAt = is_numeric($expiresIn) ? now()->addSeconds((int) $expiresIn)->toIso8601String() : null;
         $refreshToken = $tokenResponse->json('refresh_token');
 
-        $connection = StoreConnection::query()->create([
-            'team_id' => $team->id,
-            'platform' => StoreConnection::PLATFORM_SHOPIFY,
-            'name' => $name,
-            'credentials' => [
-                'shop_domain' => $shop,
-                'access_token' => $accessToken,
-                'refresh_token' => is_string($refreshToken) ? $refreshToken : null,
-                'expires_at' => $expiresAt,
-            ],
-            'status' => StoreConnection::STATUS_ACTIVE,
-        ]);
+        $credentials = [
+            'shop_domain' => $shop,
+            'access_token' => $accessToken,
+            'refresh_token' => is_string($refreshToken) ? $refreshToken : null,
+            'expires_at' => $expiresAt,
+        ];
+
+        // `OAuthCallbackController` only short-circuits (skips calling this
+        // method at all) for an already-ACTIVE fingerprint match — a
+        // `needs_reauth` connection reaches here on a genuine reconnect
+        // attempt. Without this lookup, that reconnect would silently
+        // create a second row while leaving the original stuck exactly as
+        // it was: still `needs_reauth`, still holding the dead token,
+        // still failing every poll — the merchant taps "Reconnect", sees a
+        // success message, and the connection list never changes. Reusing
+        // the same row instead preserves its id and everything hanging off
+        // it (orders, rules, notification history).
+        $fingerprint = $this->fingerprintAction->handle(StoreConnection::PLATFORM_SHOPIFY, $credentials);
+
+        $existing = $fingerprint === null ? null : StoreConnection::query()
+            ->where('team_id', $team->id)
+            ->where('fingerprint', $fingerprint)
+            ->where('status', '!=', StoreConnection::STATUS_DISCONNECTED)
+            ->first();
+
+        if ($existing !== null) {
+            $existing->update([
+                'name' => $name,
+                'credentials' => $credentials,
+                'status' => StoreConnection::STATUS_ACTIVE,
+            ]);
+            $connection = $existing;
+        } else {
+            $connection = StoreConnection::query()->create([
+                'team_id' => $team->id,
+                'platform' => StoreConnection::PLATFORM_SHOPIFY,
+                'name' => $name,
+                'credentials' => $credentials,
+                'fingerprint' => $fingerprint,
+                'status' => StoreConnection::STATUS_ACTIVE,
+            ]);
+        }
 
         $this->fetchStoreBranding($connection);
         $this->registerWebhooks($connection);
