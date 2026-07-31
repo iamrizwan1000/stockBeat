@@ -3,7 +3,6 @@
 use App\Exceptions\Ai\AiProviderException;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Http\Middleware\EnsureAdminCanWrite;
-use App\Http\Middleware\EnsureAdminHasTwoFactorEnabled;
 use App\Http\Middleware\EnsureTeamMemberIsNotSuspended;
 use App\Http\Middleware\EnsureTeamRole;
 use App\Http\Middleware\EnsureUserIsNotSuspended;
@@ -55,7 +54,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin.write' => EnsureAdminCanWrite::class,
-            'admin.2fa' => EnsureAdminHasTwoFactorEnabled::class,
             'user.not_suspended' => EnsureUserIsNotSuspended::class,
             'team.not_suspended' => EnsureTeamMemberIsNotSuspended::class,
             'team.role' => EnsureTeamRole::class,

@@ -40,7 +40,9 @@ Route::post('newsletter/subscribe', [NewsletterController::class, 'store'])->mid
 
 // Admin panel (Inertia + React + Polaris). Fortify serves /admin/login and
 // /admin/logout on the "admin" guard (the app default) — see config/fortify.php.
-Route::middleware(['auth', 'admin.2fa'])->prefix('admin')->name('admin.')->group(function () {
+// 2FA is available per-admin via the Security page but not mandatory —
+// EnsureAdminHasTwoFactorEnabled previously enforced it here and was removed.
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');

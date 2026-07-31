@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     Banner,
     BlockStack,
@@ -47,7 +47,6 @@ function apiFetch(
 }
 
 export default function Security({ twoFactorEnabled }: SecurityProps) {
-    const { props } = usePage<{ flash: { twoFactorRequired: boolean } }>();
     const [enabled, setEnabled] = useState(twoFactorEnabled);
     const [qrSvg, setQrSvg] = useState<string | null>(null);
     const [secretKey, setSecretKey] = useState<string | null>(null);
@@ -57,7 +56,7 @@ export default function Security({ twoFactorEnabled }: SecurityProps) {
     const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
     const [busy, setBusy] = useState(false);
 
-    // A stale/missing password confirmation (Plan §8.7's "mandatory 2FA" is
+    // A stale/missing password confirmation (enabling/confirming 2FA is
     // gated behind a recent password confirm) can't usefully redirect a
     // fetch() call — send the admin to confirm, then they retry the action.
     // Known minor rough edge: they land back on the dashboard, not here.
@@ -182,13 +181,6 @@ export default function Security({ twoFactorEnabled }: SecurityProps) {
                 subtitle="Two-factor authentication for your admin account"
             >
                 <BlockStack gap="400">
-                    {props.flash?.twoFactorRequired && !enabled && (
-                        <Banner tone="critical">
-                            Two-factor authentication is required to access
-                            the admin panel. Set it up below to continue.
-                        </Banner>
-                    )}
-
                     <Card>
                         <BlockStack gap="400">
                             {enabled ? (
