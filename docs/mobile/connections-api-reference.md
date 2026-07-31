@@ -240,6 +240,8 @@ Treat any *other* non-null value defensively (show the `message` text, no button
 
 **Requires auth**, `owner`/`manager` role (same `team.role` gate as `mute`/`destroy`/`start`). A manual "sync now" trigger — dispatches the same platform-specific order-poll job the automatic scheduler and connect-time first-sync already use, just on demand. No request body.
 
+**Updated 2026-07-31 — also refreshes the product catalog, not just orders, on platforms that have one (currently WooCommerce and Shopify).** eBay/Etsy/Amazon/TikTok have no product-catalog poll job at all yet, so on those platforms this remains orders-only — not a bug, just not built for those platforms.
+
 **This is specifically for the Connections list screen, not pull-to-refresh on the Feed/Orders list.** Pull-to-refresh on any order list should just refetch `GET /orders` — this app's own database — the same as every other pull-to-refresh pattern (Twitter, Gmail, etc.): cheap, instant, no external API call. This endpoint is the one place "go check with the platform right now" is the actual intent, and it's rate-limited accordingly (see below) — don't wire it up behind a generic list's pull-to-refresh gesture, or a merchant refreshing their Feed repeatedly could burn through that store's platform-side API rate limit for no benefit (the Feed already gets new orders via webhook + the background poller regardless).
 
 **Success — 200:**

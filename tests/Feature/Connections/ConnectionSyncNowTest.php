@@ -1,7 +1,10 @@
 <?php
 
+use App\Jobs\PollEbayOrdersJob;
 use App\Jobs\PollShopifyOrdersJob;
+use App\Jobs\PollShopifyProductsJob;
 use App\Jobs\PollWooOrdersJob;
+use App\Jobs\PollWooProductsJob;
 use App\Models\StoreConnection;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -48,6 +51,31 @@ test('an owner can trigger sync now and it dispatches the platform-specific poll
         ->assertJsonPath('message', 'Sync started.');
 
     Queue::assertPushed(PollWooOrdersJob::class, fn (PollWooOrdersJob $job) => $job->connectionId === $connection->id);
+});
+
+test('sync now also dispatches the product-catalog poll job for platforms that have one', function () {
+    Queue::fake();
+    $user = onboardedUserForSyncNowTest();
+    $woo = StoreConnection::factory()->create(['team_id' => $user->ownedTeam->id, 'platform' => StoreConnection::PLATFORM_WOO]);
+    $shopify = StoreConnection::factory()->create(['team_id' => $user->ownedTeam->id, 'platform' => StoreConnection::PLATFORM_SHOPIFY]);
+
+    test()->postJson("/api/v1/connections/{$woo->id}/sync-now")->assertOk();
+    test()->postJson("/api/v1/connections/{$shopify->id}/sync-now")->assertOk();
+
+    Queue::assertPushed(PollWooProductsJob::class, fn (PollWooProductsJob $job) => $job->connectionId === $woo->id);
+    Queue::assertPushed(PollShopifyProductsJob::class, fn (PollShopifyProductsJob $job) => $job->connectionId === $shopify->id);
+});
+
+test('sync now on a platform with no product-catalog poll job only dispatches the orders job', function () {
+    Queue::fake();
+    $user = onboardedUserForSyncNowTest();
+    $connection = StoreConnection::factory()->create(['team_id' => $user->ownedTeam->id, 'platform' => StoreConnection::PLATFORM_EBAY]);
+
+    test()->postJson("/api/v1/connections/{$connection->id}/sync-now")->assertOk();
+
+    Queue::assertPushed(PollEbayOrdersJob::class, fn (PollEbayOrdersJob $job) => $job->connectionId === $connection->id);
+    Queue::assertNotPushed(PollWooProductsJob::class);
+    Queue::assertNotPushed(PollShopifyProductsJob::class);
 });
 
 test('a shopify connection dispatches the shopify poll job, not woo\'s', function () {
