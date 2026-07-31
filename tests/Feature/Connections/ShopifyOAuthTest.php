@@ -61,11 +61,10 @@ test('starting a shopify connection returns a properly formed authorization url'
     expect($url)->toStartWith('https://my-test-shop.myshopify.com/admin/oauth/authorize?');
     expect($url)->toContain('client_id=test-client-id');
     expect($url)->toContain('read_orders');
-    // Without this, Shopify silently issues the old non-expiring offline
-    // token, which the Admin API now rejects outright (§ the whole point
-    // of this fix) — regression-guard it directly, not just indirectly
-    // via the token-exchange tests.
-    expect($url)->toContain('expiring=1');
+    // expiring=1 deliberately does NOT belong on this URL — it's a
+    // token-exchange body parameter, not an /authorize query param (see
+    // completeConnection()'s own test for that assertion instead). An
+    // earlier version of this test wrongly asserted it here.
 });
 
 test('a valid callback completes the connection, fetches store branding, and registers webhooks', function () {
@@ -108,6 +107,13 @@ test('a valid callback completes the connection, fetches store branding, and reg
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'orders/create');
     Http::assertSent(fn ($request) => str_contains($request->url(), '/webhooks.json') && ($request['webhook']['topic'] ?? null) === 'inventory_levels/update');
+
+    // Regression guard for the actual bug: expiring=1 must be sent as a
+    // token-exchange body parameter, not left off (which silently gets a
+    // non-expiring token back) or misplaced on the /authorize URL instead
+    // (where Shopify just ignores it as an unrecognized query param).
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/admin/oauth/access_token')
+        && $request['expiring'] === '1');
 });
 
 test('a valid callback dispatches an immediate first-sync job rather than waiting for the next poll tick', function () {

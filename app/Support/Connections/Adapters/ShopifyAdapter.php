@@ -64,19 +64,17 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $shopDomain = (string) ($startCredentials['shop_domain'] ?? '');
 
+        // `expiring=1` does NOT belong here — it's a token-exchange (POST
+        // /admin/oauth/access_token) body parameter, not an /authorize
+        // query param (confirmed against shopify.dev's own example
+        // request; an earlier version of this method incorrectly put it
+        // here, where Shopify just silently ignores it as an unrecognized
+        // param). See completeConnection() for where it actually goes.
         return "https://{$shopDomain}/admin/oauth/authorize?".http_build_query([
             'client_id' => config('services.shopify.client_id'),
             'scope' => self::SCOPES,
             'redirect_uri' => route('hooks.shopify.oauth-callback'),
             'state' => $state,
-            // Without this, Shopify silently issues the old non-expiring
-            // offline token — expiring tokens are opt-in per authorization,
-            // not automatic (shopify.dev/docs/apps/build/authentication-
-            // authorization/access-tokens/offline-access-tokens). Public
-            // apps created after 2026-04-01 are required to use expiring
-            // tokens outright; the Admin API already 403s non-expiring
-            // tokens for this app specifically, so this isn't optional.
-            'expiring' => '1',
         ]);
     }
 
@@ -103,6 +101,14 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
             'client_id' => config('services.shopify.client_id'),
             'client_secret' => config('services.shopify.client_secret'),
             'code' => $code,
+            // The actual, verbatim-confirmed location of this param
+            // (shopify.dev/docs/apps/build/authentication-authorization/
+            // access-tokens/offline-access-tokens's own example curl
+            // request) — without it Shopify issues the old non-expiring
+            // token, which the Admin API now rejects outright for this
+            // app. Public apps created after 2026-04-01 are required to
+            // use expiring tokens outright, so this isn't optional.
+            'expiring' => '1',
         ]);
 
         $accessToken = $tokenResponse->json('access_token');
