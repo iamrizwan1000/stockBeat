@@ -433,8 +433,13 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
      * Uses the Fulfillment Orders API (the modern replacement for the
      * classic `/orders/{id}/fulfillments.json` shortcut, mandatory for
      * apps created after Shopify's 2021 cutover — ours is a 2026 app).
-     * Assumes a single default location/fulfillment order — multi-location
-     * split fulfillment is a deliberate scope cut for v1.
+     * Assumes a single default location/fulfillment order — genuine
+     * multi-location split fulfillment (per-shipment tracking numbers,
+     * one API call per location) is a deliberate scope cut for v1. What
+     * this method does guard against: silently fulfilling only the
+     * *first* shipment while marking the whole order `shipped` locally,
+     * misrepresenting a partially-fulfilled order as complete — see the
+     * multi-open-fulfillment-order check below.
      */
     public function fulfill(Order $order, FulfillmentData $data): ActionResult
     {
@@ -448,7 +453,13 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         /** @var array<int, array<string, mixed>> $fulfillmentOrders */
         $fulfillmentOrders = (array) $foResponse->json('fulfillment_orders', []);
-        $open = collect($fulfillmentOrders)->firstWhere('status', 'open') ?? ($fulfillmentOrders[0] ?? null);
+        $openOrders = collect($fulfillmentOrders)->where('status', 'open')->values();
+
+        if ($openOrders->count() > 1) {
+            return ActionResult::failure('This order ships from multiple locations — fulfill each shipment separately in Shopify Admin rather than here, so tracking gets attached to the right one.');
+        }
+
+        $open = $openOrders->first() ?? ($fulfillmentOrders[0] ?? null);
 
         if ($open === null) {
             return ActionResult::failure('No open Shopify fulfillment order found for this order.');

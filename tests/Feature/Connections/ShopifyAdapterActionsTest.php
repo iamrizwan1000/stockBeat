@@ -75,6 +75,24 @@ test('fulfill fails cleanly when there is no open fulfillment order', function (
     expect($order->fresh()->status)->toBe(Order::STATUS_NEW);
 });
 
+test('fulfill refuses a multi-location split order rather than fulfilling only the first shipment', function () {
+    Http::fake([
+        '*/orders/5551234/fulfillment_orders.json' => Http::response(['fulfillment_orders' => [
+            ['id' => 777, 'status' => 'open'],
+            ['id' => 778, 'status' => 'open'],
+        ]], 200),
+    ]);
+
+    $order = shopifyOrderForActions();
+
+    $result = app(ShopifyAdapter::class)->fulfill($order, new FulfillmentData('1Z999'));
+
+    expect($result->success)->toBeFalse();
+    expect($result->message)->toContain('multiple locations');
+    expect($order->fresh()->status)->toBe(Order::STATUS_NEW);
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/fulfillments.json'));
+});
+
 test('refund looks up the original transaction and issues a refund against it', function () {
     Http::fake([
         '*/orders/5551234/transactions.json' => Http::response(['transactions' => [
