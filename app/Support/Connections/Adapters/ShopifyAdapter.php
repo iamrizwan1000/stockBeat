@@ -25,6 +25,7 @@ use App\Support\Orders\NormalizedOrder;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 
@@ -122,6 +123,20 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         $expiresIn = $tokenResponse->json('expires_in');
         $expiresAt = is_numeric($expiresIn) ? now()->addSeconds((int) $expiresIn)->toIso8601String() : null;
         $refreshToken = $tokenResponse->json('refresh_token');
+
+        // Ground truth for diagnosing "reconnected, immediately needs
+        // reauth again" — if `expiring=1` isn't actually landing an
+        // expiring token (e.g. this Partner app needs an explicit opt-in
+        // in the Partner Dashboard before the parameter takes effect),
+        // this is where that shows up: `expires_in` present tells you the
+        // exchange itself is fine either way. Never logs the token values
+        // themselves.
+        Log::info('Shopify token exchange completed', [
+            'shop' => $shop,
+            'has_expires_in' => is_numeric($expiresIn),
+            'has_refresh_token' => is_string($refreshToken),
+            'scope' => $tokenResponse->json('scope'),
+        ]);
 
         $credentials = [
             'shop_domain' => $shop,

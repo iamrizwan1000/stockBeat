@@ -19,7 +19,29 @@ class GetConnectionHealthAction
      */
     public function handle(StoreConnection $connection): array
     {
-        [$message, $fixAction] = match (true) {
+        [$message, $fixAction] = $this->resolveMessage($connection);
+
+        return [
+            'connection_id' => $connection->id,
+            'status' => $connection->status,
+            'webhook_status' => $connection->webhook_status,
+            'last_sync_at' => $connection->last_sync_at?->toIso8601String(),
+            'message' => $message,
+            'fix_action' => $fixAction,
+        ];
+    }
+
+    /**
+     * Shared with `StoreConnectionResource` so the connections *list*
+     * carries the same plain-language reason as the dedicated health
+     * endpoint, not just a bare `status` code the client has to decode
+     * into its own copy — one source of truth for both.
+     *
+     * @return array{0: string, 1: string|null}
+     */
+    public function resolveMessage(StoreConnection $connection): array
+    {
+        return match (true) {
             $connection->status === StoreConnection::STATUS_NEEDS_REAUTH => [
                 "Your connection to {$connection->name} needs to be reconnected.",
                 'reauth',
@@ -42,14 +64,5 @@ class GetConnectionHealthAction
             ],
             default => ["{$connection->name} is connected and syncing normally.", null],
         };
-
-        return [
-            'connection_id' => $connection->id,
-            'status' => $connection->status,
-            'webhook_status' => $connection->webhook_status,
-            'last_sync_at' => $connection->last_sync_at?->toIso8601String(),
-            'message' => $message,
-            'fix_action' => $fixAction,
-        ];
     }
 }
