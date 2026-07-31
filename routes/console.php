@@ -74,6 +74,13 @@ Schedule::command('ai:detect-insights')->hourly();
 Schedule::command('products:poll-woo')->everyThirtyMinutes();
 Schedule::command('reviews:poll-woo')->hourly();
 
+// Shopify's product/stock catalog (Plan §4.4) — real-time top-up via the
+// inventory_levels/update webhook covers low_stock between runs; this is
+// the safety net plus what actually populates the catalog for a freshly
+// connected store (also dispatched immediately on connect, see
+// ShopifyAdapter::completeConnection()).
+Schedule::command('products:poll-shopify')->everyThirtyMinutes();
+
 // eBay's low_stock/negative_review data sources (Plan §4.4/§7.3/§7.8) — no
 // webhooks for either (same "polling is the whole mechanism" posture as
 // `orders:poll-ebay`/`inbox:poll-ebay-messages` above), so these run on the

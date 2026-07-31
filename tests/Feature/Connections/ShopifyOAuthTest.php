@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\PollShopifyOrdersJob;
+use App\Jobs\PollShopifyProductsJob;
 use App\Models\StoreConnection;
 use App\Models\User;
 use App\Support\Connections\OAuthState;
@@ -145,6 +146,7 @@ test('a valid callback dispatches an immediate first-sync job rather than waitin
 
     $connection = StoreConnection::query()->where('platform', StoreConnection::PLATFORM_SHOPIFY)->first();
     Queue::assertPushed(PollShopifyOrdersJob::class, fn (PollShopifyOrdersJob $job) => $job->connectionId === $connection->id);
+    Queue::assertPushed(PollShopifyProductsJob::class, fn (PollShopifyProductsJob $job) => $job->connectionId === $connection->id);
 });
 
 test('replaying the exact same callback link does not create a second connection', function () {

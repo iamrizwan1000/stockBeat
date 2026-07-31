@@ -7,6 +7,7 @@ use App\Contracts\ChannelAdapter;
 use App\Contracts\OAuthChannelAdapter;
 use App\Exceptions\Connections\AdapterNotReadyException;
 use App\Jobs\PollShopifyOrdersJob;
+use App\Jobs\PollShopifyProductsJob;
 use App\Jobs\RuleEvaluationJob;
 use App\Models\InboxThread;
 use App\Models\Order;
@@ -196,6 +197,12 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
         // IngestOrderAction's idempotent upsert prevent any double-processing
         // against webhooks or the scheduled poller.
         PollShopifyOrdersJob::dispatch($connection->id);
+
+        // Same reasoning — without this a freshly connected store shows
+        // zero products until either the next scheduled products:poll-
+        // shopify tick (up to 30 min) or an inventory_levels/update
+        // webhook happens to fire first.
+        PollShopifyProductsJob::dispatch($connection->id);
 
         return $connection;
     }
