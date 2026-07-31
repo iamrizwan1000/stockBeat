@@ -60,14 +60,21 @@ Per Plan §4.10's navigation spec, this is the **first of four bottom tabs**: Fe
 10. "Share invoice" → added 2026-07-26 (Plan §4.18), `GET /orders/{id}/invoice`, same PDF/share-sheet mechanism as the packing slip above but this one has the priced breakdown (line items, subtotal, discount/tax if known, total) — the one to send a customer, not the packing slip. Free on every plan, no capability check needed before showing the button.
 11. **Order timeline — added 2026-07-27 (Plan §4.19), free on every plan.** A collapsible "Activity" section rendering `events` top-to-bottom (already oldest-first from the API — don't reverse it). Map each `type` to a fixed icon + one-line label built from `payload` (e.g. `fulfilled` → "Marked fulfilled · UPS 1Z999AA1...", `tags_updated` → "Tags updated: gift, urgent"); `created`/`updated` have no `payload` today, just show a generic "Order received"/"Order synced" line. This is a good source for a real order-detail "what happened" section that didn't exist before — don't build a placeholder timeline out of `status` alone when this real data exists.
 
-### Quick action buttons — capability-gated, don't just always show all four
+### Quick action buttons — capability-gated AND order-state-gated, don't just always show all four
 
 Before rendering fulfill/refund/cancel buttons, check this order's connection's `capabilities` (from `GET /connections`, `connections-api-reference.md`) — you'll need to have that connection list cached/available on this screen, keyed by `connection_id`:
 - `capabilities.fulfill_tracking` → show "Mark fulfilled"
 - `capabilities.refunds` → show "Refund"
 - `capabilities.cancel` → show "Cancel order"
 
-**Even with client-side gating, still handle the 422 gracefully** — the server enforces the same check independently (Plan §8.3: "server-enforced... rather than trusting the mobile app only shows the button when supported"), and it's the authority if the two ever disagree (e.g. a capability changes server-side without an app release).
+**This alone isn't enough — also check the order's own `status` before showing a button, not just the connection's capability.** All three actions are idempotent server-side (double-tapping just gets back a friendly "already fulfilled/refunded/cancelled" success, never an error or a duplicate action against the platform), but nothing hides the button once an order reaches that state — a real report from testing was seeing "Mark fulfilled" still showing on an order that was already fulfilled directly in Shopify. Hide (or disable) each button once its own action no longer applies:
+- "Mark fulfilled" → hide once `status === "shipped"`
+- "Refund" → hide once `status === "refunded"`
+- "Cancel order" → hide once `status === "cancelled"`
+
+This is a per-order check, re-evaluated every time the order updates (webhook-driven status changes, e.g. a merchant fulfilling directly in Shopify Admin, should make the button disappear here too — don't cache the button's visibility separately from the order's `status` field).
+
+**Even with client-side gating, still handle the 422 gracefully** — the server enforces the connection-capability check independently (Plan §8.3: "server-enforced... rather than trusting the mobile app only shows the button when supported"), and it's the authority if the two ever disagree (e.g. a capability changes server-side without an app release). The order-state check has no equivalent 422 — calling e.g. `POST /orders/{id}/fulfill` on an already-shipped order just returns a normal `200` success with the "already fulfilled" message, so there's no error case to handle there, just a wasted call worth avoiding by hiding the button.
 
 **"Mark fulfilled" sheet:** tracking number (required text input) + carrier (optional text input, not a picker — carriers aren't standardized across platforms). Submit → `POST /orders/{id}/fulfill`. **This is a real live call to the platform**, not instant — show a loading state on the submit button, disable double-submit.
 
@@ -77,7 +84,7 @@ Before rendering fulfill/refund/cancel buttons, check this order's connection's 
 
 All three: on success, update the order in local state from the response's `order` object (status/fulfillment_status/payment_status will have changed) rather than re-fetching — the response already has everything.
 
-**On a 422 "not supported" response** (shouldn't normally happen if you gated correctly, but handle it): show the server's message (`errors.order[0]`) as a plain alert/toast, don't treat it like a form validation error under a specific field.
+**On any 422 from these three, show the server's message as a plain alert/toast** — don't treat it like a form validation error under a specific field. **Check both possible message locations, don't assume `errors.order[0]` alone covers it**: the capability "not supported" case (shouldn't normally happen if you gated correctly, but handle it) puts its text under `errors.order[0]`, while fulfill's multi-location-split case (`orders-api-reference.md`, added 2026-07-31 — real, if uncommon, on a multi-warehouse Shopify store) puts it in the top-level `message` field instead. Fall back to whichever one is actually populated rather than hardcoding `errors.order[0]`.
 
 ---
 

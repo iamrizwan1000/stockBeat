@@ -133,6 +133,8 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
         "platform": "woo",
         "name": "Rivera Vintage Co",
         "status": "active",
+        "message": "Rivera Vintage Co is connected and syncing normally.",
+        "fix_action": null,
         "last_sync_at": "2026-07-16T01:45:00.000000Z",
         "webhook_status": "registered",
         "capabilities": { "realtime_orders": true, "fulfill_tracking": true, "refunds": true, "cancel": true, "messaging_mode": "email", "inventory_update": true, "reviews_feedback": true, "payouts_available": false, "review_reply": false, "tag_sync": false }
@@ -141,6 +143,8 @@ After `start` returns an `authorization_url` and you open it, the merchant appro
   }
 }
 ```
+
+**`message`/`fix_action` (added 2026-07-31)** — this list now carries the same plain-language reason and fix-action key the dedicated `GET /connections/{id}/health` endpoint has always had (see that section below for the full `fix_action` value table — it's identical here, don't duplicate a second mapping). Before this, the list only had the raw `status` code, pushing every client to invent its own copy for what `needs_reauth`/`paused`/etc. actually means — use `message` directly instead of building your own strings from `status`, and re-derive it from this response every time rather than caching a client-side copy (it changes as sync state changes, same webhook-driven update path as `status`/`last_sync_at`).
 
 **`status` values and what they mean for the UI:**
 | Value | Meaning | Client treatment |
