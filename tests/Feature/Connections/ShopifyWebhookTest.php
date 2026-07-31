@@ -189,6 +189,35 @@ test('an inventory_levels/update webhook syncs stock and fires the low_stock tri
     expect(RuleExecution::query()->where('rule_id', $rule->id)->count())->toBe(1);
 });
 
+test('an inventory_levels/update webhook captures the variant image, or the product main image as a fallback', function () {
+    $connection = connectedShopifyStore();
+
+    Http::fake([
+        '*/admin/api/*/variants.json*' => Http::response([
+            'variants' => [['id' => 555, 'product_id' => 777, 'sku' => 'SKU-1', 'title' => 'Blue', 'image_id' => 42]],
+        ], 200),
+        '*/admin/api/*/products/777.json*' => Http::response([
+            'product' => [
+                'title' => 'Blue Widget',
+                'image' => ['src' => 'https://cdn.shopify.com/main.jpg'],
+                'images' => [
+                    ['id' => 42, 'src' => 'https://cdn.shopify.com/blue.jpg'],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $payload = ['inventory_item_id' => 998877, 'location_id' => 1, 'available' => 2];
+
+    test()->withHeaders([
+        'X-Shopify-Topic' => 'inventory_levels/update',
+        'X-Shopify-Hmac-Sha256' => shopifyBodyHmac($payload, 'test-client-secret'),
+    ])->postJson("/hooks/shopify/{$connection->id}", $payload)->assertOk();
+
+    $product = Product::query()->where('connection_id', $connection->id)->where('external_id', '555')->first();
+    expect($product->image_url)->toBe('https://cdn.shopify.com/blue.jpg');
+});
+
 test('an inventory_levels/update webhook for an unresolvable inventory item is a safe no-op', function () {
     $connection = connectedShopifyStore();
 

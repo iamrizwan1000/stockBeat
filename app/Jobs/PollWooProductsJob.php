@@ -75,12 +75,19 @@ class PollWooProductsJob implements ShouldQueue
                 $sku = (string) ($raw['sku'] ?? '');
                 $managesStock = (bool) ($raw['manage_stock'] ?? false);
 
+                /** @var array<int, array<string, mixed>> $images */
+                $images = (array) ($raw['images'] ?? []);
+
                 $product = Product::query()->updateOrCreate(
                     ['connection_id' => $connection->id, 'external_id' => (string) $raw['id']],
                     [
                         'team_id' => $connection->team_id,
                         'sku' => $sku !== '' ? $sku : null,
                         'title' => (string) ($raw['name'] ?? ''),
+                        // Woo returns images ordered by the position the
+                        // merchant set in the product editor — the first one
+                        // is always the intended "main" image.
+                        'image_url' => $images[0]['src'] ?? null,
                         'stock_quantity' => $managesStock ? $raw['stock_quantity'] : null,
                     ],
                 );

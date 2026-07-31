@@ -14,7 +14,7 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 
 ```json
 { "success": true, "message": null, "data": { "products": [
-  { "id": 1, "connection_id": 1, "sku": "VNT-014", "title": "Vintage Denim Jacket", "stock_quantity": 6, "cost_price": 22.50 }
+  { "id": 1, "connection_id": 1, "sku": "VNT-014", "title": "Vintage Denim Jacket", "image_url": "https://cdn.shopify.com/s/files/1/.../denim.jpg", "stock_quantity": 6, "cost_price": 22.50 }
 ] } }
 ```
 
@@ -22,6 +22,7 @@ Base URL: `https://stockbeat.qistpay.org/api/v1`. Same envelope and auth rules a
 |---|---|---|
 | `connection_id` | int | Which store connection this product came from — cross-reference `GET /connections` (`connections-api-reference.md`) if you want to show the store name per product |
 | `sku` | string\|null | Not every platform/product guarantees a SKU |
+| `image_url` | string\|null | **Added 2026-07-31.** A direct, publicly-accessible image URL (Shopify CDN / Woo media library) — load it as-is, no auth header needed. `null` is common and expected, not a bug: the product genuinely has no image set on the platform, or (Shopify only) that specific variant has no image of its own and the parent product has none either. Show a placeholder/blank state, not a broken-image icon. Not staleness-tracked separately from the rest of the row — refreshes whenever this product's normal poll/webhook sync does. |
 | `stock_quantity` | int\|null | Last polled/pushed stock level — otherwise **not real-time**, this is whatever the last sync cycle saw (or the last successful `PUT .../stock` call set it to), same staleness caveat as anywhere else stock is shown in this app |
 | `cost_price` | float\|null | `null` means "not entered yet," not zero — see below |
 

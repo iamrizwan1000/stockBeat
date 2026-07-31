@@ -16,7 +16,7 @@ Add a **"Products" (or "Inventory")** row to `MoreScreen` (`settings-flow-screen
 
 **On load:** `GET /products`.
 
-**List:** title, SKU (or "No SKU" if null — don't show a blank), stock quantity, and the cost price itself — right-aligned, showing "Not set" (not "$0.00" or a blank) when `cost_price` is `null`. A search/filter-by-title input is reasonable for teams with a large catalog, purely client-side (no server-side search param on this endpoint).
+**List:** a leading thumbnail (`image_url`, added 2026-07-31), title, SKU (or "No SKU" if null — don't show a blank), stock quantity, and the cost price itself — right-aligned, showing "Not set" (not "$0.00" or a blank) when `cost_price` is `null`. When `image_url` is `null` (common — see the API doc), show a plain placeholder tile, not a broken-image icon or a layout gap; don't block the row on the image loading. A search/filter-by-title input is reasonable for teams with a large catalog, purely client-side (no server-side search param on this endpoint).
 
 **Tap a row (cost price)** → inline edit or a small sheet: a single numeric input pre-filled with the current `cost_price` (empty if `null`), a "Clear" action distinct from just emptying the field (see below), Save/Cancel.
 

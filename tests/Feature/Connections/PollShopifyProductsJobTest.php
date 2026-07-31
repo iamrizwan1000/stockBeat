@@ -81,6 +81,53 @@ test('the poller upserts one product row per variant and clears stock_quantity w
     expect(ProductStockSnapshot::query()->where('product_id', $unmanaged->id)->count())->toBe(0);
 });
 
+test('a variant with its own assigned image gets that one, other variants fall back to the product main image', function () {
+    $connection = shopifyConnectionForProductPolling();
+
+    Http::fake([
+        '*/products.json*' => Http::response(['products' => [
+            [
+                'id' => 1,
+                'title' => 'Widget',
+                'image' => ['src' => 'https://cdn.shopify.com/main.jpg'],
+                'images' => [
+                    ['id' => 5001, 'src' => 'https://cdn.shopify.com/main.jpg'],
+                    ['id' => 5002, 'src' => 'https://cdn.shopify.com/blue-variant.jpg'],
+                ],
+                'variants' => [
+                    ['id' => 101, 'sku' => 'SKU-1', 'image_id' => 5002, 'inventory_management' => 'shopify', 'inventory_quantity' => 2],
+                    ['id' => 102, 'sku' => 'SKU-1-RED', 'image_id' => null, 'inventory_management' => 'shopify', 'inventory_quantity' => 3],
+                ],
+            ],
+        ]], 200),
+    ]);
+
+    pollShopifyProducts($connection->id);
+
+    $withOwnImage = Product::query()->where('connection_id', $connection->id)->where('external_id', '101')->first();
+    $fallsBackToMain = Product::query()->where('connection_id', $connection->id)->where('external_id', '102')->first();
+
+    expect($withOwnImage->image_url)->toBe('https://cdn.shopify.com/blue-variant.jpg');
+    expect($fallsBackToMain->image_url)->toBe('https://cdn.shopify.com/main.jpg');
+});
+
+test('a product with no images at all leaves image_url null, not an error', function () {
+    $connection = shopifyConnectionForProductPolling();
+
+    Http::fake([
+        '*/products.json*' => Http::response(['products' => [
+            ['id' => 1, 'title' => 'Widget', 'variants' => [
+                ['id' => 101, 'sku' => 'SKU-1', 'inventory_management' => 'shopify', 'inventory_quantity' => 2],
+            ]],
+        ]], 200),
+    ]);
+
+    pollShopifyProducts($connection->id);
+
+    $product = Product::query()->where('connection_id', $connection->id)->where('external_id', '101')->first();
+    expect($product->image_url)->toBeNull();
+});
+
 test('the poller triggers a low_stock rule end to end when a variant is at or below threshold', function () {
     $connection = shopifyConnectionForProductPolling();
     $rule = Rule::factory()->create([

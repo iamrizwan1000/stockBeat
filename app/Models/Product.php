@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string $external_id
  * @property string|null $sku
  * @property string $title
+ * @property string|null $image_url
  * @property int|null $stock_quantity
  * @property float|null $cost_price
  * @property Carbon|null $low_stock_notified_at
@@ -34,7 +35,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['team_id', 'connection_id', 'external_id', 'sku', 'title', 'stock_quantity', 'cost_price', 'low_stock_notified_at', 'stale_stock_notified_at', 'back_in_stock_notified_at'])]
+#[Fillable(['team_id', 'connection_id', 'external_id', 'sku', 'title', 'image_url', 'stock_quantity', 'cost_price', 'low_stock_notified_at', 'stale_stock_notified_at', 'back_in_stock_notified_at'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */

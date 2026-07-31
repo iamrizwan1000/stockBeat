@@ -147,6 +147,10 @@ class PollShopifyProductsJob implements ShouldQueue
         CheckBackInStockAction $checkBackInStock,
     ): void {
         $title = (string) ($rawProduct['title'] ?? '');
+        $mainImageUrl = $rawProduct['image']['src'] ?? null;
+
+        /** @var array<int, array<string, mixed>> $productImages */
+        $productImages = (array) ($rawProduct['images'] ?? []);
 
         /** @var array<int, array<string, mixed>> $variants */
         $variants = (array) ($rawProduct['variants'] ?? []);
@@ -162,12 +166,25 @@ class PollShopifyProductsJob implements ShouldQueue
             // Woo's `manage_stock` boolean.
             $managesStock = ($variant['inventory_management'] ?? null) === 'shopify';
 
+            // A variant with its own assigned image (e.g. a specific color
+            // swatch) shows that one; every other variant falls back to the
+            // product's main image — most sellers only ever set one image
+            // for the whole product, not per variant.
+            $imageUrl = $mainImageUrl;
+            $variantImageId = $variant['image_id'] ?? null;
+
+            if ($variantImageId !== null) {
+                $variantImage = collect($productImages)->firstWhere('id', $variantImageId);
+                $imageUrl = $variantImage['src'] ?? $mainImageUrl;
+            }
+
             $product = Product::query()->updateOrCreate(
                 ['connection_id' => $connection->id, 'external_id' => (string) $variant['id']],
                 [
                     'team_id' => $connection->team_id,
                     'sku' => ($variant['sku'] ?? null) !== '' ? ($variant['sku'] ?? null) : null,
                     'title' => $title !== '' ? $title : 'Unknown product',
+                    'image_url' => $imageUrl,
                     'stock_quantity' => $managesStock ? $variant['inventory_quantity'] ?? null : null,
                 ],
             );

@@ -74,6 +74,28 @@ test('the poller upserts products and clears stock_quantity when stock is unmana
     expect(ProductStockSnapshot::query()->where('product_id', $gadget->id)->count())->toBe(0);
 });
 
+test('the poller captures the first image as image_url, and leaves it null when there are none', function () {
+    $connection = wooConnectionForPolling();
+
+    Http::fake([
+        '*/wp-json/wc/v3/products*' => Http::response([
+            ['id' => 1, 'sku' => 'SKU-1', 'name' => 'Widget', 'manage_stock' => true, 'stock_quantity' => 2, 'images' => [
+                ['src' => 'https://example-shop.test/wp-content/uploads/widget-main.jpg'],
+                ['src' => 'https://example-shop.test/wp-content/uploads/widget-alt.jpg'],
+            ]],
+            ['id' => 2, 'sku' => 'SKU-2', 'name' => 'Gadget', 'manage_stock' => false, 'stock_quantity' => null, 'images' => []],
+        ], 200),
+    ]);
+
+    pollWooProducts(new PollWooProductsJob($connection->id));
+
+    $widget = Product::query()->where('connection_id', $connection->id)->where('external_id', '1')->first();
+    $gadget = Product::query()->where('connection_id', $connection->id)->where('external_id', '2')->first();
+
+    expect($widget->image_url)->toBe('https://example-shop.test/wp-content/uploads/widget-main.jpg');
+    expect($gadget->image_url)->toBeNull();
+});
+
 test('the poller triggers a low_stock rule end to end when a product is at or below threshold', function () {
     $connection = wooConnectionForPolling();
     $rule = Rule::factory()->create([

@@ -409,12 +409,26 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
 
         $title = (string) ($variant['title'] ?? '');
         $productId = $variant['product_id'] ?? null;
+        $imageUrl = null;
 
         if ($productId !== null) {
-            $productResponse = $this->http($connection)->get("/products/{$productId}.json", ['fields' => 'title']);
+            $productResponse = $this->http($connection)->get("/products/{$productId}.json", ['fields' => 'title,image,images']);
 
             if ($productResponse->successful()) {
                 $title = (string) ($productResponse->json('product.title') ?? $title);
+                $imageUrl = $productResponse->json('product.image.src');
+
+                // Same variant-specific-image-over-product-main-image
+                // preference as PollShopifyProductsJob — kept consistent
+                // between the webhook and poll paths on purpose.
+                $variantImageId = $variant['image_id'] ?? null;
+
+                if ($variantImageId !== null) {
+                    /** @var array<int, array<string, mixed>> $images */
+                    $images = (array) $productResponse->json('product.images', []);
+                    $variantImage = collect($images)->firstWhere('id', $variantImageId);
+                    $imageUrl = $variantImage['src'] ?? $imageUrl;
+                }
             }
         }
 
@@ -424,6 +438,7 @@ class ShopifyAdapter implements ChannelAdapter, OAuthChannelAdapter
                 'team_id' => $connection->team_id,
                 'sku' => $variant['sku'] ?? null,
                 'title' => $title !== '' ? $title : 'Unknown product',
+                'image_url' => $imageUrl,
                 'stock_quantity' => $available,
             ],
         );

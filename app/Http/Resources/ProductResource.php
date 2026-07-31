@@ -21,6 +21,7 @@ class ProductResource extends JsonResource
             'connection_id' => $this->connection_id,
             'sku' => $this->sku,
             'title' => $this->title,
+            'image_url' => $this->image_url,
             'stock_quantity' => $this->stock_quantity,
             'cost_price' => $this->cost_price === null ? null : (float) $this->cost_price,
         ];
