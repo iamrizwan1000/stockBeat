@@ -12,15 +12,14 @@ Depends on the Auth flow completing first (`auth-flow-screens.md`, Screen 3 `Pro
 
 **Content:**
 - A grid/list of 6 platform tiles: Shopify, WooCommerce, eBay, Etsy, Amazon, TikTok Shop.
-- **Order the tiles by the user's `sells_on` answer from profile setup first**, remaining platforms after — the platforms they told you they sell on are the ones they'll want, don't make them scroll past ones they didn't pick.
-- **Amazon tile: show it, but visually distinct (greyed/"Coming soon" badge) and non-interactive**, or route it to a static "Amazon support is coming soon" screen rather than attempting to start a connection — the backend will 422 every time today (see API reference), don't build a flow around retrying that.
+- **Updated 2026-07-31 — only Shopify is launched. WooCommerce, eBay, Etsy, Amazon, and TikTok Shop are all "coming soon" now, not just Amazon** (this section previously only called out Amazon — that was accurate before 2026-07-31, it no longer is; see `connections-api-reference.md`'s platform status section for the current, authoritative list). Every adapter is fully built and tested server-side, but `POST /connections/{platform}/start` 422s for all five with a permanent "coming soon" message — this isn't a temporary outage, don't build retry logic around it.
+- **Show all 6 tiles, but only Shopify is interactive** — the other five: visually distinct (greyed/"Coming soon" badge), non-interactive, same treatment Amazon alone used to get. Don't hide them entirely — showing the full roadmap is deliberate (Plan's product positioning is multi-channel, just not fully live yet), same reasoning as the marketing site's platform trust bar.
+- **Order the tiles by the user's `sells_on` answer from profile setup first**, remaining platforms after — even for a coming-soon platform, this tells the seller "we know you want this, it's coming" rather than burying it. Still non-interactive regardless of `sells_on` order.
 - Each tile shows platform name + icon; no live status here (that's Screen 5 / the connections list).
 
 **On tap of a platform tile:**
-- `woo` → `ConnectWooScreen` (Screen 2a)
 - `shopify` → `ConnectShopifyScreen` (Screen 2b) — collects `shop_domain` first
-- `ebay` / `etsy` / `tiktok` → straight to the OAuth browser step (Screen 3) — no data entry needed first
-- `amazon` → the "coming soon" screen, no API call
+- `woo` / `ebay` / `etsy` / `amazon` / `tiktok` → the "coming soon" screen (or just a disabled tile with no tap handler at all), no API call. `ConnectWooScreen` (Screen 2a) and the generic OAuth browser step (Screen 3) below are still fully real and documented — they're what these platforms will use once launched, not currently reachable from this screen. Keep that code, don't delete it; this is a launch-sequencing gate, not a scope cut.
 
 ---
 
