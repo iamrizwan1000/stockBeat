@@ -144,7 +144,7 @@ All of these: **requires auth**, `owner`/`manager` role only, and only reachable
 ```
 `tracking_number`: required. `carrier`: optional free text (not an enum — platforms don't standardize this).
 
-- **200 success:** `{order: {...}}`, `message: "Order marked as fulfilled."` — this is a **real call through to the platform's own API** (WooCommerce and Shopify today), not just a local status flip. Show a loading state, this isn't instant.
+- **200 success:** `{order: {...}}`, `message: "Order marked fulfilled."` — this is a **real call through to the platform's own API** (WooCommerce and Shopify today), not just a local status flip. Show a loading state, this isn't instant.
 - **422 — platform doesn't support this here:** `errors.order[0]` = `"This channel doesn't support marking orders fulfilled from here."` — check `capabilities.fulfill_tracking` from the connection (`connections-api-reference.md`) *before* even showing this button, this error is the server-side backstop, not the primary UX.
 - **422 — Shopify multi-location split order (added 2026-07-31):** message is `"This order ships from multiple locations — fulfill each shipment separately in Shopify Admin rather than here, so tracking gets attached to the right one."` — **note this one lands in the top-level `message` field, not `errors.order[0]`** like the "not supported" case above (different code path — `ActionResult::failure()`, not a validation exception). Check both locations when deciding what text to surface, don't assume every fulfill 422 has an `errors.order` array. This happens when Shopify has split an order's fulfillment across more than one location — genuinely rare for a single-location seller, more likely for a multi-warehouse Shopify Plus store. There's no client-side way to detect this in advance (it only shows up once you try), so just show the message as a plain alert on 422, same as any other fulfill failure.
 - **Repeat-safe (revised 2026-07-30):** calling this again on an already-fulfilled order returns **200** with `message: "This order has already been marked fulfilled."` and does not call the platform's API again — safe to have this fire twice on a double-tap, see `network-resilience-and-edge-cases.md`.
@@ -155,7 +155,7 @@ All of these: **requires auth**, `owner`/`manager` role only, and only reachable
 ```
 `amount`: optional — **omit entirely for a full refund**, don't send the order total yourself. `reason`: optional, max 500 chars.
 
-- **200 success:** `{order: {...}}`, `message: "Order refunded."`
+- **200 success:** `{order: {...}}`, `message: "Refund issued."`
 - **422 — not supported:** same pattern as fulfill, `errors.order[0]` = `"This channel doesn't support refunds from here."`
 - **422 — amount too high:** `errors.amount[0]` = `"The refund amount can't exceed the order total."` — also worth a client-side max-value check on the input before submit, to avoid a round trip for an obvious mistake
 - **Repeat-safe, including a true double-tap (revised 2026-07-30):** a repeat never issues a second real refund on the platform — this is the one quick action where that guarantee matters most, since a refund moves real money. It returns **200** either way, with one of **two** distinct messages depending on timing, so match on both rather than just the first:
