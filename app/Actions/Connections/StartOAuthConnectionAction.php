@@ -26,6 +26,7 @@ class StartOAuthConnectionAction
     public function __construct(
         private readonly ChannelAdapterManager $adapters,
         private readonly ResolveEntitlementsAction $resolveEntitlements,
+        private readonly ComputeStoreConnectionFingerprintAction $fingerprintAction,
     ) {}
 
     /**
@@ -36,9 +37,24 @@ class StartOAuthConnectionAction
         $maxStores = $this->resolveEntitlements->handle($team)['limits']['max_stores'] ?? null;
 
         if ($maxStores !== null) {
-            $currentCount = StoreConnection::query()->where('team_id', $team->id)->count();
+            $query = StoreConnection::query()->where('team_id', $team->id);
 
-            if ($currentCount >= $maxStores) {
+            // A reconnect (Fix-it/Reconnect tap on an existing needs_reauth
+            // or disconnected row) must not count against the same team's
+            // own store slot it's already occupying — without this
+            // exclusion, a team sitting exactly at `max_stores` could never
+            // reconnect its own store again, which is the single most
+            // common shape of this call (a free-tier team with exactly one
+            // store that just needs reauth).
+            $fingerprint = $this->fingerprintAction->handle($platform, $credentials);
+
+            if ($fingerprint !== null) {
+                $query->where(function ($q) use ($fingerprint) {
+                    $q->whereNull('fingerprint')->orWhere('fingerprint', '!=', $fingerprint);
+                });
+            }
+
+            if ($query->count() >= $maxStores) {
                 PaywallHit::log($team, PlanLimit::MAX_STORES);
 
                 throw ValidationException::withMessages([
